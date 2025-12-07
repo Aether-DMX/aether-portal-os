@@ -223,8 +223,8 @@ export default function Console() {
   const prevPage = () => setCurrentPage(p => Math.max(p - 1, 0));
 
   return (
-    <div className="fixed inset-0 bg-gradient-primary pt-[56px] flex flex-col overflow-hidden">
-      <div className="flex-1 flex flex-col p-3 gap-3 overflow-hidden">
+    <div className="page-container">
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
 
         {/* Main Content - Clean 2 Column Layout */}
         <div className="flex-1 flex gap-3 min-h-0">

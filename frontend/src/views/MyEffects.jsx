@@ -35,7 +35,7 @@ export default function MyEffects() {
 
   return (
     <div className="page-container">
-      <div className="flex-1 flex flex-col p-3 gap-3 overflow-hidden">
+      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
         
         {/* Header with tabs */}
         <div className="flex items-center justify-between">

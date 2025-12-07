@@ -221,7 +221,7 @@ export default function Settings() {
   return (
     <div className="page-container">
       {/* Tabs */}
-      <div className="h-[44px] border-b px-3 flex items-center gap-2"
+      <div className="h-[40px] shrink-0 border-b px-3 flex items-center gap-1.5 overflow-x-auto"
         style={{ borderColor: 'var(--border-color)', background: 'rgba(0, 0, 0, 0.3)' }}
       >
         {tabs.map((tab) => (
@@ -243,7 +243,7 @@ export default function Settings() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-2">
 
         {/* STATUS TAB */}
         {activeTab === 'status' && (
