@@ -534,24 +534,24 @@ export default function Settings() {
 
         {/* BACKGROUND TAB */}
         {activeTab === 'background' && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* Top Row: Toggle + Theme + Speed */}
-            <div className="card p-3">
+            <div className="card p-4">
               <div className="flex items-center gap-4">
                 {/* Toggle */}
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="theme-text" />
-                  <span className="text-xs font-bold text-white">Animation</span>
-                  <div className={`w-10 h-5 rounded-full relative cursor-pointer transition-all ${enabled ? 'theme-bg' : 'bg-white/20'}`}
+                <div className="flex items-center gap-3">
+                  <Sparkles size={20} className="theme-text" />
+                  <span className="text-sm font-bold text-white">Animation</span>
+                  <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${enabled ? 'theme-bg' : 'bg-white/20'}`}
                     onClick={() => setEnabled(!enabled)}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-all ${enabled ? 'translate-x-5' : ''}`} />
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all ${enabled ? 'translate-x-6' : ''}`} />
                   </div>
                 </div>
 
                 {enabled && (
                   <>
                     {/* Divider */}
-                    <div className="w-px h-8 bg-white/10" />
+                    <div className="w-px h-10 bg-white/10" />
 
                     {/* Theme Dropdown */}
                     <div className="flex-1">
@@ -580,13 +580,13 @@ export default function Settings() {
                     </div>
 
                     {/* Divider */}
-                    <div className="w-px h-8 bg-white/10" />
+                    <div className="w-px h-10 bg-white/10" />
 
                     {/* Speed Buttons */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       {['slow', 'normal', 'fast'].map((s) => (
                         <button key={s} onClick={() => setSpeed(s)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                          className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
                             speed === s ? 'theme-bg text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'
                           }`}>
                           {s}
@@ -600,13 +600,13 @@ export default function Settings() {
 
             {/* Sliders Row - Only show when enabled */}
             {enabled && (
-              <div className="card p-3">
-                <div className="grid grid-cols-3 gap-4">
+              <div className="card p-4">
+                <div className="grid grid-cols-3 gap-6">
                   {/* Brightness */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-white/70">Brightness</span>
-                      <span className="text-xs font-mono theme-text">{Math.round(intensity * 100)}%</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-white">Brightness</span>
+                      <span className="text-sm font-mono font-bold theme-text">{Math.round(intensity * 100)}%</span>
                     </div>
                     <input type="range" min="0" max="100" value={intensity * 100}
                       onChange={(e) => setIntensity(parseInt(e.target.value) / 100)} className="w-full" />
@@ -614,9 +614,9 @@ export default function Settings() {
 
                   {/* Size */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-white/70">Size</span>
-                      <span className="text-xs font-mono theme-text">{size.toFixed(1)}x</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-white">Size</span>
+                      <span className="text-sm font-mono font-bold theme-text">{size.toFixed(1)}x</span>
                     </div>
                     <input type="range" min="50" max="200" value={size * 100}
                       onChange={(e) => setSize(parseInt(e.target.value) / 100)} className="w-full" />
@@ -624,9 +624,9 @@ export default function Settings() {
 
                   {/* Quantity */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-white/70">Quantity</span>
-                      <span className="text-xs font-mono theme-text">{bubbleCount}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-white">Quantity</span>
+                      <span className="text-sm font-mono font-bold theme-text">{bubbleCount}</span>
                     </div>
                     <input type="range" min="10" max="80" value={bubbleCount}
                       onChange={(e) => setBubbleCount(parseInt(e.target.value))} className="w-full" />

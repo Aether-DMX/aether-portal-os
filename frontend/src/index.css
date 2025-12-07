@@ -295,39 +295,42 @@ input[type="range"] {
   appearance: none;
   background: transparent;
   cursor: pointer;
+  height: 32px;
 }
 
 input[type="range"]::-webkit-slider-track {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 12px;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: var(--theme-primary);
   border-radius: 50%;
   border: 3px solid white;
-  box-shadow: var(--shadow-glow);
-  margin-top: -8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), var(--shadow-glow);
+  margin-top: -9px;
 }
 
 input[type="range"]::-moz-range-track {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 12px;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: var(--theme-primary);
   border-radius: 50%;
   border: 3px solid white;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), var(--shadow-glow);
 }
 
 /* === BACKGROUND GRADIENT === */
