@@ -13,11 +13,8 @@ import settingsRoutes from './routes/settings.js';
 import chaseRoutes from './routes/chase.js';
 import sceneRoutes from './routes/scene.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
 dotenv.config();
 
@@ -35,13 +32,10 @@ const io = new Server(server, {
   }
 });
 
-const execAsync = promisify(exec);
-const NODES_FILE = '/home/ramzt/aether-nodes.json';
-
 app.use(cors());
 app.use(express.json());
 
-// API Routes
+// API Routes - These proxy to AETHER Core (port 8891) which is the SSOT
 app.use('/api/dmx', dmxRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/nodes', nodesRoutes);
@@ -64,72 +58,15 @@ app.get('*', (req, res) => {
 app.use(errorHandler);
 
 // Socket.IO connection handling
-io.on('connection', async (socket) => {
+// Note: Node status is managed by AETHER Core (port 8891) via WebSocket
+// This Socket.IO is for frontend real-time updates only
+io.on('connection', (socket) => {
   logger.info('Client connected to Socket.IO');
-  
-  try {
-    const data = await fs.readFile(NODES_FILE, 'utf8');
-    const nodes = JSON.parse(data);
-    socket.emit('nodes:list', Array.isArray(nodes) ? nodes : Object.values(nodes));
-    logger.info('Sent ' + (nodes.length || 0) + ' nodes to new client');
-  } catch (error) {
-    logger.error('Failed to send nodes on connection:', error);
-    socket.emit('nodes:list', []);
-  }
 
   socket.on('disconnect', () => {
     logger.info('Client disconnected from Socket.IO');
   });
 });
-
-// Auto-check node status every 5 seconds
-async function checkNodeStatus() {
-  try {
-    let data;
-    try {
-      data = await fs.readFile(NODES_FILE, 'utf8');
-    } catch (error) {
-      await fs.writeFile(NODES_FILE, '[]');
-      data = '[]';
-    }
-
-    let nodes;
-    try {
-      nodes = JSON.parse(data || '[]');
-    } catch (error) {
-      logger.error('Invalid nodes.json, resetting');
-      nodes = [];
-      await fs.writeFile(NODES_FILE, '[]');
-    }
-
-    if (!Array.isArray(nodes) || nodes.length === 0) {
-      return;
-    }
-
-    const statusChecks = nodes.map(async (node) => {
-      try {
-        await execAsync('ping -c 1 -W 1 ' + node.ip);
-        return { ...node, online: true, status: 'online', lastSeen: new Date().toISOString() };
-      } catch (error) {
-        return { ...node, online: false, status: 'offline' };
-      }
-    });
-
-    const updatedNodes = await Promise.all(statusChecks);
-    const hasChanges = JSON.stringify(nodes) !== JSON.stringify(updatedNodes);
-
-    if (hasChanges) {
-      await fs.writeFile(NODES_FILE, JSON.stringify(updatedNodes, null, 2));
-      io.emit('nodes:list', updatedNodes);
-      const onlineCount = updatedNodes.filter(n => n.online).length;
-      logger.info('Node status updated: ' + onlineCount + '/' + updatedNodes.length + ' online');
-    }
-  } catch (error) {
-    logger.error('Node status check failed:', error);
-  }
-}
-
-setInterval(checkNodeStatus, 5000);
 
 // Start server
 server.listen(3000, '0.0.0.0', () => {
