@@ -133,6 +133,12 @@ npm run build
 cd "${AETHER_HOME}/Aether-DMX/backend"
 npm install
 
+# Copy .env.example to .env if .env doesn't exist
+if [ ! -f "${AETHER_HOME}/Aether-DMX/backend/.env" ]; then
+    cp "${AETHER_HOME}/Aether-DMX/backend/.env.example" "${AETHER_HOME}/Aether-DMX/backend/.env"
+    echo -e "${YELLOW}NOTE: Edit ~/Aether-DMX/backend/.env to add your Claude API key for AI features${NC}"
+fi
+
 # ═══════════════════════════════════════════════════════════════════════════
 # STEP 8: Install Systemd Services
 # ═══════════════════════════════════════════════════════════════════════════

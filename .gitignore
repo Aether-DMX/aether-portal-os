@@ -37,3 +37,8 @@ Thumbs.db
 # Runtime
 *.pid
 *.sock
+
+# Backup files
+*.backup
+*.backup-*
+*.bak
