@@ -98,14 +98,11 @@ Be concise, confident, and constructive.`;
       // Handle tool calls
       if (response.stop_reason === 'tool_use') {
         const toolResults = [];
-        
+
         for (const content of response.content) {
           if (content.type === 'tool_use') {
-            const result = await this.executeTool(
-              content.name,
-              content.input.action,
-              content.input.args
-            );
+            // Pass the full input object to ToolBridge
+            const result = await this.executeTool(content.name, content.input);
             toolResults.push({
               type: 'tool_result',
               tool_use_id: content.id,
@@ -229,8 +226,8 @@ Be concise, confident, and constructive.`;
     }
   }
 
-  async executeTool(tool, action, args) {
-    return this.toolBridge.execute(tool, action, args);
+  async executeTool(toolName, input) {
+    return this.toolBridge.execute(toolName, input);
   }
 
   getConfig() {
