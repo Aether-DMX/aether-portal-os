@@ -1,0 +1,11 @@
+{
+  "theme": "#20056a",
+  "background": {
+    "enabled": true,
+    "preset": "ocean",
+    "speed": "fast",
+    "bubbleCount": 80,
+    "intensity": 1,
+    "size": 0.5
+  }
+}

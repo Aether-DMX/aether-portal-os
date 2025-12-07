@@ -1,0 +1,69 @@
+import express from 'express';
+import persistentDMX from '../services/PersistentDMXService.js';
+
+const router = express.Router();
+
+// POST /api/dmx/channel - Single channel
+router.post('/channel', async (req, res) => {
+  try {
+    const { channel, value } = req.body;
+    
+    if (!channel || value === undefined) {
+      return res.status(400).json({ error: 'Missing channel or value' });
+    }
+    
+    await persistentDMX.setChannel(channel, value);
+    res.json({ success: true, channel, value });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/dmx/batch - Multiple channels at once
+router.post('/batch', async (req, res) => {
+  try {
+    const { channels } = req.body;
+    
+    if (!channels || typeof channels !== 'object') {
+      return res.status(400).json({ error: 'Missing channels object' });
+    }
+    
+    // Set all channels without stopping effects
+    for (const [channel, value] of Object.entries(channels)) {
+      await persistentDMX.setChannelQuiet(parseInt(channel), value);
+    }
+    
+    res.json({ success: true, count: Object.keys(channels).length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/dmx/effect
+router.post('/effect', async (req, res) => {
+  try {
+    const { name, startChannel, count, speed } = req.body;
+    
+    await persistentDMX.effect(name, { startChannel, count, speed });
+    res.json({ success: true, effect: name });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/dmx/blackout
+router.post('/blackout', async (req, res) => {
+  try {
+    await persistentDMX.blackout();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/dmx/buffer
+router.get('/buffer', (req, res) => {
+  res.json({ buffer: persistentDMX.getBuffer() });
+});
+
+export default router;

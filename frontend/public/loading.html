@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHER DMX - Loading</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .loading-container {
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    .aether-logo {
+      font-size: 12vw;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      line-height: 1;
+      background: linear-gradient(
+        90deg,
+        rgba(100, 200, 255, 0.4),
+        rgba(160, 100, 255, 0.4),
+        rgba(255, 100, 150, 0.4),
+        rgba(100, 255, 160, 0.4),
+        rgba(255, 200, 100, 0.4),
+        rgba(100, 200, 255, 0.4)
+      );
+      background-size: 400% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: color-shift 8s ease-in-out infinite;
+      margin-bottom: 40px;
+    }
+
+    .status-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+      animation: fadeIn 0.5s ease-out;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .loading-bar-container {
+      width: 400px;
+      max-width: 80vw;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        rgba(100, 200, 255, 0.6),
+        rgba(160, 100, 255, 0.6),
+        rgba(100, 200, 255, 0.6)
+      );
+      background-size: 200% 100%;
+      border-radius: 10px;
+      width: 0%;
+      transition: width 0.3s ease-out;
+      animation: shimmer 2s ease-in-out infinite;
+      box-shadow: 0 0 15px rgba(100, 200, 255, 0.4);
+    }
+
+    @keyframes color-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 200% 50%; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-container">
+    <div class="aether-logo">
+      AETHER<br>DMX
+    </div>
+    <div class="status-text" id="status">Initializing...</div>
+    <div class="loading-bar-container">
+      <div class="loading-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <script>
+    const statusMessages = [
+      { progress: 10, status: 'Initializing Core...' },
+      { progress: 20, status: 'Starting Services...' },
+      { progress: 35, status: 'Loading DMX Engine...' },
+      { progress: 50, status: 'Connecting Hardware...' },
+      { progress: 65, status: 'Loading UI Components...' },
+      { progress: 80, status: 'Initializing AI Assistant...' },
+      { progress: 90, status: 'Syncing Nodes...' },
+      { progress: 100, status: 'Ready!' }
+    ];
+
+    let currentStep = 0;
+
+    function updateStatus() {
+      if (currentStep < statusMessages.length) {
+        const msg = statusMessages[currentStep];
+        document.getElementById('status').textContent = msg.status;
+        document.getElementById('progressBar').style.width = msg.progress + '%';
+        currentStep++;
+        
+        const delay = currentStep === statusMessages.length ? 500 : 300 + Math.random() * 400;
+        setTimeout(updateStatus, delay);
+      }
+    }
+
+    setTimeout(updateStatus, 500);
+  </script>
+</body>
+</html>

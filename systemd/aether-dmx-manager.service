@@ -1,0 +1,14 @@
+[Unit]
+Description=AETHER Unified DMX Manager
+After=network.target aether-discovery.service
+
+[Service]
+Type=simple
+User=ramzt
+WorkingDirectory=/home/ramzt
+ExecStart=/usr/bin/python3 /home/ramzt/aether-dmx-manager.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

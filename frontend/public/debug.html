@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AETHER Debug Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+    }
+    h1 { color: #00ffff; margin-bottom: 20px; }
+    h2 { color: #ffff00; margin: 20px 0 10px 0; }
+    .panel {
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #0066ff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+    button:hover { background: #0088ff; }
+    button:active { background: #0044cc; }
+    pre {
+      background: #000;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 10px;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .status { display: inline-block; padding: 5px 10px; border-radius: 3px; margin: 5px; }
+    .status.ok { background: #00aa00; color: white; }
+    .status.error { background: #aa0000; color: white; }
+    .status.warning { background: #aaaa00; color: black; }
+    .auto-refresh { color: #888; margin-left: 10px; }
+    .timestamp { color: #666; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>🔧 AETHER System Debug Dashboard</h1>
+  
+  <div class="panel">
+    <h2>Service Status</h2>
+    <div id="services"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Discovered Nodes (Port 8080 - Python Pairing Server)</h2>
+    <button onclick="fetchPending()">Fetch Pending Nodes</button>
+    <button onclick="fetchPairedNodes()">Fetch Paired Nodes</button>
+    <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh (5s)</button>
+    <span class="auto-refresh" id="autoStatus">Auto-refresh: OFF</span>
+    <div id="pendingOutput"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Backend API (Port 3000 - Node.js Backend)</h2>
+    <button onclick="fetchBackendNodes()">Fetch Backend Nodes</button>
+    <button onclick="fetchSettings()">Fetch Settings</button>
+    <div id="backendOutput"></div>
+  </div>
+
+  <div class="panel">
+    <h2>WiFi Stations (Hostapd)</h2>
+    <button onclick="fetchWiFiStations()">Refresh WiFi Stations</button>
+    <div id="wifiOutput"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Discovery Service Logs</h2>
+    <button onclick="fetchDiscoveryLogs()">Fetch Latest Logs</button>
+    <div id="logsOutput"></div>
+  </div>
+
+  <script>
+    let autoRefreshInterval = null;
+
+    function updateTimestamp(elementId) {
+      const now = new Date().toLocaleTimeString();
+      document.getElementById(elementId).innerHTML += 
+        `<div class="timestamp">Last updated: ${now}</div>`;
+    }
+
+    async function checkServices() {
+      const services = [
+        { name: 'Pairing Server', url: 'http://192.168.50.1:8080/api/nodes', port: 8080 },
+        { name: 'Backend API', url: 'http://192.168.50.1:3000/api/nodes', port: 3000 },
+        { name: 'Frontend', url: 'http://192.168.50.1:5173/', port: 5173 }
+      ];
+
+      let html = '';
+      for (const svc of services) {
+        try {
+          const res = await fetch(svc.url);
+          if (res.ok) {
+            html += `<span class="status ok">✓ ${svc.name} (${svc.port})</span>`;
+          } else {
+            html += `<span class="status warning">⚠ ${svc.name} (${svc.port}) - Status ${res.status}</span>`;
+          }
+        } catch (e) {
+          html += `<span class="status error">✗ ${svc.name} (${svc.port}) - ${e.message}</span>`;
+        }
+      }
+      document.getElementById('services').innerHTML = html;
+    }
+
+    async function fetchPending() {
+      const out = document.getElementById('pendingOutput');
+      try {
+        const res = await fetch('http://192.168.50.1:8080/api/pending');
+        const data = await res.json();
+        const count = Object.keys(data).length;
+        out.innerHTML = `<h3>Unpaired Nodes (${count})</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+        updateTimestamp('pendingOutput');
+      } catch (e) {
+        out.innerHTML = `<pre style="color:#ff0000;">ERROR: ${e.message}</pre>`;
+      }
+    }
+
+    async function fetchPairedNodes() {
+      const out = document.getElementById('pendingOutput');
+      try {
+        const res = await fetch('http://192.168.50.1:8080/api/nodes');
+        const data = await res.json();
+        const count = Object.keys(data).length;
+        out.innerHTML = `<h3>Paired Nodes (${count})</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+        updateTimestamp('pendingOutput');
+      } catch (e) {
+        out.innerHTML = `<pre style="color:#ff0000;">ERROR: ${e.message}</pre>`;
+      }
+    }
+
+    async function fetchBackendNodes() {
+      const out = document.getElementById('backendOutput');
+      try {
+        const res = await fetch('http://192.168.50.1:3000/api/nodes');
+        const data = await res.json();
+        out.innerHTML = `<h3>Backend Nodes</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+        updateTimestamp('backendOutput');
+      } catch (e) {
+        out.innerHTML = `<pre style="color:#ff0000;">ERROR: ${e.message}</pre>`;
+      }
+    }
+
+    async function fetchSettings() {
+      const out = document.getElementById('backendOutput');
+      try {
+        const res = await fetch('http://192.168.50.1:3000/api/settings/all');
+        const data = await res.json();
+        out.innerHTML = `<h3>Settings</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+        updateTimestamp('backendOutput');
+      } catch (e) {
+        out.innerHTML = `<pre style="color:#ff0000;">ERROR: ${e.message}</pre>`;
+      }
+    }
+
+    async function fetchWiFiStations() {
+      const out = document.getElementById('wifiOutput');
+      out.innerHTML = '<pre>WiFi station data requires Pi-side access. SSH and run:\nsudo iw dev wlan0 station dump</pre>';
+    }
+
+    async function fetchDiscoveryLogs() {
+      const out = document.getElementById('logsOutput');
+      out.innerHTML = '<pre>Discovery logs require Pi-side access. SSH and run:\nsudo journalctl -u aether-discovery.service -n 50</pre>';
+    }
+
+    function toggleAutoRefresh() {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        document.getElementById('autoStatus').textContent = 'Auto-refresh: OFF';
+        document.getElementById('autoStatus').style.color = '#888';
+      } else {
+        autoRefreshInterval = setInterval(() => {
+          fetchPending();
+          checkServices();
+        }, 5000);
+        document.getElementById('autoStatus').textContent = 'Auto-refresh: ON (5s)';
+        document.getElementById('autoStatus').style.color = '#00ff00';
+        fetchPending();
+      }
+    }
+
+    // Initial load
+    checkServices();
+    fetchPending();
+    setInterval(checkServices, 10000); // Check services every 10s
+  </script>
+</body>
+</html>

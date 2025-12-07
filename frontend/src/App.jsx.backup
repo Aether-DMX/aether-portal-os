@@ -1,0 +1,211 @@
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Header from './components/Header';
+import ChatModal from './components/ChatModal';
+import Dashboard, { DashboardHeaderExtension } from './views/Dashboard';
+import Faders, { FadersHeaderExtension } from './views/Faders';
+import Scenes, { ScenesHeaderExtension } from './views/Scenes';
+import Groups, { GroupsHeaderExtension } from './views/Groups';
+import Chases, { ChasesHeaderExtension } from './views/Chases';
+import Schedules, { SchedulesHeaderExtension } from './views/Schedules';
+import NodeManagement from './components/NodeManagement';
+import Stage from './views/Stage';
+import Settings from './views/Settings';
+import Screensaver from './components/Screensaver';
+import useDMXStore from './store/dmxStore';
+
+function AppContent({ theme, setTheme, onLock }) {
+  const location = useLocation();
+  const { currentUniverse, blackoutAll } = useDMXStore();
+  const [showAIModal, setShowAIModal] = useState(false);
+
+  // Faders state
+  const [currentPage, setCurrentPage] = useState(0);
+  const fadersPerPage = 10;
+  const totalPages = Math.ceil(512 / fadersPerPage);
+  const startChannel = currentPage * fadersPerPage + 1;
+  const endChannel = Math.min(startChannel + fadersPerPage - 1, 512);
+
+  // Scenes state
+  const [searchTerm, setSearchTerm] = useState('');
+  const sceneCount = 3;
+
+  // Groups state
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
+  const groupCount = 3;
+
+  // Chases state
+  const chaseCount = 3;
+  const [showNewChase, setShowNewChase] = useState(false);
+  const runningCount = 0;
+
+  // Schedules state
+  const scheduleCount = 3;
+  const activeCount = 2;
+
+  const handleSaveScene = () => {
+    alert('Save Scene functionality coming soon!');
+  };
+
+  const getHeaderExtension = () => {
+    switch(location.pathname) {
+      case '/':
+        return <DashboardHeaderExtension />;
+
+      case '/faders':
+        return (
+          <FadersHeaderExtension
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            currentUniverse={currentUniverse}
+            startChannel={startChannel}
+            endChannel={endChannel}
+            blackoutAll={blackoutAll}
+            handleSaveScene={handleSaveScene}
+          />
+        );
+
+      case '/scenes':
+        return (
+          <ScenesHeaderExtension
+            onNewScene={() => {}}
+            sceneCount={sceneCount}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+          />
+        );
+
+      case '/groups':
+        return (
+          <GroupsHeaderExtension
+            groupCount={groupCount}
+            searchTerm={groupSearchTerm}
+            setSearchTerm={setGroupSearchTerm}
+          />
+        );
+
+      case '/chases':
+        return (
+          <ChasesHeaderExtension onNewChase={() => setShowNewChase(true)}
+            chaseCount={chaseCount}
+            runningCount={runningCount}
+          />
+        );
+
+      case '/schedules':
+        return (
+          <SchedulesHeaderExtension
+            scheduleCount={scheduleCount}
+            activeCount={activeCount}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const shouldHideHeader = location.pathname === '/stage';
+
+  return (
+    <div className="min-h-screen bg-black">
+      {!shouldHideHeader && (
+        <Header onLock={onLock} onOpenAI={() => setShowAIModal(true)}>
+          {getHeaderExtension()}
+        </Header>
+      )}
+      <main className="h-screen overflow-hidden">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/faders" element={<Faders currentPage={currentPage} />} />
+          <Route path="/scenes" element={<Scenes />} />
+          <Route path="/groups" element={<Groups />} />
+          <Route path="/chases" element={<Chases />} />
+          <Route path="/schedules" element={<Schedules />} />
+          <Route path="/nodes" element={<NodeManagement />} />
+          <Route path="/stage" element={<Stage />} />
+          <Route path="/settings" element={<Settings theme={theme} setTheme={setTheme} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+
+      {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
+    </div>
+  );
+}
+
+function App() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('aether-dmx-theme') || '#64c8ff';
+  });
+
+  const [screensaverActive, setScreensaverActive] = useState(false);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
+
+  useEffect(() => {
+    const checkInactivity = setInterval(() => {
+      if (Date.now() - lastActivity > SCREENSAVER_TIMEOUT) {
+        setScreensaverActive(true);
+      }
+    }, 10000);
+    return () => clearInterval(checkInactivity);
+  }, [lastActivity]);
+
+  useEffect(() => {
+    const handleActivity = () => {
+      setLastActivity(Date.now());
+      setScreensaverActive(false);
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('mousedown', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('mousedown', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('aether-dmx-theme', theme);
+    document.documentElement.style.setProperty('--theme-primary', theme);
+
+    const hexToRgb = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    };
+
+    const rgb = hexToRgb(theme);
+    if (rgb) {
+      document.documentElement.style.setProperty('--theme-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+      document.documentElement.style.setProperty('--theme-light', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`);
+      document.documentElement.style.setProperty('--theme-lighter', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
+    }
+  }, [theme]);
+
+  const handleLock = () => {
+    setScreensaverActive(true);
+  };
+
+  if (screensaverActive) {
+    return <Screensaver themeColor={theme} onExit={() => setScreensaverActive(false)} />;
+  }
+
+  return (
+    <Router>
+      <AppContent theme={theme} setTheme={setTheme} onLock={handleLock} />
+    </Router>
+  );
+}
+
+export default App;

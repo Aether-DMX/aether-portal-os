@@ -1,0 +1,110 @@
+import express from 'express';
+import cors from 'cors';
+import { Server } from 'socket.io';
+import http from 'http';
+import dotenv from 'dotenv';
+import logger from './utils/logger.js';
+import olaService from './services/OLAService.js';
+import dmxService from './services/DMXService.js';
+import dmxRoutes from './routes/dmx.js';
+import aiRoutes from './routes/ai.js';
+import nodesRoutes from './routes/nodes.js';
+import settingsRoutes from './routes/settings.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import persistentDMX from './services/PersistentDMXService.js';
+import fs from 'fs/promises';
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+const NODES_FILE = '/home/ramzt/Aether-DMX/node-backend/nodes.json';
+
+app.use(cors());
+app.use(express.json());
+app.use('/api/dmx', dmxRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/nodes', nodesRoutes);
+app.use('/api/settings', settingsRoutes);
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ola: olaService.isConnected() });
+});
+
+app.use(errorHandler);
+
+// Socket.IO connection handling
+io.on('connection', async (socket) => {
+  logger.info('Client connected to Socket.IO');
+  
+  // Send current nodes list immediately on connection
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+    socket.emit('nodes:list', nodes);
+    logger.info(`Sent ${nodes.length} nodes to new client`);
+  } catch (error) {
+    logger.error('Failed to send nodes on connection:', error);
+    socket.emit('nodes:list', []);
+  }
+  
+  socket.on('disconnect', () => {
+    logger.info('Client disconnected from Socket.IO');
+  });
+});
+
+// Broadcast DMX buffer updates to all Socket.IO clients
+persistentDMX.on('buffer-update', (data) => {
+  io.emit('dmx:buffer', data);
+});
+
+server.listen(3000, '0.0.0.0', () => {
+  logger.info('AETHER DMX running on port 3000');
+  logger.info('AI Assistant enabled');
+});
+
+// Auto-check node status every 5 seconds
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+async function checkNodeStatus() {
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+
+    const statusChecks = nodes.map(async (node) => {
+      try {
+        await execAsync(`ping -c 1 -W 1 ${node.ip}`);
+        return { ...node, online: true, status: 'online', lastSeen: new Date().toISOString() };
+      } catch (error) {
+        return { ...node, online: false, status: 'offline' };
+      }
+    });
+
+    const updatedNodes = await Promise.all(statusChecks);
+
+    // Only update file if status changed
+    const hasChanges = JSON.stringify(nodes) !== JSON.stringify(updatedNodes);
+    if (hasChanges) {
+      await fs.writeFile(NODES_FILE, JSON.stringify(updatedNodes, null, 2));
+
+      // Broadcast to all Socket.IO clients
+      io.emit('nodes:list', updatedNodes);
+
+      logger.info(`Node status updated: ${updatedNodes.filter(n => n.online).length}/${updatedNodes.length} online`);
+    }
+  } catch (error) {
+    logger.error('Node status check failed:', error);
+  }
+}
+
+setInterval(checkNodeStatus, 5000);

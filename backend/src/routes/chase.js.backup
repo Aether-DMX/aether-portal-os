@@ -1,0 +1,83 @@
+import express from 'express';
+import persistentDMX from '../services/PersistentDMXService.js';
+
+const router = express.Router();
+
+// Active chases
+const runningChases = new Map();
+
+// POST /api/chase/start
+router.post('/start', async (req, res) => {
+  try {
+    const { chaseId, chase } = req.body;
+    
+    if (!chase || !chase.steps || chase.steps.length === 0) {
+      return res.status(400).json({ error: 'Invalid chase data' });
+    }
+
+    // Stop existing chase with same ID
+    if (runningChases.has(chaseId)) {
+      clearInterval(runningChases.get(chaseId));
+    }
+
+    let currentStep = 0;
+
+    const runStep = async () => {
+      const step = chase.steps[currentStep];
+      
+      // Send all channels for this step
+      if (step.channels) {
+        for (const [channel, value] of Object.entries(step.channels)) {
+          await persistentDMX.setChannelQuiet(parseInt(channel), value);
+        }
+      }
+
+      // Move to next step
+      currentStep++;
+      if (currentStep >= chase.steps.length) {
+        if (chase.loop) {
+          currentStep = 0;
+        } else {
+          // Chase finished
+          clearInterval(runningChases.get(chaseId));
+          runningChases.delete(chaseId);
+        }
+      }
+    };
+
+    // Run first step immediately
+    await runStep();
+
+    // Start interval for subsequent steps
+    const intervalId = setInterval(runStep, chase.speed || 1000);
+    runningChases.set(chaseId, intervalId);
+
+    res.json({ success: true, chaseId, running: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/chase/stop
+router.post('/stop', (req, res) => {
+  try {
+    const { chaseId } = req.body;
+    
+    if (runningChases.has(chaseId)) {
+      clearInterval(runningChases.get(chaseId));
+      runningChases.delete(chaseId);
+    }
+
+    res.json({ success: true, chaseId, running: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/chase/status
+router.get('/status', (req, res) => {
+  const running = Array.from(runningChases.keys());
+  res.json({ running, count: running.length });
+});
+
+export default router;

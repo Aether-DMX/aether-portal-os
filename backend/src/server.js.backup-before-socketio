@@ -1,0 +1,102 @@
+import express from 'express';
+import cors from 'cors';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import dotenv from 'dotenv';
+import logger from './utils/logger.js';
+import olaService from './services/OLAService.js';
+import dmxService from './services/DMXService.js';
+import dmxRoutes from './routes/dmx.js';
+import aiRoutes from './routes/ai.js';
+import nodesRoutes from './routes/nodes.js';
+import { errorHandler } from './middleware/errorHandler.js';
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ port: 3001 });
+
+app.use(cors());
+app.use(express.json());
+app.use('/api/dmx', dmxRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/nodes', nodesRoutes);
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ola: olaService.isConnected() });
+});
+
+app.use(errorHandler);
+
+const clients = new Set();
+wss.on('connection', (ws) => {
+  clients.add(ws);
+  ws.on('close', () => clients.delete(ws));
+});
+
+// Broadcast DMX buffer updates to all WebSocket clients
+import persistentDMX from './services/PersistentDMXService.js';
+persistentDMX.on('buffer-update', (data) => {
+  const message = JSON.stringify({ type: 'dmx:buffer', data });
+  clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(message);
+  });
+});
+
+dmxService.on('channelChange', (data) => {
+  clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'channelChange', data }));
+  });
+});
+
+server.listen(3000, '0.0.0.0', () => {
+  logger.info('AETHER DMX running on port 3000');
+  logger.info('AI Assistant enabled');
+});
+
+// Auto-check node status every 5 seconds
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs/promises';
+
+const execAsync = promisify(exec);
+const NODES_FILE = '/home/ramzt/Aether-DMX/node-backend/nodes.json';
+
+async function checkNodeStatus() {
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+    
+    const statusChecks = nodes.map(async (node) => {
+      try {
+        await execAsync(`ping -c 1 -W 1 ${node.ip}`);
+        return { ...node, online: true, status: 'online', lastSeen: new Date().toISOString() };
+      } catch (error) {
+        return { ...node, online: false, status: 'offline' };
+      }
+    });
+    
+    const updatedNodes = await Promise.all(statusChecks);
+    
+    // Only update file if status changed
+    const hasChanges = JSON.stringify(nodes) !== JSON.stringify(updatedNodes);
+    if (hasChanges) {
+      await fs.writeFile(NODES_FILE, JSON.stringify(updatedNodes, null, 2));
+      
+      // Broadcast to all WebSocket clients
+      const message = JSON.stringify({ type: 'nodes:list', data: updatedNodes });
+      clients.forEach(ws => {
+        if (ws.readyState === 1) ws.send(message);
+      });
+      
+      logger.info(`Node status updated: ${updatedNodes.filter(n => n.online).length}/${updatedNodes.length} online`);
+    }
+  } catch (error) {
+    logger.error('Node status check failed:', error);
+  }
+}
+
+// Check immediately on startup, then every 5 seconds
+checkNodeStatus();
+setInterval(checkNodeStatus, 5000);

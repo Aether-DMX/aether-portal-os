@@ -1,0 +1,90 @@
+import express from 'express';
+import fs from 'fs/promises';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const router = express.Router();
+const execAsync = promisify(exec);
+const NODES_FILE = '/home/ramzt/Aether-DMX/node-backend/nodes.json';
+
+// Get all nodes
+router.get('/', async (req, res) => {
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+    res.json(nodes);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      res.json([]);
+    } else {
+      res.status(500).json({ error: 'Failed to read nodes' });
+    }
+  }
+});
+
+// Check node status (ping)
+router.post('/check-status', async (req, res) => {
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+    
+    // Check each node's status via ping
+    const statusChecks = nodes.map(async (node) => {
+      try {
+        await execAsync(`ping -c 1 -W 1 ${node.ip}`);
+        return { ...node, online: true, status: 'online', lastSeen: new Date().toISOString() };
+      } catch (error) {
+        return { ...node, online: false, status: 'offline' };
+      }
+    });
+    
+    const updatedNodes = await Promise.all(statusChecks);
+    await fs.writeFile(NODES_FILE, JSON.stringify(updatedNodes, null, 2));
+    
+    res.json(updatedNodes);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
+// Add/update node
+router.post('/', async (req, res) => {
+  try {
+    let nodes = [];
+    try {
+      const data = await fs.readFile(NODES_FILE, 'utf8');
+      nodes = JSON.parse(data);
+    } catch (error) {
+      // File doesn't exist yet
+    }
+    
+    const newNode = req.body;
+    const existingIndex = nodes.findIndex(n => n.id === newNode.id);
+    
+    if (existingIndex >= 0) {
+      nodes[existingIndex] = { ...nodes[existingIndex], ...newNode };
+    } else {
+      nodes.push(newNode);
+    }
+    
+    await fs.writeFile(NODES_FILE, JSON.stringify(nodes, null, 2));
+    res.json(newNode);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save node' });
+  }
+});
+
+// Delete node
+router.delete('/:id', async (req, res) => {
+  try {
+    const data = await fs.readFile(NODES_FILE, 'utf8');
+    const nodes = JSON.parse(data);
+    const filtered = nodes.filter(n => n.id !== req.params.id);
+    await fs.writeFile(NODES_FILE, JSON.stringify(filtered, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete node' });
+  }
+});
+
+export default router;

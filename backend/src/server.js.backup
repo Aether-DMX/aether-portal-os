@@ -1,0 +1,42 @@
+import express from 'express';
+import cors from 'cors';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import dotenv from 'dotenv';
+import logger from './utils/logger.js';
+import olaService from './services/OLAService.js';
+import dmxService from './services/DMXService.js';
+import dmxRoutes from './routes/dmx.js';
+import { errorHandler } from './middleware/errorHandler.js';
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ port: 3001 });
+
+app.use(cors());
+app.use(express.json());
+app.use('/api/dmx', dmxRoutes);
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ola: olaService.isConnected() });
+});
+
+app.use(errorHandler);
+
+const clients = new Set();
+wss.on('connection', (ws) => {
+  clients.add(ws);
+  ws.on('close', () => clients.delete(ws));
+});
+
+dmxService.on('channelChange', (data) => {
+  clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'channelChange', data }));
+  });
+});
+
+server.listen(3000, '0.0.0.0', () => {
+  logger.info('DMX mAIstro running on port 3000');
+});
