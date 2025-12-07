@@ -537,68 +537,77 @@ export default function Settings() {
 
         {/* BACKGROUND TAB */}
         {activeTab === 'background' && (
-          <div className="space-y-3">
-            {/* Animation Toggle */}
+          <div className="space-y-2">
+            {/* Top Row: Toggle + Theme + Speed */}
             <div className="card p-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Toggle */}
                 <div className="flex items-center gap-2">
-                  <Sparkles size={18} className="theme-text" />
-                  <span className="text-sm font-bold text-white">Background Animation</span>
-                </div>
-                <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${enabled ? 'theme-bg' : 'bg-white/20'}`}
-                  onClick={() => setEnabled(!enabled)}>
-                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all ${enabled ? 'translate-x-6' : ''}`} />
-                </div>
-              </div>
-            </div>
-
-            {enabled && (
-              <div className="grid grid-cols-2 gap-3">
-                {/* LEFT: Theme + Speed */}
-                <div className="space-y-3">
-                  <div className="card p-3">
-                    <div className="text-xs font-bold mb-2 text-white/70">Theme</div>
-                    <select value={preset} onChange={(e) => setPreset(e.target.value)} className="input text-sm">
-                      <optgroup label="Smart">
-                        <option value="default">🎯 Default</option>
-                      </optgroup>
-                      <optgroup label="Temperature">
-                        <option value="warm">🔥 Warm</option>
-                        <option value="cool">❄️ Cool</option>
-                      </optgroup>
-                      <optgroup label="Nature">
-                        <option value="sunset">🌅 Sunset</option>
-                        <option value="ocean">🌊 Ocean</option>
-                        <option value="forest">🌲 Forest</option>
-                        <option value="aurora">🌌 Aurora</option>
-                      </optgroup>
-                      <optgroup label="Vibes">
-                        <option value="cosmic">💜 Cosmic</option>
-                        <option value="cyberpunk">🤖 Cyberpunk</option>
-                        <option value="neon">💡 Neon</option>
-                        <option value="fire">🔥 Fire</option>
-                        <option value="midnight">🌙 Midnight</option>
-                      </optgroup>
-                    </select>
+                  <Sparkles size={16} className="theme-text" />
+                  <span className="text-xs font-bold text-white">Animation</span>
+                  <div className={`w-10 h-5 rounded-full relative cursor-pointer transition-all ${enabled ? 'theme-bg' : 'bg-white/20'}`}
+                    onClick={() => setEnabled(!enabled)}>
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-all ${enabled ? 'translate-x-5' : ''}`} />
                   </div>
+                </div>
 
-                  <div className="card p-3">
-                    <div className="text-xs font-bold mb-2 text-white/70">Speed</div>
-                    <div className="grid grid-cols-3 gap-1.5">
+                {enabled && (
+                  <>
+                    {/* Divider */}
+                    <div className="w-px h-8 bg-white/10" />
+
+                    {/* Theme Dropdown */}
+                    <div className="flex-1">
+                      <select value={preset} onChange={(e) => setPreset(e.target.value)} className="w-full">
+                        <optgroup label="Smart">
+                          <option value="default">Default</option>
+                        </optgroup>
+                        <optgroup label="Temperature">
+                          <option value="warm">Warm</option>
+                          <option value="cool">Cool</option>
+                        </optgroup>
+                        <optgroup label="Nature">
+                          <option value="sunset">Sunset</option>
+                          <option value="ocean">Ocean</option>
+                          <option value="forest">Forest</option>
+                          <option value="aurora">Aurora</option>
+                        </optgroup>
+                        <optgroup label="Vibes">
+                          <option value="cosmic">Cosmic</option>
+                          <option value="cyberpunk">Cyberpunk</option>
+                          <option value="neon">Neon</option>
+                          <option value="fire">Fire</option>
+                          <option value="midnight">Midnight</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-8 bg-white/10" />
+
+                    {/* Speed Buttons */}
+                    <div className="flex gap-1">
                       {['slow', 'normal', 'fast'].map((s) => (
                         <button key={s} onClick={() => setSpeed(s)}
-                          className={`btn btn-sm capitalize ${speed === s ? 'btn-primary' : 'btn-secondary'}`}>
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                            speed === s ? 'theme-bg text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'
+                          }`}>
                           {s}
                         </button>
                       ))}
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
+              </div>
+            </div>
 
-                {/* RIGHT: Sliders */}
-                <div className="space-y-2">
-                  <div className="card p-2">
-                    <div className="flex items-center justify-between mb-1.5">
+            {/* Sliders Row - Only show when enabled */}
+            {enabled && (
+              <div className="card p-3">
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Brightness */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white/70">Brightness</span>
                       <span className="text-xs font-mono theme-text">{Math.round(intensity * 100)}%</span>
                     </div>
@@ -606,8 +615,9 @@ export default function Settings() {
                       onChange={(e) => setIntensity(parseInt(e.target.value) / 100)} className="w-full" />
                   </div>
 
-                  <div className="card p-2">
-                    <div className="flex items-center justify-between mb-1.5">
+                  {/* Size */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white/70">Size</span>
                       <span className="text-xs font-mono theme-text">{size.toFixed(1)}x</span>
                     </div>
@@ -615,8 +625,9 @@ export default function Settings() {
                       onChange={(e) => setSize(parseInt(e.target.value) / 100)} className="w-full" />
                   </div>
 
-                  <div className="card p-2">
-                    <div className="flex items-center justify-between mb-1.5">
+                  {/* Quantity */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white/70">Quantity</span>
                       <span className="text-xs font-mono theme-text">{bubbleCount}</span>
                     </div>
