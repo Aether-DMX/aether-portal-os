@@ -10,7 +10,7 @@ pkill chromium
 sleep 3
 
 # Launch Chromium in kiosk mode pointing to backend
-DISPLAY=:0 chromium-browser \
+DISPLAY=:0 chromium \
   --kiosk \
   --disable-gpu \
   --noerrdialogs \
