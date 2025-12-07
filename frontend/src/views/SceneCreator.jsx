@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, AlertCircle, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, AlertCircle, Check, Lightbulb } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
 import useGroupStore from '../store/groupStore';
 import useDMXStore from '../store/dmxStore';
+import { useFixtureStore } from '../store/fixtureStore';
 
 const STEPS = ['Name', 'Channels', 'Color', 'Review'];
 
@@ -12,22 +13,36 @@ export default function SceneCreator() {
   const { createScene } = useSceneStore();
   const { groups } = useGroupStore();
   const { currentUniverse } = useDMXStore();
+  const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
 
   const [step, setStep] = useState(0);
   const [sceneName, setSceneName] = useState('');
   const [description, setDescription] = useState('');
   const [fadeTime, setFadeTime] = useState(2000);
-  const [selectionMode, setSelectionMode] = useState('groups');
+  const [selectionMode, setSelectionMode] = useState('fixtures');
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
+  const [selectedFixtures, setSelectedFixtures] = useState([]);
   const [color, setColor] = useState({ r: 255, g: 255, b: 255 });
   const [intensity, setIntensity] = useState(100);
 
+  useEffect(() => {
+    fetchFixtures();
+  }, []);
+
   const toggleGroup = (groupId) => {
-    setSelectedGroups(prev => 
-      prev.includes(groupId) 
+    setSelectedGroups(prev =>
+      prev.includes(groupId)
         ? prev.filter(id => id !== groupId)
         : [...prev, groupId]
+    );
+  };
+
+  const toggleFixture = (fixtureId) => {
+    setSelectedFixtures(prev =>
+      prev.includes(fixtureId)
+        ? prev.filter(id => id !== fixtureId)
+        : [...prev, fixtureId]
     );
   };
 
@@ -46,14 +61,27 @@ export default function SceneCreator() {
   };
 
   const getAffectedChannels = () => {
+    const channels = new Set();
+
+    if (selectionMode === 'fixtures') {
+      selectedFixtures.forEach(fid => {
+        const fixture = fixtures.find(f => (f.fixture_id || f.id) === fid);
+        if (fixture) {
+          const range = getFixtureChannelRange(fixture);
+          range.channels.forEach(ch => channels.add(ch));
+        }
+      });
+      return Array.from(channels).sort((a, b) => a - b);
+    }
+
     if (selectionMode === 'groups') {
-      const channels = new Set();
       selectedGroups.forEach(gid => {
         const group = groups.find(g => g.id === gid);
         if (group) group.channels.forEach(ch => channels.add(ch));
       });
       return Array.from(channels).sort((a, b) => a - b);
     }
+
     return selectedChannels.sort((a, b) => a - b);
   };
 
@@ -171,12 +199,22 @@ export default function SceneCreator() {
           {/* STEP 2 */}
           {step === 1 && (
             <div className="h-full flex flex-col">
-              <h2 className="text-xl font-bold text-white text-center mb-3">Select Channels</h2>
+              <h2 className="text-xl font-bold text-white text-center mb-3">Select Target</h2>
 
-              <div className="flex gap-2 mb-3">
+              <div className="flex gap-1 mb-3">
+                <button
+                  onClick={() => setSelectionMode('fixtures')}
+                  className="flex-1 py-2 rounded-lg border font-bold text-xs text-white transition-all"
+                  style={{
+                    borderColor: selectionMode === 'fixtures' ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
+                    backgroundColor: selectionMode === 'fixtures' ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'transparent'
+                  }}
+                >
+                  Fixtures
+                </button>
                 <button
                   onClick={() => setSelectionMode('groups')}
-                  className="flex-1 py-2 rounded-lg border font-bold text-sm text-white transition-all"
+                  className="flex-1 py-2 rounded-lg border font-bold text-xs text-white transition-all"
                   style={{
                     borderColor: selectionMode === 'groups' ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
                     backgroundColor: selectionMode === 'groups' ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'transparent'
@@ -186,7 +224,7 @@ export default function SceneCreator() {
                 </button>
                 <button
                   onClick={() => setSelectionMode('channels')}
-                  className="flex-1 py-2 rounded-lg border font-bold text-sm text-white transition-all"
+                  className="flex-1 py-2 rounded-lg border font-bold text-xs text-white transition-all"
                   style={{
                     borderColor: selectionMode === 'channels' ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
                     backgroundColor: selectionMode === 'channels' ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'transparent'
@@ -195,6 +233,81 @@ export default function SceneCreator() {
                   Channels
                 </button>
               </div>
+
+              {selectionMode === 'fixtures' && (
+                <div className="flex-1 overflow-y-auto">
+                  {fixtures.length === 0 ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <Lightbulb size={40} className="text-yellow-400 mx-auto mb-2" />
+                        <p className="text-white font-bold text-sm mb-1">No Fixtures Yet</p>
+                        <p className="text-white/60 text-xs mb-3">Add fixtures first to use them in scenes</p>
+                        <button
+                          onClick={() => navigate('/patch')}
+                          className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-xs font-semibold"
+                        >
+                          Go to Patch
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-1 mb-2">
+                        <button
+                          onClick={() => setSelectedFixtures(fixtures.map(f => f.fixture_id || f.id))}
+                          className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          onClick={() => setSelectedFixtures([])}
+                          className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {fixtures.filter(f => f.universe === currentUniverse).map(fixture => {
+                          const fixtureId = fixture.fixture_id || fixture.id;
+                          const isSelected = selectedFixtures.includes(fixtureId);
+                          const range = getFixtureChannelRange(fixture);
+                          return (
+                            <button
+                              key={fixtureId}
+                              onClick={() => toggleFixture(fixtureId)}
+                              className="p-3 rounded-lg border transition-all text-left"
+                              style={{
+                                borderColor: isSelected ? (fixture.color || 'var(--theme-primary)') : 'rgba(255,255,255,0.2)',
+                                backgroundColor: isSelected ? `${fixture.color || 'var(--theme-primary)'}30` : 'rgba(255,255,255,0.05)'
+                              }}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <Lightbulb
+                                  size={14}
+                                  style={{ color: fixture.color || 'var(--theme-primary)' }}
+                                  fill={isSelected ? (fixture.color || 'var(--theme-primary)') : 'transparent'}
+                                />
+                                <p className="font-bold text-white text-sm truncate">{fixture.name}</p>
+                              </div>
+                              <p className="text-xs text-white/60">
+                                Ch {range.start}-{range.end} ({range.channels.length} ch)
+                              </p>
+                              {fixture.type && fixture.type !== 'generic' && (
+                                <p className="text-[10px] text-white/40 mt-0.5">{fixture.type}</p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {fixtures.filter(f => f.universe !== currentUniverse).length > 0 && (
+                        <p className="text-xs text-white/40 text-center mt-2">
+                          {fixtures.filter(f => f.universe !== currentUniverse).length} fixtures in other universes
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectionMode === 'groups' && (
                 <div className="flex-1 overflow-y-auto">

@@ -32,6 +32,7 @@ import useNodeStore from './store/nodeStore';
 import useBackgroundStore from './store/backgroundStore';
 import useAuthStore from './store/authStore';
 import useAIStore from './store/aiStore';
+import { useFixtureStore } from './store/fixtureStore';
 import AetherBackground from './components/AetherBackground';
 
 function AppContent({ onLock }) {
@@ -115,7 +116,8 @@ function App() {
       initScenes();
       initChases();
       fetchNodes();
-      
+      useFixtureStore.getState().fetchFixtures();
+
       // Keep nodes updated every 10 seconds
       const nodeInterval = setInterval(fetchNodes, 10000);
       return () => clearInterval(nodeInterval);
