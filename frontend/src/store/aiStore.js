@@ -78,8 +78,8 @@ const useAIStore = create(
         }
       },
 
-      // Load settings from backend (on startup)
-      loadSettings: async () => {
+      // Load settings from backend (on startup) - called by App.jsx
+      loadFromServer: async () => {
         try {
           const res = await fetch(`${getApiUrl()}/api/settings/all`);
           const settings = await res.json();
@@ -92,11 +92,15 @@ const useAIStore = create(
               confirmationRules: settings.ai.confirmationRules ?? true,
               safetyWarnings: settings.ai.safetyWarnings ?? true
             });
+            console.log('✅ AI settings loaded from server');
           }
         } catch (e) {
           console.error('Failed to load AI settings:', e);
         }
       },
+
+      // Alias for backwards compatibility
+      loadSettings: async () => get().loadFromServer(),
 
       // Legacy method for compatibility
       updateSettings: async (updates) => {

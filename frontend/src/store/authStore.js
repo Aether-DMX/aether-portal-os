@@ -132,6 +132,12 @@ const useAuthStore = create(
         };
         return labels[role] || 'Unknown';
       },
+
+      // Placeholder for App.jsx compatibility - auth uses localStorage persist
+      loadFromServer: async () => {
+        // Settings are loaded from localStorage via persist middleware
+        return Promise.resolve();
+      },
     }),
     {
       name: 'aether-auth',

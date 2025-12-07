@@ -116,10 +116,7 @@ export default function Settings() {
 
   const handleColorChange = async (color) => {
     setCustomColor(color);
-    await setTheme(color);
-    const rgb = hexToRgb(color);
-    document.documentElement.style.setProperty('--theme-primary', color);
-    document.documentElement.style.setProperty('--theme-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+    await setTheme(color); // This now applies CSS variables and saves to backend
     setThemeSaved(true);
     setTimeout(() => setThemeSaved(false), 2000);
 
