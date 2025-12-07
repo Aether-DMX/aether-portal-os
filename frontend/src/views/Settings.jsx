@@ -534,105 +534,85 @@ export default function Settings() {
 
         {/* BACKGROUND TAB */}
         {activeTab === 'background' && (
-          <div className="space-y-3">
-            {/* Top Row: Toggle + Theme + Speed */}
-            <div className="card p-4">
-              <div className="flex items-center gap-4">
-                {/* Toggle */}
-                <div className="flex items-center gap-3">
-                  <Sparkles size={20} className="theme-text" />
-                  <span className="text-sm font-bold text-white">Animation</span>
-                  <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-all ${enabled ? 'theme-bg' : 'bg-white/20'}`}
-                    onClick={() => setEnabled(!enabled)}>
-                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all ${enabled ? 'translate-x-6' : ''}`} />
+          <div className="flex flex-col gap-3">
+            {/* Enable Toggle */}
+            <div className="card p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="theme-text" />
+                <span className="text-sm font-bold text-white">Background Animation</span>
+              </div>
+              <div className={`w-14 h-7 rounded-full relative cursor-pointer ${enabled ? 'theme-bg' : 'bg-white/20'}`}
+                onClick={() => setEnabled(!enabled)}>
+                <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${enabled ? 'translate-x-7' : ''}`} />
+              </div>
+            </div>
+
+            {enabled && (
+              <>
+                {/* Theme Selection - Button Grid */}
+                <div className="card p-3">
+                  <div className="text-xs font-bold text-white/50 mb-2">THEME</div>
+                  <div className="grid grid-cols-6 gap-2">
+                    {[
+                      { id: 'default', label: 'Default', colors: ['var(--theme-primary)'] },
+                      { id: 'warm', label: 'Warm', colors: ['#ff6b6b', '#feca57'] },
+                      { id: 'cool', label: 'Cool', colors: ['#54a0ff', '#48dbfb'] },
+                      { id: 'sunset', label: 'Sunset', colors: ['#ff6b6b', '#feca57', '#ff9ff3'] },
+                      { id: 'ocean', label: 'Ocean', colors: ['#0abde3', '#10ac84'] },
+                      { id: 'forest', label: 'Forest', colors: ['#10ac84', '#2ecc71'] },
+                      { id: 'aurora', label: 'Aurora', colors: ['#a29bfe', '#74b9ff', '#55efc4'] },
+                      { id: 'cosmic', label: 'Cosmic', colors: ['#6c5ce7', '#fd79a8'] },
+                      { id: 'cyberpunk', label: 'Cyber', colors: ['#ff00ff', '#00ffff'] },
+                      { id: 'neon', label: 'Neon', colors: ['#39ff14', '#ff073a'] },
+                      { id: 'fire', label: 'Fire', colors: ['#ff4500', '#ffa500'] },
+                      { id: 'midnight', label: 'Night', colors: ['#2c3e50', '#5d6d7e'] },
+                    ].map((t) => (
+                      <button key={t.id} onClick={() => setPreset(t.id)}
+                        className={`p-2 rounded-lg border-2 transition-all ${preset === t.id ? 'border-white scale-105' : 'border-transparent'}`}
+                        style={{ background: t.colors.length > 1 ? `linear-gradient(135deg, ${t.colors.join(', ')})` : t.colors[0] }}>
+                        <span className="text-[10px] font-bold text-white drop-shadow-lg">{t.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {enabled && (
-                  <>
-                    {/* Divider */}
-                    <div className="w-px h-10 bg-white/10" />
-
-                    {/* Theme Dropdown */}
-                    <div className="flex-1">
-                      <select value={preset} onChange={(e) => setPreset(e.target.value)} className="w-full">
-                        <optgroup label="Smart">
-                          <option value="default">Default</option>
-                        </optgroup>
-                        <optgroup label="Temperature">
-                          <option value="warm">Warm</option>
-                          <option value="cool">Cool</option>
-                        </optgroup>
-                        <optgroup label="Nature">
-                          <option value="sunset">Sunset</option>
-                          <option value="ocean">Ocean</option>
-                          <option value="forest">Forest</option>
-                          <option value="aurora">Aurora</option>
-                        </optgroup>
-                        <optgroup label="Vibes">
-                          <option value="cosmic">Cosmic</option>
-                          <option value="cyberpunk">Cyberpunk</option>
-                          <option value="neon">Neon</option>
-                          <option value="fire">Fire</option>
-                          <option value="midnight">Midnight</option>
-                        </optgroup>
-                      </select>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="w-px h-10 bg-white/10" />
-
-                    {/* Speed Buttons */}
-                    <div className="flex gap-1.5">
+                {/* Speed & Intensity - Simple Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Speed */}
+                  <div className="card p-3">
+                    <div className="text-xs font-bold text-white/50 mb-2">SPEED</div>
+                    <div className="flex gap-2">
                       {['slow', 'normal', 'fast'].map((s) => (
                         <button key={s} onClick={() => setSpeed(s)}
-                          className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                            speed === s ? 'theme-bg text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize ${
+                            speed === s ? 'theme-bg text-white' : 'bg-white/10 text-white/60'
                           }`}>
                           {s}
                         </button>
                       ))}
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Sliders Row - Only show when enabled */}
-            {enabled && (
-              <div className="card p-4">
-                <div className="grid grid-cols-3 gap-6">
-                  {/* Brightness */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-white">Brightness</span>
-                      <span className="text-sm font-mono font-bold theme-text">{Math.round(intensity * 100)}%</span>
-                    </div>
-                    <input type="range" min="0" max="100" value={intensity * 100}
-                      onChange={(e) => setIntensity(parseInt(e.target.value) / 100)} className="w-full" />
                   </div>
 
-                  {/* Size */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-white">Size</span>
-                      <span className="text-sm font-mono font-bold theme-text">{size.toFixed(1)}x</span>
+                  {/* Amount */}
+                  <div className="card p-3">
+                    <div className="text-xs font-bold text-white/50 mb-2">AMOUNT</div>
+                    <div className="flex gap-2">
+                      {[
+                        { label: 'Few', value: 15 },
+                        { label: 'Med', value: 30 },
+                        { label: 'Many', value: 50 },
+                      ].map((a) => (
+                        <button key={a.value} onClick={() => setBubbleCount(a.value)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold ${
+                            bubbleCount === a.value ? 'theme-bg text-white' : 'bg-white/10 text-white/60'
+                          }`}>
+                          {a.label}
+                        </button>
+                      ))}
                     </div>
-                    <input type="range" min="50" max="200" value={size * 100}
-                      onChange={(e) => setSize(parseInt(e.target.value) / 100)} className="w-full" />
-                  </div>
-
-                  {/* Quantity */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-bold text-white">Quantity</span>
-                      <span className="text-sm font-mono font-bold theme-text">{bubbleCount}</span>
-                    </div>
-                    <input type="range" min="10" max="80" value={bubbleCount}
-                      onChange={(e) => setBubbleCount(parseInt(e.target.value))} className="w-full" />
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
