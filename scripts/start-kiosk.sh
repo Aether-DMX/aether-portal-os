@@ -1,26 +1,18 @@
 #!/bin/bash
+# AETHER DMX Kiosk Launcher
+# Launches Chromium in kiosk mode pointing to the backend server
+# The backend (port 3000) serves the built React frontend
 
-# Kill any existing instances
-sudo pkill -f "node src/server.js"
-pkill -f "vite"
+# Kill any existing Chromium instances
 pkill chromium
 
-# Start backend
-cd /home/pi/dmx-maistro-v2/backend
-node src/server.js > /tmp/dmx-backend.log 2>&1 &
-echo "Backend started..."
+# Wait a moment for services to be ready
+sleep 3
 
-# Start frontend
-cd /home/pi/dmx-maistro-v2/frontend
-npm run dev > /tmp/dmx-frontend.log 2>&1 &
-echo "Frontend started..."
-
-# Wait for services to be ready
-sleep 5
-
-# Launch Chromium in kiosk mode
+# Launch Chromium in kiosk mode pointing to backend
 DISPLAY=:0 chromium-browser \
   --kiosk \
+  --disable-gpu \
   --noerrdialogs \
   --disable-infobars \
   --no-first-run \
@@ -29,6 +21,7 @@ DISPLAY=:0 chromium-browser \
   --disable-features=TranslateUI \
   --disable-translate \
   --start-fullscreen \
-  http://localhost:5173
+  --password-store=basic \
+  http://localhost:3000
 
-echo "DMX mAIstro started in kiosk mode!"
+echo "AETHER DMX kiosk started! URL: http://localhost:3000"
