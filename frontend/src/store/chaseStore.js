@@ -46,11 +46,17 @@ const useChaseStore = create((set, get) => ({
     }
   },
 
-  startChase: async (chaseId) => {
+  startChase: async (chaseId, options = {}) => {
     try {
-      console.log('🎬 Starting chase:', chaseId);
-      await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play');
-      
+      console.log('🎬 Starting chase:', chaseId, options.targetChannels ? `on channels: ${options.targetChannels.length}` : 'all channels');
+
+      const payload = {};
+      if (options.targetChannels && options.targetChannels.length > 0) {
+        payload.target_channels = options.targetChannels;
+      }
+
+      await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play', payload);
+
       set(state => ({
         runningChases: { ...state.runningChases, [chaseId]: true },
         activeChase: state.chases.find(c => c.chase_id === chaseId || c.id === chaseId)

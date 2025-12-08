@@ -45,17 +45,20 @@ const useSceneStore = create((set, get) => ({
     }
   },
 
-  playScene: async (id, fadeMs = 1500) => {
+  playScene: async (id, fadeMs = 1500, options = {}) => {
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
-      console.log('🎬 Playing scene:', scene?.name || id);
-      
-      const res = await axios.post(getAetherCore() + '/api/scenes/' + id + '/play', {
-        fade_ms: fadeMs
-      });
-      
+      console.log('🎬 Playing scene:', scene?.name || id, options.targetChannels ? `on channels: ${options.targetChannels.length}` : 'all channels');
+
+      const payload = { fade_ms: fadeMs };
+      if (options.targetChannels && options.targetChannels.length > 0) {
+        payload.target_channels = options.targetChannels;
+      }
+
+      const res = await axios.post(getAetherCore() + '/api/scenes/' + id + '/play', payload);
+
       set({ currentScene: scene });
-      
+
       // Return the scene so caller can update DMX state
       return { scene, result: res.data };
     } catch (e) {
