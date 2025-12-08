@@ -8,9 +8,11 @@ const useDMXStore = create((set, get) => ({
   universeState: new Array(512).fill(0),
   currentUniverse: 1,
   channelLabels: {},  // { 1: "Red", 2: "Green", etc. }
-  
+
   // Additional state
   universes: { 1: new Array(512).fill(0) },
+  maxUniverse: 4,  // From settings (SSOT)
+  configuredUniverses: [1],  // Universes that have nodes assigned
   lastUpdate: null,
   loading: false,
   polling: false,
@@ -19,7 +21,38 @@ const useDMXStore = create((set, get) => ({
   // Initialize - called by ViewLive on mount
   initSocket: () => {
     console.log('🔌 Initializing DMX state sync...');
+    get().fetchSettings();
+    get().fetchConfiguredUniverses();
     get().startPolling();
+  },
+
+  // Fetch settings from backend (SSOT)
+  fetchSettings: async () => {
+    try {
+      const res = await axios.get(getAetherCore() + '/api/settings/dmx');
+      if (res.data) {
+        set({ maxUniverse: res.data.maxUniverse || 4 });
+        console.log('✅ DMX settings loaded: maxUniverse =', res.data.maxUniverse || 4);
+      }
+    } catch (e) {
+      console.error('Failed to fetch DMX settings:', e.message);
+    }
+  },
+
+  // Fetch which universes have nodes assigned (SSOT from nodes)
+  fetchConfiguredUniverses: async () => {
+    try {
+      const res = await axios.get(getAetherCore() + '/api/nodes');
+      if (res.data && Array.isArray(res.data)) {
+        const universesFromNodes = [...new Set(res.data.map(n => n.universe || 1))].sort((a, b) => a - b);
+        // Always include universe 1, plus any universes with nodes
+        const configured = universesFromNodes.length > 0 ? universesFromNodes : [1];
+        set({ configuredUniverses: configured });
+        console.log('✅ Configured universes:', configured);
+      }
+    } catch (e) {
+      console.error('Failed to fetch configured universes:', e.message);
+    }
   },
 
   // Fetch current state from AETHER Core

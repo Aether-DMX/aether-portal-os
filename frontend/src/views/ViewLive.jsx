@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, Zap } from 'lucide-react';
+import { ArrowLeft, Activity, Zap, Radio } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 import useGroupStore from '../store/groupStore';
 
 export default function ViewLive() {
   const navigate = useNavigate();
-  const { universeState, currentUniverse, initSocket } = useDMXStore();
+  const { universeState, currentUniverse, configuredUniverses, initSocket, setCurrentUniverse, fetchState } = useDMXStore();
   const { groups } = useGroupStore();
   const [activeChannels, setActiveChannels] = useState([]);
 
@@ -24,6 +24,11 @@ export default function ViewLive() {
     setActiveChannels(active);
   }, [universeState]);
 
+  const handleUniverseChange = (universe) => {
+    setCurrentUniverse(universe);
+    fetchState(universe);
+  };
+
   const getChannelGroup = (channel) => {
     return groups.find(g => g.channels.includes(channel));
   };
@@ -39,6 +44,27 @@ export default function ViewLive() {
   return (
     <div className="fixed inset-0 bg-gradient-primary pt-[60px] pb-2 px-3">
       <div className="h-[calc(100vh-66px)] flex flex-col py-3">
+        {/* Universe Tabs */}
+        {configuredUniverses.length > 1 && (
+          <div className="flex gap-2 items-center justify-center mb-3">
+            {configuredUniverses.map(universe => (
+              <button
+                key={universe}
+                onClick={() => handleUniverseChange(universe)}
+                className="px-4 py-2 rounded-lg border text-sm font-bold transition-all flex items-center gap-2"
+                style={{
+                  borderColor: currentUniverse === universe ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
+                  backgroundColor: currentUniverse === universe ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'rgba(255,255,255,0.05)',
+                  color: 'white'
+                }}
+              >
+                <Radio size={14} style={{ color: currentUniverse === universe ? 'var(--theme-primary)' : 'rgba(255,255,255,0.5)' }} />
+                Universe {universe}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Compact Stats */}
         <div className="flex gap-3 items-center justify-center mb-3">
           <div className="glass-panel rounded-lg border px-4 py-2 flex items-center gap-2"
@@ -56,6 +82,15 @@ export default function ViewLive() {
             <div>
               <p className="text-xs text-white/60">Universe</p>
               <p className="text-lg font-bold text-white">{currentUniverse}</p>
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-lg border px-4 py-2 flex items-center gap-2"
+            style={{ borderColor: 'rgba(255, 255, 255, 0.15)' }}>
+            <Radio size={14} className="text-white/60" />
+            <div>
+              <p className="text-xs text-white/60">Universes</p>
+              <p className="text-lg font-bold text-white">{configuredUniverses.length}</p>
             </div>
           </div>
         </div>
