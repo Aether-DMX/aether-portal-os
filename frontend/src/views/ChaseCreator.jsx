@@ -5,6 +5,7 @@ import useChaseStore from '../store/chaseStore';
 import useSceneStore from '../store/sceneStore';
 import { useFixtureStore } from '../store/fixtureStore';
 import useDMXStore from '../store/dmxStore';
+import useToastStore from '../store/toastStore';
 
 const STEPS = ['Name', 'Steps', 'Timing', 'Review'];
 
@@ -14,6 +15,7 @@ export default function ChaseCreator() {
   const { scenes } = useSceneStore();
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
   const { currentUniverse } = useDMXStore();
+  const toast = useToastStore();
 
   const [step, setStep] = useState(0);
   const [chaseName, setName] = useState('');
@@ -57,7 +59,7 @@ export default function ChaseCreator() {
 
   const saveStep = () => {
     if (selectedFixtures.length === 0) {
-      alert('Please select at least one fixture');
+      toast.warning('Please select at least one fixture');
       return;
     }
 
@@ -106,28 +108,32 @@ export default function ChaseCreator() {
     setSteps(newSteps);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!chaseName.trim()) {
-      alert('Please enter a chase name');
+      toast.warning('Please enter a chase name');
       return;
     }
 
     if (steps.length < 2) {
-      alert('Chase needs at least 2 steps');
+      toast.warning('Chase needs at least 2 steps');
       return;
     }
 
-    createChase({
-      name: chaseName,
-      description,
-      steps,
-      speed,
-      fadeTime,
-      loop,
-      color: 'blue'
-    });
-
-    navigate('/chases');
+    try {
+      await createChase({
+        name: chaseName,
+        description,
+        steps,
+        speed,
+        fadeTime,
+        loop,
+        color: 'blue'
+      });
+      toast.success(`Chase "${chaseName}" created!`);
+      navigate('/chases');
+    } catch (e) {
+      toast.error('Failed to create chase');
+    }
   };
 
   const canProceed = () => {

@@ -14,6 +14,7 @@ import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useChaseStore from '../store/chaseStore';
 import BackgroundThemeModal from '../components/BackgroundThemeModal';
+import useToastStore from '../store/toastStore';
 
 const getBackendUrl = () => `http://${window.location.hostname}:8891`;
 
@@ -45,6 +46,7 @@ export default function Settings() {
   const [themeSaved, setThemeSaved] = useState(false);
   const [recentColors, setRecentColors] = useState(['#64c8ff', '#ff6496', '#64ffa0', '#a064ff', '#ffc864']);
   const { enabled, preset, speed, bubbleCount, intensity, size, setEnabled, setPreset, setSpeed, setBubbleCount, setIntensity, setSize } = useBackgroundStore();
+  const toast = useToastStore();
 
   // Device status
   const [deviceStatus, setDeviceStatus] = useState({
@@ -429,7 +431,7 @@ export default function Settings() {
                       {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
-                  <button onClick={() => { setApiKey(tempApiKey); alert('Saved!'); }} className="btn btn-primary">
+                  <button onClick={() => { setApiKey(tempApiKey); toast.success('API Key saved!'); }} className="btn btn-primary">
                     Save
                   </button>
                 </div>
@@ -507,7 +509,7 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <button onClick={() => { setUserPin(tempUserPin); setAdminPin(tempAdminPin); alert('Saved!'); }}
+              <button onClick={() => { setUserPin(tempUserPin); setAdminPin(tempAdminPin); toast.success('PINs saved!'); }}
                 className="btn btn-primary w-full mt-2">
                 Save PINs
               </button>

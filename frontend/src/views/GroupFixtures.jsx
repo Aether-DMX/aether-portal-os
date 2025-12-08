@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Minus } from 'lucide-react';
 import useGroupStore from '../store/groupStore';
+import useToastStore from '../store/toastStore';
 
 const COLORS = [
   { name: 'Red', value: '#FF0000' },
@@ -25,6 +26,7 @@ const FIXTURE_TYPES = [
 export default function GroupFixtures() {
   const navigate = useNavigate();
   const { createGroup } = useGroupStore();
+  const toast = useToastStore();
 
   const [groupName, setGroupName] = useState('');
   const [fixtureType, setFixtureType] = useState('RGB');
@@ -49,12 +51,12 @@ export default function GroupFixtures() {
 
   const handleSave = () => {
     if (!groupName.trim()) {
-      alert('Please enter a group name');
+      toast.warning('Please enter a group name');
       return;
     }
 
     const channels = getChannels();
-    
+
     createGroup({
       name: groupName,
       channels,
@@ -62,6 +64,7 @@ export default function GroupFixtures() {
       fixtureType
     });
 
+    toast.success(`Group "${groupName}" created!`);
     navigate('/fixtures-menu');
   };
 

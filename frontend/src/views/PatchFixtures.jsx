@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, Check } from 'lucide-react';
+import useToastStore from '../store/toastStore';
 
 const STEPS = ['Select', 'Address', 'Name'];
 
@@ -49,6 +50,7 @@ const FIXTURE_LIBRARY = [
 
 export default function PatchFixtures() {
   const navigate = useNavigate();
+  const toast = useToastStore();
 
   const [step, setStep] = useState(0);
   const [selectedFixture, setSelectedFixture] = useState(null);
@@ -67,7 +69,7 @@ export default function PatchFixtures() {
 
   const handleSave = () => {
     if (!fixtureName.trim()) {
-      alert('Please enter a fixture name');
+      toast.warning('Please enter a fixture name');
       return;
     }
 
@@ -78,6 +80,7 @@ export default function PatchFixtures() {
       name: fixtureName
     });
 
+    toast.success(`Fixture "${fixtureName}" patched!`);
     navigate('/fixtures-menu');
   };
 

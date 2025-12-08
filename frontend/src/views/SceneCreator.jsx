@@ -5,6 +5,7 @@ import useSceneStore from '../store/sceneStore';
 import useGroupStore from '../store/groupStore';
 import useDMXStore from '../store/dmxStore';
 import { useFixtureStore } from '../store/fixtureStore';
+import useToastStore from '../store/toastStore';
 
 const STEPS = ['Name', 'Channels', 'Color', 'Review'];
 
@@ -14,6 +15,7 @@ export default function SceneCreator() {
   const { groups } = useGroupStore();
   const { currentUniverse } = useDMXStore();
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
+  const toast = useToastStore();
 
   const [step, setStep] = useState(0);
   const [sceneName, setSceneName] = useState('');
@@ -85,10 +87,10 @@ export default function SceneCreator() {
     return selectedChannels.sort((a, b) => a - b);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const affected = getAffectedChannels();
     if (affected.length === 0) {
-      alert('Please select at least one channel or group');
+      toast.warning('Please select at least one channel or group');
       return;
     }
 
@@ -102,16 +104,20 @@ export default function SceneCreator() {
       else channels[ch] = Math.round((color.b / 255) * scaledIntensity);
     });
 
-    createScene({
-      name: sceneName,
-      description,
-      universe: currentUniverse,
-      channels,
-      fadeTime,
-      color: 'blue'
-    });
-
-    navigate('/scenes');
+    try {
+      await createScene({
+        name: sceneName,
+        description,
+        universe: currentUniverse,
+        channels,
+        fadeTime,
+        color: 'blue'
+      });
+      toast.success(`Scene "${sceneName}" created!`);
+      navigate('/scenes');
+    } catch (e) {
+      toast.error('Failed to create scene');
+    }
   };
 
   const canProceed = () => {

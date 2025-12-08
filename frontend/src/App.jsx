@@ -34,6 +34,7 @@ import useAuthStore from './store/authStore';
 import useAIStore from './store/aiStore';
 import { useFixtureStore } from './store/fixtureStore';
 import AetherBackground from './components/AetherBackground';
+import ToastContainer from './components/Toast';
 
 function AppContent({ onLock }) {
   const { currentUniverse } = useDMXStore();
@@ -78,6 +79,7 @@ function AppContent({ onLock }) {
       </main>
 
       {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
+      <ToastContainer />
     </div>
   );
 }

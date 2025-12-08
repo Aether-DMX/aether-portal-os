@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save, Plus, Minus } from 'lucide-react';
+import useToastStore from '../../store/toastStore';
 
 const fixtureTypes = [
   { value: 'dimmer', label: 'Dimmer', icon: '💡' },
@@ -11,6 +12,7 @@ const fixtureTypes = [
 ];
 
 export default function GroupEditor({ group, onSave, onClose }) {
+  const toast = useToastStore();
   const [name, setName] = useState(group?.name || '');
   const [description, setDescription] = useState(group?.description || '');
   const [fixtureType, setFixtureType] = useState(group?.fixtureType || 'dimmer');
@@ -31,14 +33,14 @@ export default function GroupEditor({ group, onSave, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
-      alert('Group name is required');
+      toast.warning('Group name is required');
       return;
     }
 
     if (channels.length === 0) {
-      alert('Add at least one channel');
+      toast.warning('Add at least one channel');
       return;
     }
 

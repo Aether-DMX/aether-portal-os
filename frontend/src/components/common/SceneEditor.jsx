@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save, Plus, Trash2, Play } from 'lucide-react';
+import useToastStore from '../../store/toastStore';
 
 const colors = [
   { name: 'Blue', value: 'blue' },
@@ -12,6 +13,7 @@ const colors = [
 ];
 
 export default function SceneEditor({ scene, onSave, onClose }) {
+  const toast = useToastStore();
   const [name, setName] = useState(scene?.name || '');
   const [description, setDescription] = useState(scene?.description || '');
   const [fadeTime, setFadeTime] = useState(scene?.fade_ms || scene?.fadeTime || 0);
@@ -39,7 +41,7 @@ export default function SceneEditor({ scene, onSave, onClose }) {
     e.preventDefault();
 
     if (!name.trim()) {
-      alert('Scene name is required');
+      toast.warning('Scene name is required');
       return;
     }
 
@@ -57,7 +59,7 @@ export default function SceneEditor({ scene, onSave, onClose }) {
 
   const testScene = async () => {
     if (!name.trim()) {
-      alert('Please name the scene first');
+      toast.warning('Please name the scene first');
       return;
     }
 
@@ -72,10 +74,10 @@ export default function SceneEditor({ scene, onSave, onClose }) {
         universe: parseInt(universe),
         channels,
       }, true); // true = test mode, don't close
-      
-      alert('Scene sent to DMX!');
+
+      toast.success('Scene sent to DMX!');
     } catch (error) {
-      alert('Failed to test scene: ' + error.message);
+      toast.error('Failed to test scene: ' + error.message);
     }
   };
 
