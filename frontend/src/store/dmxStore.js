@@ -55,7 +55,7 @@ const useDMXStore = create((set, get) => ({
     }
   },
 
-  // Fetch current state from AETHER Core
+  // Fetch current state from AETHER Core (also sets currentUniverse)
   fetchState: async (universe = 1) => {
     try {
       const res = await axios.get(getAetherCore() + '/api/dmx/universe/' + universe);
@@ -80,19 +80,20 @@ const useDMXStore = create((set, get) => ({
     return get().fetchState(universe);
   },
 
-  // Start polling for state updates
-  startPolling: (universe = 1, intervalMs = 500) => {
+  // Start polling for state updates - polls the CURRENT universe
+  startPolling: (intervalMs = 500) => {
     const state = get();
     if (state.polling) return;
-    
-    // Initial fetch
-    get().fetchState(universe);
-    
-    // Set up interval
+
+    // Initial fetch for current universe
+    get().fetchState(get().currentUniverse);
+
+    // Set up interval - always polls currentUniverse (which can change)
     const interval = setInterval(() => {
-      get().fetchState(universe);
+      const currentState = get();
+      get().fetchStateOnly(currentState.currentUniverse);
     }, intervalMs);
-    
+
     set({ polling: true, pollInterval: interval });
     console.log('🔄 DMX polling started (every ' + intervalMs + 'ms)');
   },
@@ -104,6 +105,25 @@ const useDMXStore = create((set, get) => ({
     }
     set({ polling: false, pollInterval: null });
     console.log('⏹️ DMX polling stopped');
+  },
+
+  // Fetch state without changing currentUniverse (for polling)
+  fetchStateOnly: async (universe) => {
+    try {
+      const res = await axios.get(getAetherCore() + '/api/dmx/universe/' + universe);
+      if (res.data && res.data.channels) {
+        const channels = res.data.channels;
+        set(state => ({
+          universeState: channels,
+          universes: { ...state.universes, [universe]: channels },
+          lastUpdate: Date.now()
+        }));
+        return channels;
+      }
+    } catch (e) {
+      // Silently fail during polling to avoid console spam
+    }
+    return null;
   },
 
   // Set a single channel

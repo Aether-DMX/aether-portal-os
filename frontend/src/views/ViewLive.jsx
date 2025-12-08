@@ -6,7 +6,7 @@ import useGroupStore from '../store/groupStore';
 
 export default function ViewLive() {
   const navigate = useNavigate();
-  const { universeState, currentUniverse, configuredUniverses, initSocket, setCurrentUniverse, fetchState } = useDMXStore();
+  const { universeState, currentUniverse, configuredUniverses, initSocket, setCurrentUniverse } = useDMXStore();
   const { groups } = useGroupStore();
   const [activeChannels, setActiveChannels] = useState([]);
 
@@ -24,9 +24,9 @@ export default function ViewLive() {
     setActiveChannels(active);
   }, [universeState]);
 
+  // setCurrentUniverse already fetches state internally
   const handleUniverseChange = (universe) => {
     setCurrentUniverse(universe);
-    fetchState(universe);
   };
 
   const getChannelGroup = (channel) => {
