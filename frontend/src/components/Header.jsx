@@ -77,7 +77,7 @@ export default function Header({ onLock }) {
           className="flex items-center gap-2 hover:opacity-80 active:opacity-60 transition-opacity"
           aria-label="Go to Dashboard"
         >
-          <span className="launcher-logo-icon">{'\uD83D\uDC7B'}</span>
+          <img src="/Aether_LogoN1.png" alt="AETHER" className="launcher-logo-icon" style={{ width: "40px", height: "40px" }} />
           <div className="launcher-logo-text">
             <span className="launcher-logo-aether">AETHER</span>
             <span className="launcher-logo-dmx">DMX</span>

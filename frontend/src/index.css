@@ -456,10 +456,6 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
 
 @keyframes spin {
   from { transform: rotate(0deg); }
@@ -777,7 +773,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .widget-title {
-  font-size: clamp(9px, 1.3vh, 11px);
+  font-size: clamp(12px, 1.8vh, 14px);
   font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -785,7 +781,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .widget-scope {
-  font-size: clamp(8px, 1.2vh, 10px);
+  font-size: clamp(11px, 1.6vh, 13px);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -833,7 +829,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .scene-name {
-  font-size: clamp(8px, 1.2vh, 10px);
+  font-size: clamp(11px, 1.6vh, 13px);
   font-weight: 600;
   color: var(--text-dim);
 }
@@ -855,7 +851,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .master-label {
-  font-size: clamp(8px, 1.2vh, 10px);
+  font-size: clamp(11px, 1.6vh, 13px);
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 1px;
@@ -964,7 +960,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .zone-name {
-  font-size: clamp(8px, 1.3vh, 10px);
+  font-size: clamp(12px, 2vh, 16px);
   font-weight: 600;
   color: var(--text-dim);
   text-align: center;
@@ -985,7 +981,8 @@ input[type="range"]::-moz-range-thumb {
   border-radius: calc(var(--rad) + 4px);
   padding: clamp(6px, 1.2vh, 12px) clamp(12px, 3vw, 24px);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  gap: clamp(20px, 5vw, 40px);
   align-items: center;
 }
 
@@ -995,7 +992,7 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: 2px;
   cursor: pointer;
-  min-width: 44px;
+  min-width: 36px;
 }
 
 .dock-btn:active {
@@ -1026,7 +1023,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .dock-label {
-  font-size: clamp(7px, 1.1vh, 9px);
+  font-size: clamp(11px, 1.8vh, 14px);
   font-weight: 500;
   color: var(--text-dim);
 }
@@ -1356,7 +1353,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .settings-section-title {
-  font-size: clamp(9px, 1.3vh, 11px);
+  font-size: clamp(12px, 1.8vh, 14px);
   font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -1365,7 +1362,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .pro-badge {
-  font-size: clamp(7px, 1.1vh, 9px);
+  font-size: clamp(11px, 1.8vh, 14px);
   font-weight: 700;
   color: #000;
   background: linear-gradient(135deg, #ffd700, #ffaa00);
@@ -1405,5 +1402,193 @@ input[type="range"]::-moz-range-thumb {
   }
   .zones-grid {
     flex: 1 1 100%;
+  }
+}
+
+/* Fix ChatModal layout */
+.chat-modal {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-height: 80vh !important;
+  width: 90% !important;
+  max-width: 320px !important;
+  z-index: 9999 !important;
+}
+
+.chat-modal .modal-body {
+  overflow: auto;
+  max-height: 60vh;
+}
+
+/* AETHER AI Fullscreen Modal - 800x480 Optimized */
+.aether-ai-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0,0,0,0.97) 0%, rgba(15,15,25,0.97) 100%);
+  backdrop-filter: blur(20px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.aether-ai-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aether-ai-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 750px;
+  height: 100%;
+  max-height: 420px;
+}
+
+.aether-ai-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.aether-ai-logo {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent, #00ffff);
+  text-shadow: 0 0 20px var(--accent, #00ffff);
+  margin-bottom: 4px;
+}
+
+.aether-ai-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aether-ai-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent, #00ffff);
+  color: black;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.step-text strong {
+  color: white;
+  font-size: 13px;
+}
+
+.step-text span {
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+}
+
+.aether-ai-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.aether-ai-qr {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid var(--accent, #00ffff);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 0 30px rgba(0,255,255,0.15);
+}
+
+.aether-ai-url {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  font-family: monospace;
+}
+
+.aether-ai-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.waiting-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent, #00ffff);
+  animation: aether-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes aether-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Portrait fallback (if rotated) */
+@media (max-aspect-ratio: 1/1) {
+  .aether-ai-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .aether-ai-left {
+    max-width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+  .aether-ai-qr {
+    padding: 12px;
+  }
+  .aether-ai-qr svg {
+    width: 120px !important;
+    height: 120px !important;
   }
 }

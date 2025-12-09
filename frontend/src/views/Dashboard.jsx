@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
@@ -20,6 +23,49 @@ const zoneIcons = {
 // Scene emoji icons
 const sceneEmojis = ['\uD83C\uDF05', '\uD83C\uDF78', '\uD83D\uDD25', '\uD83C\uDF19'];
 
+// Sortable Zone Component
+function SortableZone({ node, brightness, getZoneIcon, onClick }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: node.node_id || node.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="zone-icon"
+      onClick={onClick}
+    >
+      <div className={`zone-img ${node.status === 'online' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24">
+          <path d={getZoneIcon(node.name)} />
+        </svg>
+        <div className="zone-bar">
+          <div
+            className="zone-bar-fill"
+            style={{ width: `${brightness}%` }}
+          />
+        </div>
+      </div>
+      <span className="zone-name">{node.name}</span>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { nodes } = useNodeStore();
@@ -27,28 +73,79 @@ export default function Dashboard() {
   const { universes, setChannels, initSocket, configuredUniverses } = useDMXStore();
 
   const [masterValue, setMasterValue] = useState(100);
-  const [lastMasterValue, setLastMasterValue] = useState(100); // Track for delta calculation
+  const [lastMasterValue, setLastMasterValue] = useState(100);
+  const [zoneOrder, setZoneOrder] = useState([]);
   const masterTrackRef = useRef(null);
   const isDragging = useRef(false);
+
+  // Sensors for drag and drop (with delay to allow clicks)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   // Initialize DMX polling on mount
   useEffect(() => {
     initSocket();
   }, [initSocket]);
 
+  // Filter to only show configured/paired nodes (nodes with names that aren't default)
+  const configuredNodes = useMemo(() => {
+    return nodes.filter(n => n.name && n.name !== 'Unknown' && n.name !== 'New Node');
+  }, [nodes]);
+
+  // Load zone order from localStorage or use default order
+  useEffect(() => {
+    const savedOrder = localStorage.getItem('zoneOrder');
+    if (savedOrder) {
+      try {
+        setZoneOrder(JSON.parse(savedOrder));
+      } catch (e) {
+        setZoneOrder(configuredNodes.map(n => n.node_id || n.id));
+      }
+    } else {
+      setZoneOrder(configuredNodes.map(n => n.node_id || n.id));
+    }
+  }, [configuredNodes]);
+
+  // Sort nodes by saved order
+  const sortedNodes = useMemo(() => {
+    if (zoneOrder.length === 0) return configuredNodes;
+    return [...configuredNodes].sort((a, b) => {
+      const aId = a.node_id || a.id;
+      const bId = b.node_id || b.id;
+      const aIndex = zoneOrder.indexOf(aId);
+      const bIndex = zoneOrder.indexOf(bId);
+      if (aIndex === -1 && bIndex === -1) return 0;
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [configuredNodes, zoneOrder]);
+
+  // Handle drag end
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = sortedNodes.findIndex(n => (n.node_id || n.id) === active.id);
+      const newIndex = sortedNodes.findIndex(n => (n.node_id || n.id) === over.id);
+      const newOrder = arrayMove(sortedNodes.map(n => n.node_id || n.id), oldIndex, newIndex);
+      setZoneOrder(newOrder);
+      localStorage.setItem('zoneOrder', JSON.stringify(newOrder));
+    }
+  };
+
   // Get global scenes for quick access (fall back to first 4 if none marked)
   const globalScenes = getGlobalScenes?.() || [];
   const quickScenes = globalScenes.length > 0 ? globalScenes.slice(0, 4) : scenes.slice(0, 4);
 
   // Calculate zone brightness from actual DMX state
-  // Each node has a channel range - calculate average brightness for that range
   const getZoneBrightness = (node) => {
     const universe = node.universe || 1;
     const universeState = universes[universe] || [];
     const startCh = node.channel_start || node.channelStart || 1;
     const endCh = node.channel_end || node.channelEnd || 512;
 
-    // Get channels in range
     let sum = 0;
     let count = 0;
     for (let i = startCh - 1; i < Math.min(endCh, universeState.length); i++) {
@@ -56,7 +153,6 @@ export default function Dashboard() {
       count++;
     }
 
-    // Return percentage (0-100)
     if (count === 0) return 0;
     return Math.round((sum / count / 255) * 100);
   };
@@ -76,25 +172,18 @@ export default function Dashboard() {
 
   // Apply master fader to all configured universes
   const applyMasterValue = (newValue) => {
-    // Calculate scale factor relative to 100%
     const scaleFactor = newValue / 100;
-
-    // Apply to all configured universes
     configuredUniverses.forEach(universe => {
       const currentState = universes[universe] || [];
       const scaledChannels = {};
-
-      // Scale all non-zero channels
       currentState.forEach((val, idx) => {
         if (val > 0) {
-          // Scale relative to current value, capped at 255
           const newVal = Math.min(255, Math.round(val * scaleFactor));
           scaledChannels[idx + 1] = newVal;
         }
       });
-
       if (Object.keys(scaledChannels).length > 0) {
-        setChannels(universe, scaledChannels, 100); // 100ms fade for smooth response
+        setChannels(universe, scaledChannels, 100);
       }
     });
   };
@@ -122,7 +211,6 @@ export default function Dashboard() {
   const handleMasterEnd = () => {
     if (isDragging.current) {
       isDragging.current = false;
-      // Apply the master value when drag ends
       applyMasterValue(masterValue);
       setLastMasterValue(masterValue);
     }
@@ -143,21 +231,21 @@ export default function Dashboard() {
   }, [masterValue]);
 
   const handleSceneClick = (scene) => {
-    playScene(scene.scene_id || scene.id, 1000); // 1 second fade
+    playScene(scene.scene_id || scene.id, 1000);
   };
 
   const handleZoneClick = (node) => {
     navigate(`/zone/${node.node_id || node.id}`);
   };
 
-  // Memoize zone brightnesses to avoid recalculating on every render
+  // Memoize zone brightnesses
   const zoneBrightnesses = useMemo(() => {
     const brightnesses = {};
-    nodes.forEach(node => {
+    configuredNodes.forEach(node => {
       brightnesses[node.node_id || node.id] = getZoneBrightness(node);
     });
     return brightnesses;
-  }, [nodes, universes]);
+  }, [configuredNodes, universes]);
 
   return (
     <div className="launcher-main">
@@ -216,51 +304,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Zone Grid */}
-      <div className="zones-grid">
-        {nodes.map((node) => (
-          <div
-            key={node.node_id || node.id}
-            className="zone-icon"
-            onClick={() => handleZoneClick(node)}
-          >
-            <div className={`zone-img ${node.status === 'online' ? 'active' : ''}`}>
-              <svg viewBox="0 0 24 24">
-                <path d={getZoneIcon(node.name)} />
-              </svg>
-              <div className="zone-bar">
-                <div
-                  className="zone-bar-fill"
-                  style={{ width: `${zoneBrightnesses[node.node_id || node.id] || 0}%` }}
-                />
-              </div>
-            </div>
-            <span className="zone-name">{node.name}</span>
-          </div>
-        ))}
-        {nodes.length === 0 && (
-          <>
-            {/* Placeholder zones when no nodes are connected */}
-            {['Bar', 'Stage', 'Dining', 'DJ Booth', 'Patio', 'Entry', 'VIP', 'Restrooms'].map((name, idx) => (
-              <div
-                key={idx}
+      {/* Zone Grid with Drag and Drop */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
+          <div className="zones-grid">
+            {sortedNodes.map((node) => (
+              <SortableZone
+                key={node.node_id || node.id}
+                node={node}
+                brightness={zoneBrightnesses[node.node_id || node.id] || 0}
+                getZoneIcon={getZoneIcon}
+                onClick={() => handleZoneClick(node)}
+              />
+            ))}
+            {sortedNodes.length === 0 && (
+              <div 
                 className="zone-icon"
                 onClick={() => navigate('/nodes')}
+                style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}
               >
-                <div className="zone-img">
-                  <svg viewBox="0 0 24 24">
-                    <path d={getZoneIcon(name)} />
-                  </svg>
-                  <div className="zone-bar">
-                    <div className="zone-bar-fill" style={{ width: '0%' }} />
-                  </div>
-                </div>
-                <span className="zone-name">{name}</span>
+                <span className="zone-name">No zones configured. Tap to add nodes.</span>
               </div>
-            ))}
-          </>
-        )}
-      </div>
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }

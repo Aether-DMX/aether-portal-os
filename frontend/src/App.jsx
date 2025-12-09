@@ -94,6 +94,7 @@ function App() {
   const { fetchNodes } = useNodeStore();
 
   const [screensaverActive, setScreensaverActive] = useState(false);
+  const [lockTime, setLockTime] = useState(0);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
@@ -194,7 +195,7 @@ function App() {
 
   return (
     <Router>
-      <AppContent onLock={() => setScreensaverActive(true)} />
+      <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
     </Router>
   );
 }
