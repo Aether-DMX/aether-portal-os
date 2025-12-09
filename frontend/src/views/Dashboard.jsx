@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
@@ -24,17 +24,41 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { nodes } = useNodeStore();
   const { scenes, currentScene, playScene, getGlobalScenes } = useSceneStore();
-  const [masterValue, setMasterValue] = useState(80);
+  const { universes, setChannels, initSocket, configuredUniverses } = useDMXStore();
+
+  const [masterValue, setMasterValue] = useState(100);
+  const [lastMasterValue, setLastMasterValue] = useState(100); // Track for delta calculation
   const masterTrackRef = useRef(null);
   const isDragging = useRef(false);
+
+  // Initialize DMX polling on mount
+  useEffect(() => {
+    initSocket();
+  }, [initSocket]);
 
   // Get global scenes for quick access (fall back to first 4 if none marked)
   const globalScenes = getGlobalScenes?.() || [];
   const quickScenes = globalScenes.length > 0 ? globalScenes.slice(0, 4) : scenes.slice(0, 4);
 
-  // Zone brightness values (mock data - in production, get from DMX state)
+  // Calculate zone brightness from actual DMX state
+  // Each node has a channel range - calculate average brightness for that range
   const getZoneBrightness = (node) => {
-    return Math.floor(Math.random() * 60) + 40; // Mock: 40-100%
+    const universe = node.universe || 1;
+    const universeState = universes[universe] || [];
+    const startCh = node.channel_start || node.channelStart || 1;
+    const endCh = node.channel_end || node.channelEnd || 512;
+
+    // Get channels in range
+    let sum = 0;
+    let count = 0;
+    for (let i = startCh - 1; i < Math.min(endCh, universeState.length); i++) {
+      sum += universeState[i] || 0;
+      count++;
+    }
+
+    // Return percentage (0-100)
+    if (count === 0) return 0;
+    return Math.round((sum / count / 255) * 100);
   };
 
   const getZoneIcon = (nodeName) => {
@@ -50,17 +74,44 @@ export default function Dashboard() {
     return zoneIcons.default;
   };
 
+  // Apply master fader to all configured universes
+  const applyMasterValue = (newValue) => {
+    // Calculate scale factor relative to 100%
+    const scaleFactor = newValue / 100;
+
+    // Apply to all configured universes
+    configuredUniverses.forEach(universe => {
+      const currentState = universes[universe] || [];
+      const scaledChannels = {};
+
+      // Scale all non-zero channels
+      currentState.forEach((val, idx) => {
+        if (val > 0) {
+          // Scale relative to current value, capped at 255
+          const newVal = Math.min(255, Math.round(val * scaleFactor));
+          scaledChannels[idx + 1] = newVal;
+        }
+      });
+
+      if (Object.keys(scaledChannels).length > 0) {
+        setChannels(universe, scaledChannels, 100); // 100ms fade for smooth response
+      }
+    });
+  };
+
   const handleMasterDrag = (e) => {
     if (!masterTrackRef.current) return;
     const rect = masterTrackRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const x = clientX - rect.left;
     const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setMasterValue(Math.round(pct));
+    const newValue = Math.round(pct);
+    setMasterValue(newValue);
   };
 
   const handleMasterStart = (e) => {
     isDragging.current = true;
+    setLastMasterValue(masterValue);
     handleMasterDrag(e);
   };
 
@@ -69,7 +120,12 @@ export default function Dashboard() {
   };
 
   const handleMasterEnd = () => {
-    isDragging.current = false;
+    if (isDragging.current) {
+      isDragging.current = false;
+      // Apply the master value when drag ends
+      applyMasterValue(masterValue);
+      setLastMasterValue(masterValue);
+    }
   };
 
   useEffect(() => {
@@ -84,15 +140,24 @@ export default function Dashboard() {
       document.removeEventListener('touchmove', handleMasterMove);
       document.removeEventListener('touchend', handleMasterEnd);
     };
-  }, []);
+  }, [masterValue]);
 
   const handleSceneClick = (scene) => {
-    playScene(scene.scene_id || scene.id);
+    playScene(scene.scene_id || scene.id, 1000); // 1 second fade
   };
 
   const handleZoneClick = (node) => {
     navigate(`/zone/${node.node_id || node.id}`);
   };
+
+  // Memoize zone brightnesses to avoid recalculating on every render
+  const zoneBrightnesses = useMemo(() => {
+    const brightnesses = {};
+    nodes.forEach(node => {
+      brightnesses[node.node_id || node.id] = getZoneBrightness(node);
+    });
+    return brightnesses;
+  }, [nodes, universes]);
 
   return (
     <div className="launcher-main">
@@ -106,7 +171,7 @@ export default function Dashboard() {
           {quickScenes.map((scene, idx) => (
             <button
               key={scene.scene_id || scene.id || idx}
-              className={`scene-btn ${currentScene?.scene_id === scene.scene_id ? 'active' : ''}`}
+              className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
               onClick={() => handleSceneClick(scene)}
             >
               <span className="scene-icon">{sceneEmojis[idx % sceneEmojis.length]}</span>
@@ -166,7 +231,7 @@ export default function Dashboard() {
               <div className="zone-bar">
                 <div
                   className="zone-bar-fill"
-                  style={{ width: `${getZoneBrightness(node)}%` }}
+                  style={{ width: `${zoneBrightnesses[node.node_id || node.id] || 0}%` }}
                 />
               </div>
             </div>
@@ -187,7 +252,7 @@ export default function Dashboard() {
                     <path d={getZoneIcon(name)} />
                   </svg>
                   <div className="zone-bar">
-                    <div className="zone-bar-fill" style={{ width: `${50 + idx * 5}%` }} />
+                    <div className="zone-bar-fill" style={{ width: '0%' }} />
                   </div>
                 </div>
                 <span className="zone-name">{name}</span>
