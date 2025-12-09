@@ -73,8 +73,8 @@ const useChaseStore = create((set, get) => ({
       const idToStop = chaseId || get().activeChase?.chase_id || get().activeChase?.id;
       console.log('⏹️ Stopping chase:', idToStop || 'all');
 
-      // Use the general playback stop endpoint
-      await axios.post(getAetherCore() + '/api/playback/stop');
+      // Use the general playback stop endpoint (must send JSON body)
+      await axios.post(getAetherCore() + '/api/playback/stop', {});
 
       set({ runningChases: {}, activeChase: null });
     } catch (e) {

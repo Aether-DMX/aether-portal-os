@@ -29,8 +29,8 @@ export default function Dock({ onAIClick }) {
 
   const confirmBlackout = async () => {
     try {
-      // Stop all playback (scenes, chases)
-      await axios.post(getAetherCore() + '/api/playback/stop');
+      // Stop all playback (scenes, chases) - must send empty JSON body
+      await axios.post(getAetherCore() + '/api/playback/stop', {});
       // Blackout all 3 universes
       await Promise.all([
         axios.post(getAetherCore() + '/api/dmx/blackout', { universe: 1, fade_ms: 1500 }),
