@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
+import Dock from './components/Dock';
 import ChatModal from './components/ChatModal';
 import Dashboard from './views/Dashboard';
 import LiveDMXMenu from './views/LiveDMXMenu';
@@ -23,6 +24,8 @@ import Timers from './views/Timers';
 import NodeManagement from './components/NodeManagement';
 import Settings from './views/Settings';
 import MobileAI from './views/MobileAI';
+import MoreMenu from './views/MoreMenu';
+import ZoneDetail from './views/ZoneDetail';
 import Screensaver from './components/Screensaver';
 import useDMXStore from './store/dmxStore';
 import useUIStore from './store/uiStore';
@@ -37,19 +40,15 @@ import AetherBackground from './components/AetherBackground';
 import ToastContainer from './components/Toast';
 
 function AppContent({ onLock }) {
-  const { currentUniverse } = useDMXStore();
   const [showAIModal, setShowAIModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-gradient-primary relative">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-black relative">
+      {/* Ambient glow background */}
+      <div className="ambient-glow" />
       <AetherBackground />
 
-      <Header
-        currentUniverse={currentUniverse}
-        onLock={onLock}
-        onAIClick={() => setShowAIModal(true)}
-      />
+      <Header onLock={onLock} />
 
       <main className="flex-1 relative z-10 overflow-hidden">
         <Routes>
@@ -60,7 +59,7 @@ function AppContent({ onLock }) {
           <Route path="/my-effects" element={<MyEffects />} />
           <Route path="/fixtures-menu" element={<FixturesMenu />} />
           <Route path="/schedules-menu" element={<SchedulesMenu />} />
-          <Route path="/faders" element={<Faders currentPage={currentPage} />} />
+          <Route path="/faders" element={<Faders />} />
           <Route path="/view-live" element={<ViewLive />} />
           <Route path="/scenes" element={<Scenes />} />
           <Route path="/groups" element={<Groups />} />
@@ -74,9 +73,13 @@ function AppContent({ onLock }) {
           <Route path="/nodes" element={<NodeManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/aether-ai" element={<MobileAI />} />
+          <Route path="/more" element={<MoreMenu />} />
+          <Route path="/zone/:nodeId" element={<ZoneDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      <Dock onAIClick={() => setShowAIModal(true)} />
 
       {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
       <ToastContainer />
@@ -85,12 +88,13 @@ function AppContent({ onLock }) {
 }
 
 function App() {
-  const { theme } = useUIStore();
+  const { accentColor } = useUIStore();
   const { initializeSampleData: initScenes } = useSceneStore();
   const { initializeSampleData: initChases } = useChaseStore();
   const { fetchNodes } = useNodeStore();
 
   const [screensaverActive, setScreensaverActive] = useState(false);
+  const [lockTime, setLockTime] = useState(0);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
@@ -126,31 +130,34 @@ function App() {
     }
   }, [settingsLoaded, initScenes, initChases, fetchNodes]);
 
-  // Apply theme AFTER settings are loaded
+  // Apply accent color AFTER settings are loaded
   useEffect(() => {
     if (!settingsLoaded) return;
 
-    const applyTheme = (color) => {
-      document.documentElement.style.setProperty('--theme-primary', color);
-
+    const applyAccentColor = (color) => {
       const hexToRgb = (hex) => {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
           r: parseInt(result[1], 16),
           g: parseInt(result[2], 16),
           b: parseInt(result[3], 16)
-        } : { r: 100, g: 200, b: 255 };
+        } : { r: 0, g: 255, b: 170 };
       };
 
       const rgb = hexToRgb(color);
-      document.documentElement.style.setProperty('--theme-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
-      document.documentElement.style.setProperty('--theme-light', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`);
-      document.documentElement.style.setProperty('--theme-lighter', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1)`);
+      const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+
+      document.documentElement.style.setProperty('--accent', color);
+      document.documentElement.style.setProperty('--accent-rgb', rgbString);
+      document.documentElement.style.setProperty('--accent-dim', `rgba(${rgbString}, 0.15)`);
+      document.documentElement.style.setProperty('--accent-glow', `rgba(${rgbString}, 0.4)`);
+      document.documentElement.style.setProperty('--theme-primary', color);
+      document.documentElement.style.setProperty('--theme-primary-rgb', rgbString);
     };
 
-    applyTheme(theme);
-    console.log('🎨 Theme applied:', theme);
-  }, [theme, settingsLoaded]);
+    applyAccentColor(accentColor);
+    console.log('🎨 Accent color applied:', accentColor);
+  }, [accentColor, settingsLoaded]);
 
   useEffect(() => {
     const checkInactivity = setInterval(() => {
@@ -188,7 +195,7 @@ function App() {
 
   return (
     <Router>
-      <AppContent onLock={() => setScreensaverActive(true)} />
+      <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
     </Router>
   );
 }

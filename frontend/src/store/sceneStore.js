@@ -68,6 +68,22 @@ const useSceneStore = create((set, get) => ({
   },
 
   stopScene: () => set({ currentScene: null }),
+
+  // Get scenes marked as global (for quick scenes widget)
+  getGlobalScenes: () => get().scenes.filter(s => s.isGlobal),
+
+  // Toggle global flag on a scene
+  setSceneGlobal: async (id, isGlobal) => {
+    try {
+      const scene = get().scenes.find(s => (s.scene_id || s.id) === id);
+      if (!scene) return;
+
+      await axios.patch(getAetherCore() + '/api/scenes/' + id, { isGlobal });
+      await get().fetchScenes();
+    } catch (e) {
+      console.error('Failed to update scene global flag:', e);
+    }
+  },
 }));
 
 export default useSceneStore;
