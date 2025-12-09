@@ -1,312 +1,370 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Play, Square, Trash2, Plus, X, Lightbulb, Users, Hash } from 'lucide-react';
+import { Play, Square, Plus, X, Settings } from 'lucide-react';
 import useChaseStore from '../store/chaseStore';
-import { useFixtureStore } from '../store/fixtureStore';
-import useGroupStore from '../store/groupStore';
-import useDMXStore from '../store/dmxStore';
 
 export default function Chases() {
   const navigate = useNavigate();
   const { chases, activeChase, fetchChases, startChase, stopChase, deleteChase } = useChaseStore();
-  const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
-  const { groups } = useGroupStore();
-  const { currentUniverse } = useDMXStore();
-
-  const [targetModal, setTargetModal] = useState(null);
-  const [targetMode, setTargetMode] = useState('all');
-  const [selectedFixtures, setSelectedFixtures] = useState([]);
-  const [selectedGroups, setSelectedGroups] = useState([]);
-  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [editModal, setEditModal] = useState(null);
+  const longPressTimer = useRef(null);
+  const [pressedId, setPressedId] = useState(null);
 
   useEffect(() => {
     fetchChases();
-    fetchFixtures();
-  }, [fetchChases, fetchFixtures]);
+  }, [fetchChases]);
 
-  const isActive = (chase) => activeChase?.chase_id === chase.chase_id || activeChase?.id === chase.id;
-
-  const openTargetModal = (chase) => {
-    setTargetModal(chase);
-    setTargetMode('all');
-    setSelectedFixtures([]);
-    setSelectedGroups([]);
-    setSelectedChannels([]);
+  const handleTouchStart = (chase) => {
+    setPressedId(chase.chase_id || chase.id);
+    longPressTimer.current = setTimeout(() => {
+      setEditModal(chase);
+      setPressedId(null);
+    }, 500);
   };
 
-  const toggleFixture = (id) => {
-    setSelectedFixtures(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleGroup = (id) => {
-    setSelectedGroups(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleChannel = (ch) => {
-    setSelectedChannels(prev => prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]);
-  };
-
-  const getTargetChannels = () => {
-    if (targetMode === 'all') return null;
-    const channels = new Set();
-    if (targetMode === 'fixtures') {
-      selectedFixtures.forEach(fid => {
-        const fixture = fixtures.find(f => (f.fixture_id || f.id) === fid);
-        if (fixture) {
-          const range = getFixtureChannelRange(fixture);
-          range.channels.forEach(ch => channels.add(ch));
-        }
-      });
-    } else if (targetMode === 'groups') {
-      selectedGroups.forEach(gid => {
-        const group = groups.find(g => g.id === gid);
-        if (group) group.channels.forEach(ch => channels.add(ch));
-      });
-    } else if (targetMode === 'channels') {
-      selectedChannels.forEach(ch => channels.add(ch));
+  const handleTouchEnd = (chase) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
-    return Array.from(channels);
-  };
-
-  const handleStart = () => {
-    if (!targetModal) return;
-    const targetChannels = getTargetChannels();
-    const chaseId = targetModal.chase_id || targetModal.id;
-    if (targetChannels === null) {
-      startChase(chaseId);
-    } else if (targetChannels.length > 0) {
-      startChase(chaseId, { targetChannels });
+    if (pressedId === (chase.chase_id || chase.id)) {
+      // Short tap - toggle chase
+      const chaseId = chase.chase_id || chase.id;
+      if (isPlaying(chase)) {
+        stopChase();
+      } else {
+        startChase(chaseId);
+      }
     }
-    setTargetModal(null);
+    setPressedId(null);
   };
 
-  const canStart = () => {
-    if (targetMode === 'all') return true;
-    if (targetMode === 'fixtures') return selectedFixtures.length > 0;
-    if (targetMode === 'groups') return selectedGroups.length > 0;
-    if (targetMode === 'channels') return selectedChannels.length > 0;
-    return false;
+  const handleTouchCancel = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setPressedId(null);
+  };
+
+  const isPlaying = (chase) => {
+    if (!activeChase) return false;
+    const activeId = activeChase.chase_id || activeChase.id;
+    const chaseId = chase.chase_id || chase.id;
+    return activeId === chaseId;
+  };
+
+  const handleStop = (e) => {
+    e.stopPropagation();
+    stopChase();
   };
 
   return (
-    <div className="page-container">
-      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Zap className="w-5 h-5 text-green-400" /> Chases
-          </h1>
-          <button onClick={() => navigate('/chase-creator')} className="btn btn-success">
-            <Plus className="w-4 h-4" /> New Chase
-          </button>
-        </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto">
-          {chases.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center">
-              <Zap className="w-16 h-16 text-white/10 mb-4" />
-              <p className="text-white/40 mb-4">No chases created yet</p>
-              <button onClick={() => navigate('/chase-creator')} className="btn btn-success">
-                Create Your First Chase
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {chases.map((chase) => (
-                <div
-                  key={chase.chase_id || chase.id}
-                  className={`card p-3 ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
-                  style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className={`w-4 h-4 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                    <span className="font-semibold text-white text-sm truncate flex-1">{chase.name}</span>
-                  </div>
-
-                  {chase.steps && (
-                    <p className="text-[10px] text-white/40 mb-2">
-                      {chase.steps.length} steps • {chase.bpm || 120} BPM
-                    </p>
-                  )}
-
-                  <div className="flex gap-2">
-                    {isActive(chase) ? (
-                      <button
-                        onClick={() => stopChase(chase.chase_id || chase.id)}
-                        className="flex-1 btn btn-sm btn-danger"
-                      >
-                        <Square className="w-3 h-3" /> Stop
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => openTargetModal(chase)}
-                        className="flex-1 btn btn-sm btn-success"
-                      >
-                        <Play className="w-3 h-3" /> Run
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteChase(chase.chase_id || chase.id)}
-                      className="btn btn-sm btn-danger"
-                      disabled={isActive(chase)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="chases-page">
+      {/* Header */}
+      <div className="chases-header">
+        <h1>Chases</h1>
+        <button onClick={() => navigate('/chase-creator')} className="add-btn">
+          <Plus size={16} /> New
+        </button>
       </div>
 
-      {/* Target Selection Modal */}
-      {targetModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-white/20 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold">Run: {targetModal.name}</h3>
-              <button onClick={() => setTargetModal(null)} className="p-1 rounded hover:bg-white/10">
-                <X size={18} className="text-white" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Mode Selection */}
-              <div className="grid grid-cols-4 gap-1">
-                {[
-                  { id: 'all', label: 'All', icon: Zap },
-                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb },
-                  { id: 'groups', label: 'Groups', icon: Users },
-                  { id: 'channels', label: 'Channels', icon: Hash }
-                ].map(mode => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setTargetMode(mode.id)}
-                    className="py-2 px-1 rounded-lg border text-xs font-bold text-white flex flex-col items-center gap-1"
-                    style={{
-                      borderColor: targetMode === mode.id ? '#22c55e' : 'rgba(255,255,255,0.2)',
-                      backgroundColor: targetMode === mode.id ? 'rgba(34, 197, 94, 0.2)' : 'transparent'
-                    }}
-                  >
-                    <mode.icon size={14} />
-                    {mode.label}
+      {/* Grid */}
+      <div className="chases-grid">
+        {chases.length === 0 ? (
+          <div className="empty-state">
+            <p>No chases yet</p>
+            <button onClick={() => navigate('/chase-creator')}>Create Chase</button>
+          </div>
+        ) : (
+          chases.map((chase) => {
+            const chaseId = chase.chase_id || chase.id;
+            const playing = isPlaying(chase);
+            return (
+              <div
+                key={chaseId}
+                className={`chase-card ${playing ? 'playing' : ''} ${pressedId === chaseId ? 'pressed' : ''}`}
+                style={{ '--chase-color': chase.color || '#22c55e' }}
+                onTouchStart={() => handleTouchStart(chase)}
+                onTouchEnd={() => handleTouchEnd(chase)}
+                onTouchCancel={handleTouchCancel}
+                onMouseDown={() => handleTouchStart(chase)}
+                onMouseUp={() => handleTouchEnd(chase)}
+                onMouseLeave={handleTouchCancel}
+              >
+                <div className="chase-color-bar" />
+                <span className="chase-name">{chase.name}</span>
+                <span className="chase-info">{chase.bpm || 120} BPM</span>
+                {playing && (
+                  <button className="stop-btn" onClick={handleStop}>
+                    <Square size={12} />
                   </button>
-                ))}
+                )}
+                {playing && <div className="playing-indicator" />}
               </div>
+            );
+          })
+        )}
+      </div>
 
-              {/* All Mode */}
-              {targetMode === 'all' && (
-                <div className="text-center py-6">
-                  <Zap size={32} className="text-green-400/30 mx-auto mb-2" />
-                  <p className="text-white/60 text-sm">Apply to all original channels</p>
-                  <p className="text-white/40 text-xs mt-1">
-                    {targetModal.steps?.length || 0} steps in chase
-                  </p>
-                </div>
-              )}
-
-              {/* Fixtures Mode */}
-              {targetMode === 'fixtures' && (
-                <div>
-                  {fixtures.filter(f => f.universe === currentUniverse).length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No fixtures in universe {currentUniverse}</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {fixtures.filter(f => f.universe === currentUniverse).map(fixture => {
-                        const fixtureId = fixture.fixture_id || fixture.id;
-                        const isSelected = selectedFixtures.includes(fixtureId);
-                        const range = getFixtureChannelRange(fixture);
-                        return (
-                          <button
-                            key={fixtureId}
-                            onClick={() => toggleFixture(fixtureId)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? (fixture.color || '#22c55e') : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${fixture.color || '#22c55e'}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Lightbulb size={12} style={{ color: fixture.color || '#22c55e' }} fill={isSelected ? (fixture.color || '#22c55e') : 'transparent'} />
-                              <p className="font-bold text-white text-xs truncate">{fixture.name}</p>
-                            </div>
-                            <p className="text-[10px] text-white/60 mt-0.5">Ch {range.start}-{range.end}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Groups Mode */}
-              {targetMode === 'groups' && (
-                <div>
-                  {groups.length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No groups created</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {groups.map(group => {
-                        const isSelected = selectedGroups.includes(group.id);
-                        return (
-                          <button
-                            key={group.id}
-                            onClick={() => toggleGroup(group.id)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? group.color : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${group.color}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <p className="font-bold text-white text-xs">{group.name}</p>
-                            <p className="text-[10px] text-white/60">{group.channels?.length || 0} ch</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Channels Mode */}
-              {targetMode === 'channels' && (
-                <div>
-                  <div className="flex gap-1 mb-2">
-                    <button onClick={() => setSelectedChannels([...Array(10)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-10</button>
-                    <button onClick={() => setSelectedChannels([...Array(50)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-50</button>
-                    <button onClick={() => setSelectedChannels([])} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">Clear</button>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
-                    {Array.from({ length: 100 }, (_, i) => i + 1).map(ch => (
-                      <button key={ch} onClick={() => toggleChannel(ch)} className="aspect-square rounded text-[10px] font-bold"
-                        style={{ backgroundColor: selectedChannels.includes(ch) ? '#22c55e' : 'rgba(255,255,255,0.1)', color: 'white' }}>
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* Edit Modal */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => setEditModal(null)}>
+          <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editModal.name}</h3>
+              <button onClick={() => setEditModal(null)}><X size={18} /></button>
             </div>
-
-            <div className="p-3 border-t border-white/10 flex gap-2">
-              <button onClick={() => setTargetModal(null)} className="flex-1 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-semibold">
-                Cancel
-              </button>
-              <button onClick={handleStart} disabled={!canStart()}
-                className="flex-1 py-2 rounded-lg border text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{
-                  background: canStart() ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.1)',
-                  borderColor: canStart() ? '#22c55e' : 'rgba(255,255,255,0.2)'
-                }}>
-                <Play size={14} /> Run
-              </button>
+            <div className="modal-body">
+              <div className="modal-info">
+                <span>{editModal.steps?.length || 0} steps</span>
+                <span>{editModal.bpm || 120} BPM</span>
+                <span>{editModal.loop ? 'Loop' : 'Once'}</span>
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="play-btn"
+                  onClick={() => {
+                    startChase(editModal.chase_id || editModal.id);
+                    setEditModal(null);
+                  }}
+                >
+                  <Play size={16} /> Play
+                </button>
+                <button
+                  className="edit-btn"
+                  onClick={() => {
+                    navigate(`/chase-creator?edit=${editModal.chase_id || editModal.id}`);
+                    setEditModal(null);
+                  }}
+                >
+                  <Settings size={16} /> Edit
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={() => {
+                    deleteChase(editModal.chase_id || editModal.id);
+                    setEditModal(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .chases-page {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 8px;
+          padding-bottom: 70px;
+        }
+        .chases-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .chases-header h1 {
+          font-size: 18px;
+          font-weight: 700;
+          color: white;
+        }
+        .add-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 12px;
+          background: #22c55e;
+          border: none;
+          border-radius: 8px;
+          color: black;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .chases-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 8px;
+          flex: 1;
+        }
+        .chase-card {
+          position: relative;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          padding: 8px;
+          cursor: pointer;
+          transition: all 0.15s;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          min-height: 60px;
+          overflow: hidden;
+        }
+        .chase-card:active, .chase-card.pressed {
+          transform: scale(0.95);
+          background: rgba(255,255,255,0.1);
+        }
+        .chase-card.playing {
+          border-color: var(--chase-color);
+          box-shadow: 0 0 12px var(--chase-color);
+          background: rgba(34, 197, 94, 0.1);
+        }
+        .chase-color-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: var(--chase-color);
+          border-radius: 8px 8px 0 0;
+        }
+        .chase-name {
+          font-size: 11px;
+          font-weight: 600;
+          color: white;
+          text-align: center;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          width: 100%;
+          padding: 0 2px;
+        }
+        .chase-info {
+          font-size: 9px;
+          color: rgba(255,255,255,0.4);
+          margin-top: 2px;
+        }
+        .stop-btn {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.8);
+          border: none;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 2;
+        }
+        .playing-indicator {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--chase-color);
+          animation: chase-progress 1s linear infinite;
+        }
+        @keyframes chase-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .empty-state {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          color: rgba(255,255,255,0.4);
+        }
+        .empty-state button {
+          padding: 8px 16px;
+          background: #22c55e;
+          border: none;
+          border-radius: 8px;
+          color: black;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+        }
+        .edit-modal {
+          background: #1a1a2e;
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 12px;
+          width: 280px;
+          overflow: hidden;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-header h3 {
+          color: white;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .modal-header button {
+          background: none;
+          border: none;
+          color: rgba(255,255,255,0.6);
+          cursor: pointer;
+        }
+        .modal-body {
+          padding: 12px;
+        }
+        .modal-info {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          font-size: 12px;
+          color: rgba(255,255,255,0.5);
+        }
+        .modal-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .modal-actions button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+        }
+        .play-btn {
+          background: #22c55e;
+          color: black;
+        }
+        .edit-btn {
+          background: rgba(255,255,255,0.1);
+          color: white;
+          border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        .delete-btn {
+          background: rgba(239, 68, 68, 0.2);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        }
+      `}</style>
     </div>
   );
 }

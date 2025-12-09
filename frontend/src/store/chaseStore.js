@@ -57,8 +57,9 @@ const useChaseStore = create((set, get) => ({
 
       await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play', payload);
 
+      // Only ONE chase can run at a time - backend stops previous chase automatically
       set(state => ({
-        runningChases: { ...state.runningChases, [chaseId]: true },
+        runningChases: { [chaseId]: true },
         activeChase: state.chases.find(c => c.chase_id === chaseId || c.id === chaseId)
       }));
     } catch (e) {
@@ -68,14 +69,14 @@ const useChaseStore = create((set, get) => ({
 
   stopChase: async (chaseId) => {
     try {
-      console.log('⏹️ Stopping chase:', chaseId);
-      await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/stop');
-      
-      set(state => {
-        const newRunning = { ...state.runningChases };
-        delete newRunning[chaseId];
-        return { runningChases: newRunning, activeChase: null };
-      });
+      // If no chaseId provided, use active chase or just stop all playback
+      const idToStop = chaseId || get().activeChase?.chase_id || get().activeChase?.id;
+      console.log('⏹️ Stopping chase:', idToStop || 'all');
+
+      // Use the general playback stop endpoint
+      await axios.post(getAetherCore() + '/api/playback/stop');
+
+      set({ runningChases: {}, activeChase: null });
     } catch (e) {
       console.error('Failed to stop chase:', e);
     }

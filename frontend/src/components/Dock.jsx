@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import useDMXStore from '../store/dmxStore';
+import axios from 'axios';
+
+const getAetherCore = () => `http://${window.location.hostname}:8891`;
 
 const dockItems = [
   { id: 'blackout', icon: '\u23FB', label: 'Blackout', action: 'blackout' },
   { id: 'scenes', icon: '\uD83C\uDFAD', label: 'Scenes', path: '/scenes' },
   { id: 'aether', icon: '\u2728', label: 'AETHER', action: 'openAI', accent: true },
+  { id: 'chases', icon: '\uD83C\uDF1F', label: 'Chases', path: '/chases' },
   { id: 'more', icon: '\u2630', label: 'More', path: '/more' },
 ];
 
 export default function Dock({ onAIClick }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { blackoutAll } = useDMXStore();
   const [showBlackoutConfirm, setShowBlackoutConfirm] = useState(false);
 
   const handleDockClick = (item) => {
@@ -25,8 +27,20 @@ export default function Dock({ onAIClick }) {
     }
   };
 
-  const confirmBlackout = () => {
-    blackoutAll(1, 1500);
+  const confirmBlackout = async () => {
+    try {
+      // Stop all playback (scenes, chases)
+      await axios.post(getAetherCore() + '/api/playback/stop');
+      // Blackout all 3 universes
+      await Promise.all([
+        axios.post(getAetherCore() + '/api/dmx/blackout', { universe: 1, fade_ms: 1500 }),
+        axios.post(getAetherCore() + '/api/dmx/blackout', { universe: 2, fade_ms: 1500 }),
+        axios.post(getAetherCore() + '/api/dmx/blackout', { universe: 3, fade_ms: 1500 }),
+      ]);
+      console.log('🌑 Blackout all universes');
+    } catch (e) {
+      console.error('Blackout failed:', e);
+    }
     setShowBlackoutConfirm(false);
   };
 

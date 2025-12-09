@@ -1,296 +1,343 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Play, Trash2, Plus, X, Lightbulb, Users, Hash } from 'lucide-react';
+import { Play, Square, Plus, X, Settings } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
-import { useFixtureStore } from '../store/fixtureStore';
-import useGroupStore from '../store/groupStore';
-import useDMXStore from '../store/dmxStore';
 
 export default function Scenes() {
   const navigate = useNavigate();
-  const { scenes, fetchScenes, playScene, deleteScene } = useSceneStore();
-  const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
-  const { groups } = useGroupStore();
-  const { currentUniverse } = useDMXStore();
-
-  const [targetModal, setTargetModal] = useState(null);
-  const [targetMode, setTargetMode] = useState('all');
-  const [selectedFixtures, setSelectedFixtures] = useState([]);
-  const [selectedGroups, setSelectedGroups] = useState([]);
-  const [selectedChannels, setSelectedChannels] = useState([]);
+  const { scenes, currentScene, fetchScenes, playScene, stopScene, deleteScene } = useSceneStore();
+  const [editModal, setEditModal] = useState(null);
+  const longPressTimer = useRef(null);
+  const [pressedId, setPressedId] = useState(null);
 
   useEffect(() => {
     fetchScenes();
-    fetchFixtures();
-  }, [fetchScenes, fetchFixtures]);
+  }, [fetchScenes]);
 
-  const openTargetModal = (scene) => {
-    setTargetModal(scene);
-    setTargetMode('all');
-    setSelectedFixtures([]);
-    setSelectedGroups([]);
-    setSelectedChannels([]);
+  const handleTouchStart = (scene) => {
+    setPressedId(scene.scene_id || scene.id);
+    longPressTimer.current = setTimeout(() => {
+      setEditModal(scene);
+      setPressedId(null);
+    }, 500);
   };
 
-  const toggleFixture = (id) => {
-    setSelectedFixtures(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleGroup = (id) => {
-    setSelectedGroups(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleChannel = (ch) => {
-    setSelectedChannels(prev => prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]);
-  };
-
-  const getTargetChannels = () => {
-    if (targetMode === 'all') return null;
-    const channels = new Set();
-    if (targetMode === 'fixtures') {
-      selectedFixtures.forEach(fid => {
-        const fixture = fixtures.find(f => (f.fixture_id || f.id) === fid);
-        if (fixture) {
-          const range = getFixtureChannelRange(fixture);
-          range.channels.forEach(ch => channels.add(ch));
-        }
-      });
-    } else if (targetMode === 'groups') {
-      selectedGroups.forEach(gid => {
-        const group = groups.find(g => g.id === gid);
-        if (group) group.channels.forEach(ch => channels.add(ch));
-      });
-    } else if (targetMode === 'channels') {
-      selectedChannels.forEach(ch => channels.add(ch));
+  const handleTouchEnd = (scene) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
-    return Array.from(channels);
-  };
-
-  const handlePlay = () => {
-    if (!targetModal) return;
-    const targetChannels = getTargetChannels();
-    const sceneId = targetModal.scene_id || targetModal.id;
-    if (targetChannels === null) {
-      playScene(sceneId, 1000);
-    } else if (targetChannels.length > 0) {
-      playScene(sceneId, 1000, { targetChannels });
+    if (pressedId === (scene.scene_id || scene.id)) {
+      // Short tap - play the scene
+      const sceneId = scene.scene_id || scene.id;
+      playScene(sceneId, scene.fade_ms || 1000);
     }
-    setTargetModal(null);
+    setPressedId(null);
   };
 
-  const canPlay = () => {
-    if (targetMode === 'all') return true;
-    if (targetMode === 'fixtures') return selectedFixtures.length > 0;
-    if (targetMode === 'groups') return selectedGroups.length > 0;
-    if (targetMode === 'channels') return selectedChannels.length > 0;
-    return false;
+  const handleTouchCancel = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setPressedId(null);
+  };
+
+  const isPlaying = (scene) => {
+    if (!currentScene) return false;
+    const currentId = currentScene.scene_id || currentScene.id;
+    const sceneId = scene.scene_id || scene.id;
+    return currentId === sceneId;
+  };
+
+  const handleStop = (e) => {
+    e.stopPropagation();
+    stopScene();
   };
 
   return (
-    <div className="page-container">
-      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 theme-text" /> Scenes
-          </h1>
-          <button onClick={() => navigate('/scene-creator')} className="btn btn-primary">
-            <Plus className="w-4 h-4" /> New Scene
-          </button>
-        </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto">
-          {scenes.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center">
-              <Sparkles className="w-16 h-16 text-white/10 mb-4" />
-              <p className="text-white/40 mb-4">No scenes created yet</p>
-              <button onClick={() => navigate('/scene-creator')} className="btn btn-primary">
-                Create Your First Scene
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {scenes.map((scene) => (
-                <div key={scene.scene_id || scene.id} className="card p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 theme-text" />
-                    <span className="font-semibold text-white text-sm truncate flex-1">{scene.name}</span>
-                  </div>
-
-                  {scene.channels && (
-                    <p className="text-[10px] text-white/40 mb-2">
-                      {Object.keys(scene.channels).length} channels
-                    </p>
-                  )}
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openTargetModal(scene)}
-                      className="flex-1 btn btn-sm btn-primary"
-                    >
-                      <Play className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => deleteScene(scene.scene_id || scene.id)}
-                      className="btn btn-sm btn-danger"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="scenes-page">
+      {/* Header */}
+      <div className="scenes-header">
+        <h1>Scenes</h1>
+        <button onClick={() => navigate('/scene-creator')} className="add-btn">
+          <Plus size={16} /> New
+        </button>
       </div>
 
-      {/* Target Selection Modal */}
-      {targetModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-white/20 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold">Play: {targetModal.name}</h3>
-              <button onClick={() => setTargetModal(null)} className="p-1 rounded hover:bg-white/10">
-                <X size={18} className="text-white" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Mode Selection */}
-              <div className="grid grid-cols-4 gap-1">
-                {[
-                  { id: 'all', label: 'All', icon: Sparkles },
-                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb },
-                  { id: 'groups', label: 'Groups', icon: Users },
-                  { id: 'channels', label: 'Channels', icon: Hash }
-                ].map(mode => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setTargetMode(mode.id)}
-                    className="py-2 px-1 rounded-lg border text-xs font-bold text-white flex flex-col items-center gap-1"
-                    style={{
-                      borderColor: targetMode === mode.id ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
-                      backgroundColor: targetMode === mode.id ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'transparent'
-                    }}
-                  >
-                    <mode.icon size={14} />
-                    {mode.label}
+      {/* Grid */}
+      <div className="scenes-grid">
+        {scenes.length === 0 ? (
+          <div className="empty-state">
+            <p>No scenes yet</p>
+            <button onClick={() => navigate('/scene-creator')}>Create Scene</button>
+          </div>
+        ) : (
+          scenes.map((scene) => {
+            const sceneId = scene.scene_id || scene.id;
+            const playing = isPlaying(scene);
+            return (
+              <div
+                key={sceneId}
+                className={`scene-card ${playing ? 'playing' : ''} ${pressedId === sceneId ? 'pressed' : ''}`}
+                style={{ '--scene-color': scene.color || '#3b82f6' }}
+                onTouchStart={() => handleTouchStart(scene)}
+                onTouchEnd={() => handleTouchEnd(scene)}
+                onTouchCancel={handleTouchCancel}
+                onMouseDown={() => handleTouchStart(scene)}
+                onMouseUp={() => handleTouchEnd(scene)}
+                onMouseLeave={handleTouchCancel}
+              >
+                <div className="scene-color-bar" />
+                <span className="scene-name">{scene.name}</span>
+                {playing && (
+                  <button className="stop-btn" onClick={handleStop}>
+                    <Square size={12} />
                   </button>
-                ))}
+                )}
               </div>
+            );
+          })
+        )}
+      </div>
 
-              {/* All Mode */}
-              {targetMode === 'all' && (
-                <div className="text-center py-6">
-                  <Sparkles size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-white/60 text-sm">Apply to all original channels</p>
-                  <p className="text-white/40 text-xs mt-1">
-                    {Object.keys(targetModal.channels || {}).length} channels in scene
-                  </p>
-                </div>
-              )}
-
-              {/* Fixtures Mode */}
-              {targetMode === 'fixtures' && (
-                <div>
-                  {fixtures.filter(f => f.universe === currentUniverse).length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No fixtures in universe {currentUniverse}</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {fixtures.filter(f => f.universe === currentUniverse).map(fixture => {
-                        const fixtureId = fixture.fixture_id || fixture.id;
-                        const isSelected = selectedFixtures.includes(fixtureId);
-                        const range = getFixtureChannelRange(fixture);
-                        return (
-                          <button
-                            key={fixtureId}
-                            onClick={() => toggleFixture(fixtureId)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? (fixture.color || 'var(--theme-primary)') : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${fixture.color || 'var(--theme-primary)'}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Lightbulb size={12} style={{ color: fixture.color || 'var(--theme-primary)' }} fill={isSelected ? (fixture.color || 'var(--theme-primary)') : 'transparent'} />
-                              <p className="font-bold text-white text-xs truncate">{fixture.name}</p>
-                            </div>
-                            <p className="text-[10px] text-white/60 mt-0.5">Ch {range.start}-{range.end}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Groups Mode */}
-              {targetMode === 'groups' && (
-                <div>
-                  {groups.length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No groups created</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {groups.map(group => {
-                        const isSelected = selectedGroups.includes(group.id);
-                        return (
-                          <button
-                            key={group.id}
-                            onClick={() => toggleGroup(group.id)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? group.color : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${group.color}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <p className="font-bold text-white text-xs">{group.name}</p>
-                            <p className="text-[10px] text-white/60">{group.channels?.length || 0} ch</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Channels Mode */}
-              {targetMode === 'channels' && (
-                <div>
-                  <div className="flex gap-1 mb-2">
-                    <button onClick={() => setSelectedChannels([...Array(10)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-10</button>
-                    <button onClick={() => setSelectedChannels([...Array(50)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-50</button>
-                    <button onClick={() => setSelectedChannels([])} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">Clear</button>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
-                    {Array.from({ length: 100 }, (_, i) => i + 1).map(ch => (
-                      <button key={ch} onClick={() => toggleChannel(ch)} className="aspect-square rounded text-[10px] font-bold"
-                        style={{ backgroundColor: selectedChannels.includes(ch) ? 'var(--theme-primary)' : 'rgba(255,255,255,0.1)', color: 'white' }}>
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* Edit Modal */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => setEditModal(null)}>
+          <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editModal.name}</h3>
+              <button onClick={() => setEditModal(null)}><X size={18} /></button>
             </div>
-
-            <div className="p-3 border-t border-white/10 flex gap-2">
-              <button onClick={() => setTargetModal(null)} className="flex-1 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-semibold">
-                Cancel
-              </button>
-              <button onClick={handlePlay} disabled={!canPlay()}
-                className="flex-1 py-2 rounded-lg border text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{
-                  background: canPlay() ? 'linear-gradient(135deg, var(--theme-primary), rgba(var(--theme-primary-rgb), 0.7))' : 'rgba(255,255,255,0.1)',
-                  borderColor: canPlay() ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)'
-                }}>
-                <Play size={14} /> Play
-              </button>
+            <div className="modal-body">
+              <div className="modal-info">
+                <span>{Object.keys(editModal.channels || {}).length} channels</span>
+                <span>Fade: {(editModal.fade_ms || 500) / 1000}s</span>
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="play-btn"
+                  onClick={() => {
+                    playScene(editModal.scene_id || editModal.id, editModal.fade_ms || 1000);
+                    setEditModal(null);
+                  }}
+                >
+                  <Play size={16} /> Play
+                </button>
+                <button
+                  className="edit-btn"
+                  onClick={() => {
+                    navigate(`/scene-creator?edit=${editModal.scene_id || editModal.id}`);
+                    setEditModal(null);
+                  }}
+                >
+                  <Settings size={16} /> Edit
+                </button>
+                <button
+                  className="delete-btn"
+                  onClick={() => {
+                    deleteScene(editModal.scene_id || editModal.id);
+                    setEditModal(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .scenes-page {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 8px;
+          padding-bottom: 70px;
+        }
+        .scenes-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .scenes-header h1 {
+          font-size: 18px;
+          font-weight: 700;
+          color: white;
+        }
+        .add-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 12px;
+          background: var(--accent, #00ffff);
+          border: none;
+          border-radius: 8px;
+          color: black;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .scenes-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 8px;
+          flex: 1;
+        }
+        .scene-card {
+          position: relative;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          padding: 8px;
+          cursor: pointer;
+          transition: all 0.15s;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          min-height: 60px;
+        }
+        .scene-card:active, .scene-card.pressed {
+          transform: scale(0.95);
+          background: rgba(255,255,255,0.1);
+        }
+        .scene-card.playing {
+          border-color: var(--scene-color);
+          box-shadow: 0 0 12px var(--scene-color);
+          background: rgba(255,255,255,0.08);
+        }
+        .scene-color-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: var(--scene-color);
+          border-radius: 8px 8px 0 0;
+        }
+        .scene-name {
+          font-size: 11px;
+          font-weight: 600;
+          color: white;
+          text-align: center;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          width: 100%;
+          padding: 0 2px;
+        }
+        .stop-btn {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.8);
+          border: none;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+        .empty-state {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          color: rgba(255,255,255,0.4);
+        }
+        .empty-state button {
+          padding: 8px 16px;
+          background: var(--accent, #00ffff);
+          border: none;
+          border-radius: 8px;
+          color: black;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+        }
+        .edit-modal {
+          background: #1a1a2e;
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 12px;
+          width: 280px;
+          overflow: hidden;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-header h3 {
+          color: white;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .modal-header button {
+          background: none;
+          border: none;
+          color: rgba(255,255,255,0.6);
+          cursor: pointer;
+        }
+        .modal-body {
+          padding: 12px;
+        }
+        .modal-info {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          font-size: 12px;
+          color: rgba(255,255,255,0.5);
+        }
+        .modal-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .modal-actions button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+        }
+        .play-btn {
+          background: var(--accent, #00ffff);
+          color: black;
+        }
+        .edit-btn {
+          background: rgba(255,255,255,0.1);
+          color: white;
+          border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        .delete-btn {
+          background: rgba(239, 68, 68, 0.2);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        }
+      `}</style>
     </div>
   );
 }
