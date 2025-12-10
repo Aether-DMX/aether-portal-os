@@ -111,15 +111,15 @@ export default function Scenes() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-1.5 h-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gridAutoRows: 'minmax(50px, 1fr)' }}>
+            <div className="grid gap-1 h-full w-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(60px, 20vw), 1fr))', gridAutoRows: 'minmax(40px, 1fr)' }}>
               {scenes.map((scene) => (
                 <button
                   key={scene.scene_id || scene.id}
                   onClick={() => openTargetModal(scene)}
-                  className="card p-1 flex flex-col items-center justify-center min-h-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all"
+                  className="card p-1 flex flex-col items-center justify-center min-h-0 min-w-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all overflow-hidden"
                 >
-                  <Sparkles className="w-3.5 h-3.5 theme-text mb-0.5 flex-shrink-0" />
-                  <span className="font-medium text-white text-[9px] leading-tight truncate w-full text-center px-0.5">{scene.name}</span>
+                  <Sparkles className="w-3 h-3 theme-text mb-0.5 flex-shrink-0" />
+                  <span className="font-medium text-white text-[8px] leading-tight truncate w-full text-center">{scene.name}</span>
                 </button>
               ))}
             </div>
