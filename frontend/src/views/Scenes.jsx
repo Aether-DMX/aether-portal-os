@@ -87,54 +87,54 @@ export default function Scenes() {
   };
 
   return (
-    <div className="page-container">
-      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+    <div className="page-container" style={{ overflow: 'hidden' }}>
+      <div className="flex-1 flex flex-col p-3 gap-3 h-full overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between flex-shrink-0">
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 theme-text" /> Scenes
           </h1>
-          <button onClick={() => navigate('/scene-creator')} className="btn btn-primary">
-            <Plus className="w-4 h-4" /> New Scene
+          <button onClick={() => navigate('/scene-creator')} className="btn btn-primary btn-sm">
+            <Plus className="w-4 h-4" /> New
           </button>
         </div>
 
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Grid - Fixed height, no scroll */}
+        <div className="flex-1 overflow-hidden">
           {scenes.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center">
-              <Sparkles className="w-16 h-16 text-white/10 mb-4" />
-              <p className="text-white/40 mb-4">No scenes created yet</p>
-              <button onClick={() => navigate('/scene-creator')} className="btn btn-primary">
+              <Sparkles className="w-12 h-12 text-white/10 mb-3" />
+              <p className="text-white/40 mb-3 text-sm">No scenes created yet</p>
+              <button onClick={() => navigate('/scene-creator')} className="btn btn-primary btn-sm">
                 Create Your First Scene
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {scenes.map((scene) => (
-                <div key={scene.scene_id || scene.id} className="card p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 theme-text" />
-                    <span className="font-semibold text-white text-sm truncate flex-1">{scene.name}</span>
+            <div className="grid grid-cols-3 grid-rows-3 gap-2 h-full">
+              {scenes.slice(0, 9).map((scene) => (
+                <div key={scene.scene_id || scene.id} className="card p-2 flex flex-col justify-between min-h-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Sparkles className="w-3.5 h-3.5 theme-text flex-shrink-0" />
+                    <span className="font-semibold text-white text-xs truncate">{scene.name}</span>
                   </div>
 
                   {scene.channels && (
-                    <p className="text-[10px] text-white/40 mb-2">
-                      {Object.keys(scene.channels).length} channels
+                    <p className="text-[9px] text-white/40 mb-1">
+                      {Object.keys(scene.channels).length} ch
                     </p>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 mt-auto">
                     <button
                       onClick={() => openTargetModal(scene)}
-                      className="flex-1 btn btn-sm btn-primary"
+                      className="flex-1 btn btn-xs btn-primary"
                     >
                       <Play className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => deleteScene(scene.scene_id || scene.id)}
-                      className="btn btn-sm btn-danger"
+                      className="btn btn-xs btn-danger"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

@@ -234,8 +234,15 @@ body {
 }
 
 /* Touch-friendly button sizes */
-.btn-sm { 
-  padding: var(--space-sm) var(--space-md); 
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 11px;
+  min-height: 28px;
+  gap: 4px;
+}
+
+.btn-sm {
+  padding: var(--space-sm) var(--space-md);
   font-size: 12px;
   min-height: 36px;
 }

@@ -89,67 +89,67 @@ export default function Chases() {
   };
 
   return (
-    <div className="page-container">
-      <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+    <div className="page-container" style={{ overflow: 'hidden' }}>
+      <div className="flex-1 flex flex-col p-3 gap-3 h-full overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between flex-shrink-0">
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
             <Zap className="w-5 h-5 text-green-400" /> Chases
           </h1>
-          <button onClick={() => navigate('/chase-creator')} className="btn btn-success">
-            <Plus className="w-4 h-4" /> New Chase
+          <button onClick={() => navigate('/chase-creator')} className="btn btn-success btn-sm">
+            <Plus className="w-4 h-4" /> New
           </button>
         </div>
 
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Grid - Fixed height, no scroll */}
+        <div className="flex-1 overflow-hidden">
           {chases.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center">
-              <Zap className="w-16 h-16 text-white/10 mb-4" />
-              <p className="text-white/40 mb-4">No chases created yet</p>
-              <button onClick={() => navigate('/chase-creator')} className="btn btn-success">
+              <Zap className="w-12 h-12 text-white/10 mb-3" />
+              <p className="text-white/40 mb-3 text-sm">No chases created yet</p>
+              <button onClick={() => navigate('/chase-creator')} className="btn btn-success btn-sm">
                 Create Your First Chase
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {chases.map((chase) => (
+            <div className="grid grid-cols-3 grid-rows-3 gap-2 h-full">
+              {chases.slice(0, 9).map((chase) => (
                 <div
                   key={chase.chase_id || chase.id}
-                  className={`card p-3 ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
+                  className={`card p-2 flex flex-col justify-between min-h-0 ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
                   style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className={`w-4 h-4 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                    <span className="font-semibold text-white text-sm truncate flex-1">{chase.name}</span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
+                    <span className="font-semibold text-white text-xs truncate">{chase.name}</span>
                   </div>
 
                   {chase.steps && (
-                    <p className="text-[10px] text-white/40 mb-2">
+                    <p className="text-[9px] text-white/40 mb-1">
                       {chase.steps.length} steps • {chase.bpm || 120} BPM
                     </p>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 mt-auto">
                     {isActive(chase) ? (
                       <button
                         onClick={() => stopChase(chase.chase_id || chase.id)}
-                        className="flex-1 btn btn-sm btn-danger"
+                        className="flex-1 btn btn-xs btn-danger"
                       >
-                        <Square className="w-3 h-3" /> Stop
+                        <Square className="w-3 h-3" />
                       </button>
                     ) : (
                       <button
                         onClick={() => openTargetModal(chase)}
-                        className="flex-1 btn btn-sm btn-success"
+                        className="flex-1 btn btn-xs btn-success"
                       >
-                        <Play className="w-3 h-3" /> Run
+                        <Play className="w-3 h-3" />
                       </button>
                     )}
                     <button
                       onClick={() => deleteChase(chase.chase_id || chase.id)}
-                      className="btn btn-sm btn-danger"
+                      className="btn btn-xs btn-danger"
                       disabled={isActive(chase)}
                     >
                       <Trash2 className="w-3 h-3" />

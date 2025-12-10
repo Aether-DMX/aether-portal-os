@@ -6,6 +6,7 @@ const dockItems = [
   { id: 'blackout', icon: '\u23FB', label: 'Blackout', action: 'blackout' },
   { id: 'scenes', icon: '\uD83C\uDFAD', label: 'Scenes', path: '/scenes' },
   { id: 'aether', icon: '\u2728', label: 'AETHER', action: 'openAI', accent: true },
+  { id: 'chases', icon: '\u26A1', label: 'Chases', path: '/chases' },
   { id: 'more', icon: '\u2630', label: 'More', path: '/more' },
 ];
 
