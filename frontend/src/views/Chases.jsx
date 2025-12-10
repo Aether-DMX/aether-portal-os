@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Play, Square, Trash2, Plus, X, Lightbulb, Users, Hash } from 'lucide-react';
+import { Zap, Play, Square, Trash2, Plus, X, Lightbulb, Users, Hash, Globe } from 'lucide-react';
 import useChaseStore from '../store/chaseStore';
 import { useFixtureStore } from '../store/fixtureStore';
 import useGroupStore from '../store/groupStore';
@@ -12,11 +12,12 @@ export default function Chases() {
   const { chases, fetchChases, startChase, stopChase, deleteChase } = useChaseStore();
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
   const { groups } = useGroupStore();
-  const { currentUniverse } = useDMXStore();
+  const { configuredUniverses, fetchConfiguredUniverses } = useDMXStore();
   const { playback, syncStatus } = usePlaybackStore();
 
-  const [targetModal, setTargetModal] = useState(null);
+  const [optionsModal, setOptionsModal] = useState(null);
   const [targetMode, setTargetMode] = useState('all');
+  const [selectedUniverse, setSelectedUniverse] = useState('all');
   const [selectedFixtures, setSelectedFixtures] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
@@ -24,20 +25,38 @@ export default function Chases() {
   useEffect(() => {
     fetchChases();
     fetchFixtures();
-    syncStatus(); // Sync playback state from SSOT
-  }, [fetchChases, fetchFixtures, syncStatus]);
+    fetchConfiguredUniverses();
+    syncStatus();
+  }, [fetchChases, fetchFixtures, fetchConfiguredUniverses, syncStatus]);
 
-  // Check if chase is active using SSOT playback store
-  const isActive = (chase) => {
+  // Check if chase is playing (on any universe)
+  const isChasePlaying = (chase) => {
     const chaseId = chase.chase_id || chase.id;
-    const universe = chase.universe || 1;
-    const current = playback[universe];
-    return current?.type === 'chase' && current?.id === chaseId;
+    return Object.values(playback).some(p => p?.type === 'chase' && p?.id === chaseId);
   };
 
-  const openTargetModal = (chase) => {
-    setTargetModal(chase);
+  // Toggle chase - play if not playing, stop if playing
+  const toggleChase = (chase) => {
+    const chaseId = chase.chase_id || chase.id;
+    if (isChasePlaying(chase)) {
+      // Stop
+      fetch(`http://${window.location.hostname}:8891/api/playback/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(() => syncStatus());
+    } else {
+      // Play on all universes (default behavior)
+      startChase(chaseId, {});
+      syncStatus();
+    }
+  };
+
+  // Long press to open options modal
+  const openOptionsModal = (chase, e) => {
+    e.preventDefault();
+    setOptionsModal(chase);
     setTargetMode('all');
+    setSelectedUniverse('all');
     setSelectedFixtures([]);
     setSelectedGroups([]);
     setSelectedChannels([]);
@@ -77,17 +96,22 @@ export default function Chases() {
     return Array.from(channels);
   };
 
-  const handleStart = () => {
-    if (!targetModal) return;
+  const handleStartWithOptions = () => {
+    if (!optionsModal) return;
     const targetChannels = getTargetChannels();
-    const chaseId = targetModal.chase_id || targetModal.id;
-    // Always pass currentUniverse so chases play on the selected universe
-    if (targetChannels === null) {
-      startChase(chaseId, { universe: currentUniverse });
-    } else if (targetChannels.length > 0) {
-      startChase(chaseId, { targetChannels, universe: currentUniverse });
+    const chaseId = optionsModal.chase_id || optionsModal.id;
+    const options = {};
+
+    if (targetChannels && targetChannels.length > 0) {
+      options.targetChannels = targetChannels;
     }
-    setTargetModal(null);
+    if (selectedUniverse !== 'all') {
+      options.universe = parseInt(selectedUniverse);
+    }
+
+    startChase(chaseId, options);
+    setOptionsModal(null);
+    syncStatus();
   };
 
   const canStart = () => {
@@ -112,8 +136,8 @@ export default function Chases() {
           </button>
         </div>
 
-        {/* Grid - Fixed height, no scroll */}
-        <div className="flex-1 overflow-hidden">
+        {/* Chase Grid - Small rectangles */}
+        <div className="flex-1 overflow-y-auto">
           {chases.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center">
               <Zap className="w-12 h-12 text-white/10 mb-3" />
@@ -123,166 +147,249 @@ export default function Chases() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-2 h-full w-full overflow-y-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(70px, 15vw, 90px), 1fr))', gridAutoRows: 'minmax(clamp(70px, 15vw, 90px), auto)' }}>
-              {chases.map((chase) => (
-                <button
-                  key={chase.chase_id || chase.id}
-                  onClick={() => isActive(chase) ? stopChase(chase.chase_id || chase.id) : openTargetModal(chase)}
-                  className={`card aspect-square p-2 flex flex-col items-center justify-center hover:ring-2 hover:ring-white/30 active:scale-95 transition-all overflow-hidden ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
-                  style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
-                >
-                  <Zap className={`w-5 h-5 mb-1 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                  <span className="font-semibold text-white text-[10px] leading-tight text-center line-clamp-2 w-full">{chase.name}</span>
-                  {isActive(chase) && <span className="text-[8px] text-green-400 mt-0.5">PLAYING</span>}
-                </button>
-              ))}
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
+              {chases.map((chase) => {
+                const isActive = isChasePlaying(chase);
+                return (
+                  <button
+                    key={chase.chase_id || chase.id}
+                    onClick={() => toggleChase(chase)}
+                    onContextMenu={(e) => openOptionsModal(chase, e)}
+                    onTouchStart={(e) => {
+                      const timer = setTimeout(() => openOptionsModal(chase, e), 500);
+                      e.target._longPressTimer = timer;
+                    }}
+                    onTouchEnd={(e) => clearTimeout(e.target._longPressTimer)}
+                    onTouchMove={(e) => clearTimeout(e.target._longPressTimer)}
+                    className={`p-3 rounded-lg border transition-all flex items-center gap-3 ${
+                      isActive
+                        ? 'border-green-400 bg-green-500/15'
+                        : 'border-white/20 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    {isActive ? (
+                      <Square className="w-5 h-5 text-green-400 flex-shrink-0" fill="#22c55e" />
+                    ) : (
+                      <Play className="w-5 h-5 text-white/60 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-semibold text-white text-sm truncate">{chase.name}</p>
+                      <p className="text-[10px] text-white/40">
+                        {chase.steps?.length || 0} steps • {chase.bpm || 120} BPM
+                        {isActive && <span className="ml-2 text-green-400 font-bold">● RUNNING</span>}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* Target Selection Modal */}
-      {targetModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-white/20 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold">Run: {targetModal.name}</h3>
-              <button onClick={() => setTargetModal(null)} className="p-1 rounded hover:bg-white/10">
-                <X size={18} className="text-white" />
-              </button>
+      {/* Fullscreen Options Modal */}
+      {optionsModal && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+            <div>
+              <h2 className="text-xl font-bold text-white">{optionsModal.name}</h2>
+              <p className="text-white/50 text-sm">{optionsModal.steps?.length || 0} steps • {optionsModal.bpm || 120} BPM</p>
+            </div>
+            <button onClick={() => setOptionsModal(null)} className="p-2 rounded-lg bg-white/10 hover:bg-white/20">
+              <X size={24} className="text-white" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+            {/* Universe Selection */}
+            <div>
+              <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                <Globe size={18} className="text-green-400" /> Target Universe
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  onClick={() => setSelectedUniverse('all')}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    selectedUniverse === 'all'
+                      ? 'border-green-400 bg-green-500/20'
+                      : 'border-white/20 bg-white/5'
+                  }`}
+                >
+                  <p className="font-bold text-white">ALL</p>
+                  <p className="text-[10px] text-white/50">All Universes</p>
+                </button>
+                {configuredUniverses.map(univ => (
+                  <button
+                    key={univ}
+                    onClick={() => setSelectedUniverse(univ.toString())}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      selectedUniverse === univ.toString()
+                        ? 'border-green-400 bg-green-500/20'
+                        : 'border-white/20 bg-white/5'
+                    }`}
+                  >
+                    <p className="font-bold text-white">U{univ}</p>
+                    <p className="text-[10px] text-white/50">Universe {univ}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Mode Selection */}
-              <div className="grid grid-cols-4 gap-1">
+            {/* Target Mode Selection */}
+            <div>
+              <h3 className="text-white font-bold mb-3">Target Channels</h3>
+              <div className="grid grid-cols-4 gap-2">
                 {[
-                  { id: 'all', label: 'All', icon: Zap },
-                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb },
-                  { id: 'groups', label: 'Groups', icon: Users },
-                  { id: 'channels', label: 'Channels', icon: Hash }
+                  { id: 'all', label: 'All', icon: Zap, desc: 'All channels' },
+                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb, desc: 'By fixture' },
+                  { id: 'groups', label: 'Groups', icon: Users, desc: 'By group' },
+                  { id: 'channels', label: 'Channels', icon: Hash, desc: 'Individual' }
                 ].map(mode => (
                   <button
                     key={mode.id}
                     onClick={() => setTargetMode(mode.id)}
-                    className="py-2 px-1 rounded-lg border text-xs font-bold text-white flex flex-col items-center gap-1"
-                    style={{
-                      borderColor: targetMode === mode.id ? '#22c55e' : 'rgba(255,255,255,0.2)',
-                      backgroundColor: targetMode === mode.id ? 'rgba(34, 197, 94, 0.2)' : 'transparent'
-                    }}
+                    className={`p-3 rounded-lg border transition-all ${
+                      targetMode === mode.id
+                        ? 'border-green-400 bg-green-500/20'
+                        : 'border-white/20 bg-white/5'
+                    }`}
                   >
-                    <mode.icon size={14} />
-                    {mode.label}
+                    <mode.icon size={20} className={targetMode === mode.id ? 'text-green-400 mx-auto mb-1' : 'text-white/60 mx-auto mb-1'} />
+                    <p className="font-bold text-white text-sm">{mode.label}</p>
+                    <p className="text-[10px] text-white/50">{mode.desc}</p>
                   </button>
                 ))}
               </div>
-
-              {/* All Mode */}
-              {targetMode === 'all' && (
-                <div className="text-center py-6">
-                  <Zap size={32} className="text-green-400/30 mx-auto mb-2" />
-                  <p className="text-white/60 text-sm">Apply to all original channels</p>
-                  <p className="text-white/40 text-xs mt-1">
-                    {targetModal.steps?.length || 0} steps in chase
-                  </p>
-                </div>
-              )}
-
-              {/* Fixtures Mode */}
-              {targetMode === 'fixtures' && (
-                <div>
-                  {fixtures.filter(f => f.universe === currentUniverse).length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No fixtures in universe {currentUniverse}</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {fixtures.filter(f => f.universe === currentUniverse).map(fixture => {
-                        const fixtureId = fixture.fixture_id || fixture.id;
-                        const isSelected = selectedFixtures.includes(fixtureId);
-                        const range = getFixtureChannelRange(fixture);
-                        return (
-                          <button
-                            key={fixtureId}
-                            onClick={() => toggleFixture(fixtureId)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? (fixture.color || '#22c55e') : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${fixture.color || '#22c55e'}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Lightbulb size={12} style={{ color: fixture.color || '#22c55e' }} fill={isSelected ? (fixture.color || '#22c55e') : 'transparent'} />
-                              <p className="font-bold text-white text-xs truncate">{fixture.name}</p>
-                            </div>
-                            <p className="text-[10px] text-white/60 mt-0.5">Ch {range.start}-{range.end}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Groups Mode */}
-              {targetMode === 'groups' && (
-                <div>
-                  {groups.length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No groups created</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {groups.map(group => {
-                        const isSelected = selectedGroups.includes(group.id);
-                        return (
-                          <button
-                            key={group.id}
-                            onClick={() => toggleGroup(group.id)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? group.color : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${group.color}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <p className="font-bold text-white text-xs">{group.name}</p>
-                            <p className="text-[10px] text-white/60">{group.channels?.length || 0} ch</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Channels Mode */}
-              {targetMode === 'channels' && (
-                <div>
-                  <div className="flex gap-1 mb-2">
-                    <button onClick={() => setSelectedChannels([...Array(10)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-10</button>
-                    <button onClick={() => setSelectedChannels([...Array(50)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-50</button>
-                    <button onClick={() => setSelectedChannels([])} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">Clear</button>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
-                    {Array.from({ length: 100 }, (_, i) => i + 1).map(ch => (
-                      <button key={ch} onClick={() => toggleChannel(ch)} className="aspect-square rounded text-[10px] font-bold"
-                        style={{ backgroundColor: selectedChannels.includes(ch) ? '#22c55e' : 'rgba(255,255,255,0.1)', color: 'white' }}>
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
-            <div className="p-3 border-t border-white/10 flex gap-2">
-              <button onClick={() => setTargetModal(null)} className="flex-1 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-semibold">
-                Cancel
-              </button>
-              <button onClick={handleStart} disabled={!canStart()}
-                className="flex-1 py-2 rounded-lg border text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{
-                  background: canStart() ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.1)',
-                  borderColor: canStart() ? '#22c55e' : 'rgba(255,255,255,0.2)'
-                }}>
-                <Play size={14} /> Run
-              </button>
-            </div>
+            {/* Target Selection Content */}
+            {targetMode === 'all' && (
+              <div className="text-center py-8 bg-white/5 rounded-lg">
+                <Zap size={40} className="text-green-400/30 mx-auto mb-3" />
+                <p className="text-white/60">Run chase on all channels</p>
+                <p className="text-white/40 text-sm mt-1">{optionsModal.steps?.length || 0} steps</p>
+              </div>
+            )}
+
+            {targetMode === 'fixtures' && (
+              <div className="grid grid-cols-3 gap-3">
+                {fixtures.length === 0 ? (
+                  <p className="col-span-3 text-white/60 text-center py-8">No fixtures configured</p>
+                ) : fixtures.map(fixture => {
+                  const fixtureId = fixture.fixture_id || fixture.id;
+                  const isSelected = selectedFixtures.includes(fixtureId);
+                  const range = getFixtureChannelRange(fixture);
+                  return (
+                    <button
+                      key={fixtureId}
+                      onClick={() => toggleFixture(fixtureId)}
+                      className={`p-4 rounded-lg border transition-all text-left ${
+                        isSelected
+                          ? 'border-green-400 bg-green-500/20'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <Lightbulb size={24} className={isSelected ? 'text-green-400 mb-2' : 'text-white/40 mb-2'}
+                        fill={isSelected ? '#22c55e' : 'transparent'} />
+                      <p className="font-bold text-white">{fixture.name}</p>
+                      <p className="text-xs text-white/50">Ch {range.start}-{range.end}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {targetMode === 'groups' && (
+              <div className="grid grid-cols-3 gap-3">
+                {groups.length === 0 ? (
+                  <p className="col-span-3 text-white/60 text-center py-8">No groups configured</p>
+                ) : groups.map(group => {
+                  const isSelected = selectedGroups.includes(group.id);
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => toggleGroup(group.id)}
+                      className={`p-4 rounded-lg border transition-all text-left ${
+                        isSelected
+                          ? 'border-green-400 bg-green-500/20'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <Users size={24} className={isSelected ? 'text-green-400 mb-2' : 'text-white/40 mb-2'} />
+                      <p className="font-bold text-white">{group.name}</p>
+                      <p className="text-xs text-white/50">{group.channels?.length || 0} channels</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {targetMode === 'channels' && (
+              <div>
+                <div className="flex gap-2 mb-3">
+                  <button onClick={() => setSelectedChannels([...Array(12)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-12</button>
+                  <button onClick={() => setSelectedChannels([...Array(24)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-24</button>
+                  <button onClick={() => setSelectedChannels([...Array(48)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-48</button>
+                  <button onClick={() => setSelectedChannels([])}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">Clear</button>
+                </div>
+                <div className="grid grid-cols-12 gap-1">
+                  {Array.from({ length: 96 }, (_, i) => i + 1).map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => toggleChannel(ch)}
+                      className={`aspect-square rounded text-xs font-bold transition-all ${
+                        selectedChannels.includes(ch)
+                          ? 'bg-green-500 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-white/10 flex gap-3 flex-shrink-0">
+            <button
+              onClick={() => {
+                const chaseId = optionsModal.chase_id || optionsModal.id;
+                if (confirm(`Delete chase "${optionsModal.name}"?`)) {
+                  deleteChase(chaseId);
+                  setOptionsModal(null);
+                }
+              }}
+              className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400"
+            >
+              <Trash2 size={20} />
+            </button>
+            <button
+              onClick={() => setOptionsModal(null)}
+              className="flex-1 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleStartWithOptions}
+              disabled={!canStart()}
+              className="flex-1 py-3 rounded-lg border font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+              style={{
+                background: canStart() ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255,255,255,0.1)',
+                borderColor: canStart() ? '#22c55e' : 'rgba(255,255,255,0.2)',
+                color: 'white'
+              }}
+            >
+              <Play size={18} /> Run Chase
+            </button>
           </div>
         </div>
       )}

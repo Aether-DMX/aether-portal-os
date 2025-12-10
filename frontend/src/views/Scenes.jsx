@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Play, Trash2, Plus, X, Lightbulb, Users, Hash } from 'lucide-react';
+import { Sparkles, Play, Square, Trash2, Plus, X, Lightbulb, Users, Hash, Globe } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
 import { useFixtureStore } from '../store/fixtureStore';
 import useGroupStore from '../store/groupStore';
@@ -12,19 +12,12 @@ export default function Scenes() {
   const { scenes, fetchScenes, playScene, deleteScene } = useSceneStore();
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
   const { groups } = useGroupStore();
-  const { currentUniverse } = useDMXStore();
-  const { playback, stopAll, syncStatus } = usePlaybackStore();
+  const { configuredUniverses, fetchConfiguredUniverses } = useDMXStore();
+  const { playback, syncStatus } = usePlaybackStore();
 
-  // Check if a scene is active (from SSOT)
-  const isSceneActive = (scene) => {
-    const sceneId = scene.scene_id || scene.id;
-    const universe = scene.universe || 1;
-    const current = playback[universe];
-    return current?.type === 'scene' && current?.id === sceneId;
-  };
-
-  const [targetModal, setTargetModal] = useState(null);
+  const [optionsModal, setOptionsModal] = useState(null);
   const [targetMode, setTargetMode] = useState('all');
+  const [selectedUniverse, setSelectedUniverse] = useState('all');
   const [selectedFixtures, setSelectedFixtures] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
@@ -32,12 +25,38 @@ export default function Scenes() {
   useEffect(() => {
     fetchScenes();
     fetchFixtures();
-    syncStatus(); // Sync playback state from SSOT
-  }, [fetchScenes, fetchFixtures, syncStatus]);
+    fetchConfiguredUniverses();
+    syncStatus();
+  }, [fetchScenes, fetchFixtures, fetchConfiguredUniverses, syncStatus]);
 
-  const openTargetModal = (scene) => {
-    setTargetModal(scene);
+  // Check if a scene is currently playing (on any universe)
+  const isScenePlaying = (scene) => {
+    const sceneId = scene.scene_id || scene.id;
+    return Object.values(playback).some(p => p?.type === 'scene' && p?.id === sceneId);
+  };
+
+  // Toggle scene - play if not playing, stop if playing
+  const toggleScene = (scene) => {
+    const sceneId = scene.scene_id || scene.id;
+    if (isScenePlaying(scene)) {
+      // Stop - call stop endpoint
+      fetch(`http://${window.location.hostname}:8891/api/playback/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(() => syncStatus());
+    } else {
+      // Play on all universes (default behavior)
+      playScene(sceneId, 1000, {});
+      syncStatus();
+    }
+  };
+
+  // Long press to open options modal
+  const openOptionsModal = (scene, e) => {
+    e.preventDefault();
+    setOptionsModal(scene);
     setTargetMode('all');
+    setSelectedUniverse('all');
     setSelectedFixtures([]);
     setSelectedGroups([]);
     setSelectedChannels([]);
@@ -77,17 +96,22 @@ export default function Scenes() {
     return Array.from(channels);
   };
 
-  const handlePlay = () => {
-    if (!targetModal) return;
+  const handlePlayWithOptions = () => {
+    if (!optionsModal) return;
     const targetChannels = getTargetChannels();
-    const sceneId = targetModal.scene_id || targetModal.id;
-    // Always pass currentUniverse so scenes play on the selected universe
-    if (targetChannels === null) {
-      playScene(sceneId, 1000, { universe: currentUniverse });
-    } else if (targetChannels.length > 0) {
-      playScene(sceneId, 1000, { targetChannels, universe: currentUniverse });
+    const sceneId = optionsModal.scene_id || optionsModal.id;
+    const options = {};
+
+    if (targetChannels && targetChannels.length > 0) {
+      options.targetChannels = targetChannels;
     }
-    setTargetModal(null);
+    if (selectedUniverse !== 'all') {
+      options.universe = parseInt(selectedUniverse);
+    }
+
+    playScene(sceneId, 1000, options);
+    setOptionsModal(null);
+    syncStatus();
   };
 
   const canPlay = () => {
@@ -112,8 +136,8 @@ export default function Scenes() {
           </button>
         </div>
 
-        {/* Grid - Fixed height, no scroll */}
-        <div className="flex-1 overflow-hidden">
+        {/* Scene Grid - Small rectangles */}
+        <div className="flex-1 overflow-y-auto">
           {scenes.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center">
               <Sparkles className="w-12 h-12 text-white/10 mb-3" />
@@ -123,19 +147,38 @@ export default function Scenes() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-2 h-full w-full overflow-y-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(70px, 15vw, 90px), 1fr))', gridAutoRows: 'minmax(clamp(70px, 15vw, 90px), auto)' }}>
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
               {scenes.map((scene) => {
-                const isActive = isSceneActive(scene);
+                const isActive = isScenePlaying(scene);
                 return (
                   <button
                     key={scene.scene_id || scene.id}
-                    onClick={() => openTargetModal(scene)}
-                    className={`card aspect-square p-2 flex flex-col items-center justify-center hover:ring-2 hover:ring-white/30 active:scale-95 transition-all overflow-hidden ${isActive ? 'ring-2 ring-[var(--theme-primary)]' : ''}`}
-                    style={isActive ? { background: 'rgba(var(--theme-primary-rgb), 0.15)' } : {}}
+                    onClick={() => toggleScene(scene)}
+                    onContextMenu={(e) => openOptionsModal(scene, e)}
+                    onTouchStart={(e) => {
+                      const timer = setTimeout(() => openOptionsModal(scene, e), 500);
+                      e.target._longPressTimer = timer;
+                    }}
+                    onTouchEnd={(e) => clearTimeout(e.target._longPressTimer)}
+                    onTouchMove={(e) => clearTimeout(e.target._longPressTimer)}
+                    className={`p-3 rounded-lg border transition-all flex items-center gap-3 ${
+                      isActive
+                        ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.15)]'
+                        : 'border-white/20 bg-white/5 hover:bg-white/10'
+                    }`}
                   >
-                    <Sparkles className={`w-5 h-5 mb-1 flex-shrink-0 ${isActive ? 'theme-text animate-pulse' : 'theme-text'}`} />
-                    <span className="font-semibold text-white text-[10px] leading-tight text-center line-clamp-2 w-full">{scene.name}</span>
-                    {isActive && <span className="text-[8px] theme-text mt-0.5">ACTIVE</span>}
+                    {isActive ? (
+                      <Square className="w-5 h-5 theme-text flex-shrink-0" fill="var(--theme-primary)" />
+                    ) : (
+                      <Play className="w-5 h-5 text-white/60 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-semibold text-white text-sm truncate">{scene.name}</p>
+                      <p className="text-[10px] text-white/40">
+                        {Object.keys(scene.channels || {}).length} ch
+                        {isActive && <span className="ml-2 theme-text font-bold">● PLAYING</span>}
+                      </p>
+                    </div>
                   </button>
                 );
               })}
@@ -144,148 +187,208 @@ export default function Scenes() {
         </div>
       </div>
 
-      {/* Target Selection Modal */}
-      {targetModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-white/20 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-white font-bold">Play: {targetModal.name}</h3>
-              <button onClick={() => setTargetModal(null)} className="p-1 rounded hover:bg-white/10">
-                <X size={18} className="text-white" />
-              </button>
+      {/* Fullscreen Options Modal */}
+      {optionsModal && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+            <div>
+              <h2 className="text-xl font-bold text-white">{optionsModal.name}</h2>
+              <p className="text-white/50 text-sm">Configure playback options</p>
+            </div>
+            <button onClick={() => setOptionsModal(null)} className="p-2 rounded-lg bg-white/10 hover:bg-white/20">
+              <X size={24} className="text-white" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+            {/* Universe Selection */}
+            <div>
+              <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                <Globe size={18} className="theme-text" /> Target Universe
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  onClick={() => setSelectedUniverse('all')}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    selectedUniverse === 'all'
+                      ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.2)]'
+                      : 'border-white/20 bg-white/5'
+                  }`}
+                >
+                  <p className="font-bold text-white">ALL</p>
+                  <p className="text-[10px] text-white/50">All Universes</p>
+                </button>
+                {configuredUniverses.map(univ => (
+                  <button
+                    key={univ}
+                    onClick={() => setSelectedUniverse(univ.toString())}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      selectedUniverse === univ.toString()
+                        ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.2)]'
+                        : 'border-white/20 bg-white/5'
+                    }`}
+                  >
+                    <p className="font-bold text-white">U{univ}</p>
+                    <p className="text-[10px] text-white/50">Universe {univ}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Mode Selection */}
-              <div className="grid grid-cols-4 gap-1">
+            {/* Target Mode Selection */}
+            <div>
+              <h3 className="text-white font-bold mb-3">Target Channels</h3>
+              <div className="grid grid-cols-4 gap-2">
                 {[
-                  { id: 'all', label: 'All', icon: Sparkles },
-                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb },
-                  { id: 'groups', label: 'Groups', icon: Users },
-                  { id: 'channels', label: 'Channels', icon: Hash }
+                  { id: 'all', label: 'All', icon: Sparkles, desc: 'All channels' },
+                  { id: 'fixtures', label: 'Fixtures', icon: Lightbulb, desc: 'By fixture' },
+                  { id: 'groups', label: 'Groups', icon: Users, desc: 'By group' },
+                  { id: 'channels', label: 'Channels', icon: Hash, desc: 'Individual' }
                 ].map(mode => (
                   <button
                     key={mode.id}
                     onClick={() => setTargetMode(mode.id)}
-                    className="py-2 px-1 rounded-lg border text-xs font-bold text-white flex flex-col items-center gap-1"
-                    style={{
-                      borderColor: targetMode === mode.id ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
-                      backgroundColor: targetMode === mode.id ? 'rgba(var(--theme-primary-rgb), 0.2)' : 'transparent'
-                    }}
+                    className={`p-3 rounded-lg border transition-all ${
+                      targetMode === mode.id
+                        ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.2)]'
+                        : 'border-white/20 bg-white/5'
+                    }`}
                   >
-                    <mode.icon size={14} />
-                    {mode.label}
+                    <mode.icon size={20} className={targetMode === mode.id ? 'theme-text mx-auto mb-1' : 'text-white/60 mx-auto mb-1'} />
+                    <p className="font-bold text-white text-sm">{mode.label}</p>
+                    <p className="text-[10px] text-white/50">{mode.desc}</p>
                   </button>
                 ))}
               </div>
-
-              {/* All Mode */}
-              {targetMode === 'all' && (
-                <div className="text-center py-6">
-                  <Sparkles size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-white/60 text-sm">Apply to all original channels</p>
-                  <p className="text-white/40 text-xs mt-1">
-                    {Object.keys(targetModal.channels || {}).length} channels in scene
-                  </p>
-                </div>
-              )}
-
-              {/* Fixtures Mode */}
-              {targetMode === 'fixtures' && (
-                <div>
-                  {fixtures.filter(f => f.universe === currentUniverse).length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No fixtures in universe {currentUniverse}</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {fixtures.filter(f => f.universe === currentUniverse).map(fixture => {
-                        const fixtureId = fixture.fixture_id || fixture.id;
-                        const isSelected = selectedFixtures.includes(fixtureId);
-                        const range = getFixtureChannelRange(fixture);
-                        return (
-                          <button
-                            key={fixtureId}
-                            onClick={() => toggleFixture(fixtureId)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? (fixture.color || 'var(--theme-primary)') : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${fixture.color || 'var(--theme-primary)'}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <Lightbulb size={12} style={{ color: fixture.color || 'var(--theme-primary)' }} fill={isSelected ? (fixture.color || 'var(--theme-primary)') : 'transparent'} />
-                              <p className="font-bold text-white text-xs truncate">{fixture.name}</p>
-                            </div>
-                            <p className="text-[10px] text-white/60 mt-0.5">Ch {range.start}-{range.end}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Groups Mode */}
-              {targetMode === 'groups' && (
-                <div>
-                  {groups.length === 0 ? (
-                    <p className="text-white/60 text-xs text-center py-4">No groups created</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {groups.map(group => {
-                        const isSelected = selectedGroups.includes(group.id);
-                        return (
-                          <button
-                            key={group.id}
-                            onClick={() => toggleGroup(group.id)}
-                            className="p-2 rounded-lg border transition-all text-left"
-                            style={{
-                              borderColor: isSelected ? group.color : 'rgba(255,255,255,0.2)',
-                              backgroundColor: isSelected ? `${group.color}30` : 'rgba(255,255,255,0.05)'
-                            }}
-                          >
-                            <p className="font-bold text-white text-xs">{group.name}</p>
-                            <p className="text-[10px] text-white/60">{group.channels?.length || 0} ch</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Channels Mode */}
-              {targetMode === 'channels' && (
-                <div>
-                  <div className="flex gap-1 mb-2">
-                    <button onClick={() => setSelectedChannels([...Array(10)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-10</button>
-                    <button onClick={() => setSelectedChannels([...Array(50)].map((_, i) => i + 1))} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">1-50</button>
-                    <button onClick={() => setSelectedChannels([])} className="px-2 py-1 rounded bg-white/10 text-white text-xs font-bold">Clear</button>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
-                    {Array.from({ length: 100 }, (_, i) => i + 1).map(ch => (
-                      <button key={ch} onClick={() => toggleChannel(ch)} className="aspect-square rounded text-[10px] font-bold"
-                        style={{ backgroundColor: selectedChannels.includes(ch) ? 'var(--theme-primary)' : 'rgba(255,255,255,0.1)', color: 'white' }}>
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
-            <div className="p-3 border-t border-white/10 flex gap-2">
-              <button onClick={() => setTargetModal(null)} className="flex-1 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-semibold">
-                Cancel
-              </button>
-              <button onClick={handlePlay} disabled={!canPlay()}
-                className="flex-1 py-2 rounded-lg border text-white text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{
-                  background: canPlay() ? 'linear-gradient(135deg, var(--theme-primary), rgba(var(--theme-primary-rgb), 0.7))' : 'rgba(255,255,255,0.1)',
-                  borderColor: canPlay() ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)'
-                }}>
-                <Play size={14} /> Play
-              </button>
-            </div>
+            {/* Target Selection Content */}
+            {targetMode === 'all' && (
+              <div className="text-center py-8 bg-white/5 rounded-lg">
+                <Sparkles size={40} className="text-white/30 mx-auto mb-3" />
+                <p className="text-white/60">Apply to all {Object.keys(optionsModal.channels || {}).length} channels in scene</p>
+              </div>
+            )}
+
+            {targetMode === 'fixtures' && (
+              <div className="grid grid-cols-3 gap-3">
+                {fixtures.length === 0 ? (
+                  <p className="col-span-3 text-white/60 text-center py-8">No fixtures configured</p>
+                ) : fixtures.map(fixture => {
+                  const fixtureId = fixture.fixture_id || fixture.id;
+                  const isSelected = selectedFixtures.includes(fixtureId);
+                  const range = getFixtureChannelRange(fixture);
+                  return (
+                    <button
+                      key={fixtureId}
+                      onClick={() => toggleFixture(fixtureId)}
+                      className={`p-4 rounded-lg border transition-all text-left ${
+                        isSelected
+                          ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.2)]'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <Lightbulb size={24} className={isSelected ? 'theme-text mb-2' : 'text-white/40 mb-2'}
+                        fill={isSelected ? 'var(--theme-primary)' : 'transparent'} />
+                      <p className="font-bold text-white">{fixture.name}</p>
+                      <p className="text-xs text-white/50">Ch {range.start}-{range.end}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {targetMode === 'groups' && (
+              <div className="grid grid-cols-3 gap-3">
+                {groups.length === 0 ? (
+                  <p className="col-span-3 text-white/60 text-center py-8">No groups configured</p>
+                ) : groups.map(group => {
+                  const isSelected = selectedGroups.includes(group.id);
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => toggleGroup(group.id)}
+                      className={`p-4 rounded-lg border transition-all text-left ${
+                        isSelected
+                          ? 'border-[var(--theme-primary)] bg-[rgba(var(--theme-primary-rgb),0.2)]'
+                          : 'border-white/20 bg-white/5'
+                      }`}
+                    >
+                      <Users size={24} className={isSelected ? 'theme-text mb-2' : 'text-white/40 mb-2'} />
+                      <p className="font-bold text-white">{group.name}</p>
+                      <p className="text-xs text-white/50">{group.channels?.length || 0} channels</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {targetMode === 'channels' && (
+              <div>
+                <div className="flex gap-2 mb-3">
+                  <button onClick={() => setSelectedChannels([...Array(12)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-12</button>
+                  <button onClick={() => setSelectedChannels([...Array(24)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-24</button>
+                  <button onClick={() => setSelectedChannels([...Array(48)].map((_, i) => i + 1))}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">1-48</button>
+                  <button onClick={() => setSelectedChannels([])}
+                    className="px-3 py-2 rounded-lg bg-white/10 text-white text-sm font-bold">Clear</button>
+                </div>
+                <div className="grid grid-cols-12 gap-1">
+                  {Array.from({ length: 96 }, (_, i) => i + 1).map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => toggleChannel(ch)}
+                      className={`aspect-square rounded text-xs font-bold transition-all ${
+                        selectedChannels.includes(ch)
+                          ? 'bg-[var(--theme-primary)] text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-white/10 flex gap-3 flex-shrink-0">
+            <button
+              onClick={() => {
+                const sceneId = optionsModal.scene_id || optionsModal.id;
+                if (confirm(`Delete scene "${optionsModal.name}"?`)) {
+                  deleteScene(sceneId);
+                  setOptionsModal(null);
+                }
+              }}
+              className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400"
+            >
+              <Trash2 size={20} />
+            </button>
+            <button
+              onClick={() => setOptionsModal(null)}
+              className="flex-1 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePlayWithOptions}
+              disabled={!canPlay()}
+              className="flex-1 py-3 rounded-lg border font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+              style={{
+                background: canPlay() ? 'linear-gradient(135deg, var(--theme-primary), rgba(var(--theme-primary-rgb), 0.7))' : 'rgba(255,255,255,0.1)',
+                borderColor: canPlay() ? 'var(--theme-primary)' : 'rgba(255,255,255,0.2)',
+                color: 'white'
+              }}
+            >
+              <Play size={18} /> Play Scene
+            </button>
           </div>
         </div>
       )}
