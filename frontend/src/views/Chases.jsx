@@ -113,17 +113,17 @@ export default function Chases() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-1 h-full w-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(60px, 20vw), 1fr))', gridAutoRows: 'minmax(40px, 1fr)' }}>
+            <div className="grid gap-2 h-full w-full overflow-y-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(70px, 15vw, 90px), 1fr))', gridAutoRows: 'minmax(clamp(70px, 15vw, 90px), auto)' }}>
               {chases.map((chase) => (
                 <button
                   key={chase.chase_id || chase.id}
                   onClick={() => isActive(chase) ? stopChase(chase.chase_id || chase.id) : openTargetModal(chase)}
-                  className={`card p-1 flex flex-col items-center justify-center min-h-0 min-w-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all overflow-hidden ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
+                  className={`card aspect-square p-2 flex flex-col items-center justify-center hover:ring-2 hover:ring-white/30 active:scale-95 transition-all overflow-hidden ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
                   style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
                 >
-                  <Zap className={`w-3 h-3 mb-0.5 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                  <span className="font-medium text-white text-[8px] leading-tight truncate w-full text-center">{chase.name}</span>
-                  {isActive(chase) && <span className="text-[6px] text-green-400">PLAYING</span>}
+                  <Zap className={`w-5 h-5 mb-1 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
+                  <span className="font-semibold text-white text-[10px] leading-tight text-center line-clamp-2 w-full">{chase.name}</span>
+                  {isActive(chase) && <span className="text-[8px] text-green-400 mt-0.5">PLAYING</span>}
                 </button>
               ))}
             </div>
