@@ -72,7 +72,7 @@ export default function TouchKeyboard({ onClose, onInputChange, inputName = 'def
           border-radius: 6px !important;
           font-size: 16px !important;
           font-weight: 700 !important;
-          height: 40px !important;
+          height: clamp(32px, 8vh, 44px) !important;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
           display: flex !important;
           align-items: center !important;

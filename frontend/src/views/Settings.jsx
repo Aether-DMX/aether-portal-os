@@ -330,7 +330,7 @@ export default function Settings() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <HexColorPicker color={customColor} onChange={handleColorChange} style={{ width: "100%", height: "200px" }} />
+                <HexColorPicker color={customColor} onChange={handleColorChange} style={{ width: "100%", height: "clamp(120px, 30vh, 200px)" }} />
               </div>
 
               <div className="space-y-2">

@@ -21,9 +21,9 @@ export default function Layout({ children }) {
   const showNav = !currentRoute?.hideNav;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-black" style={{ maxHeight: '480px', maxWidth: '800px' }}>
+    <div className="h-screen w-screen flex overflow-hidden bg-black">
       {showNav && (
-        <nav className="glass-panel m-2 p-1.5 flex flex-col gap-0.5" style={{ width: '70px' }}>
+        <nav className="glass-panel m-2 p-1.5 flex flex-col gap-0.5" style={{ width: 'clamp(60px, 10vw, 80px)' }}>
           <div className="text-center py-1.5 mb-0.5 border-b border-white/10">
             <div className="text-base font-bold accent-gradient bg-clip-text text-transparent">DMX</div>
           </div>

@@ -442,7 +442,7 @@ export default function NodeManagement() {
             style={{
               borderColor: 'rgba(139, 92, 246, 0.4)',
               boxShadow: '0 0 40px rgba(139, 92, 246, 0.3)',
-              height: '420px'
+              height: 'clamp(320px, 85vh, 420px)'
             }}
           >
             {/* Compact Header */}
@@ -471,7 +471,7 @@ export default function NodeManagement() {
             </div>
 
             {/* Content - Side by Side Layout */}
-            <div className="flex h-[370px]">
+            <div className="flex" style={{ height: 'calc(100% - 50px)' }}>
               {/* Left Side - Universe & Name */}
               <div className="flex-1 p-3 border-r overflow-y-auto" style={{ borderColor: 'rgba(255, 255, 255, 0.15)' }}>
                 {/* Node Name */}

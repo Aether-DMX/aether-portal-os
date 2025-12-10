@@ -122,11 +122,11 @@ export default function Screensaver({ onExit, isLocked = false }) {
             >
               <div style={{
                 position: 'absolute',
-                top: '-80px',
+                top: 'clamp(-60px, -15vh, -80px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: '192px',
-                height: '128px',
+                width: 'clamp(140px, 30vw, 192px)',
+                height: 'clamp(90px, 20vh, 128px)',
                 pointerEvents: 'none'
               }}>
                 {[0, 1, 2, 3, 4].map((i) => (
@@ -134,8 +134,8 @@ export default function Screensaver({ onExit, isLocked = false }) {
                     key={i}
                     style={{
                       position: 'absolute',
-                      width: '16px',
-                      height: '16px',
+                      width: 'clamp(10px, 2.5vw, 16px)',
+                      height: 'clamp(10px, 2.5vw, 16px)',
                       backgroundColor: ['#64c8ff', '#a064ff', '#ff6496', '#ffc864', '#64ffa0'][i],
                       borderRadius: '50%',
                       left: `${20 * i}%`,
@@ -159,8 +159,8 @@ export default function Screensaver({ onExit, isLocked = false }) {
                   src="/Aether_LogoN1.png"
                   alt="AETHER"
                   style={{
-                    width: '160px',
-                    height: '160px',
+                    width: 'clamp(100px, 25vw, 160px)',
+                    height: 'clamp(100px, 25vw, 160px)',
                     display: 'block',
                     filter: 'drop-shadow(0 0 30px rgba(139, 92, 246, 0.6))'
                   }}
@@ -172,8 +172,8 @@ export default function Screensaver({ onExit, isLocked = false }) {
                       position: 'absolute',
                       bottom: '-8px',
                       right: '-8px',
-                      width: '48px',
-                      height: '48px',
+                      width: 'clamp(32px, 8vw, 48px)',
+                      height: 'clamp(32px, 8vw, 48px)',
                       borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',

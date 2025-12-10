@@ -146,7 +146,7 @@ export default function ActivationModal({
         style={{
           borderColor: 'rgba(139, 92, 246, 0.4)',
           boxShadow: '0 0 40px rgba(139, 92, 246, 0.3)',
-          height: '420px'
+          height: 'clamp(300px, 85vh, 420px)'
         }}
       >
         
@@ -192,8 +192,8 @@ export default function ActivationModal({
           ))}
         </div>
 
-        {/* Content - FIXED HEIGHT with padding for buttons */}
-        <div style={{ height: 'calc(420px - 120px)', padding: '8px 12px' }}>
+        {/* Content - Flexible height with padding for buttons */}
+        <div style={{ height: 'calc(100% - 120px)', padding: '8px 12px', overflow: 'auto' }}>
           {/* Channels Tab */}
           {tab === 'channels' && (
             <div className="h-full flex flex-col">
