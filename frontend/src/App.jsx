@@ -26,6 +26,7 @@ import Settings from './views/Settings';
 import MobileAI from './views/MobileAI';
 import MoreMenu from './views/MoreMenu';
 import ZoneDetail from './views/ZoneDetail';
+import LiveConsole from './views/LiveConsole';
 import Screensaver from './components/Screensaver';
 import useDMXStore from './store/dmxStore';
 import useUIStore from './store/uiStore';
@@ -75,6 +76,7 @@ function AppContent({ onLock }) {
           <Route path="/aether-ai" element={<MobileAI />} />
           <Route path="/more" element={<MoreMenu />} />
           <Route path="/zone/:nodeId" element={<ZoneDetail />} />
+          <Route path="/live" element={<LiveConsole />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
