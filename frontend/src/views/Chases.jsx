@@ -113,17 +113,17 @@ export default function Chases() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-4 grid-rows-3 gap-1.5 h-full">
-              {chases.slice(0, 12).map((chase) => (
+            <div className="grid gap-1.5 h-full" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gridAutoRows: 'minmax(50px, 1fr)' }}>
+              {chases.map((chase) => (
                 <button
                   key={chase.chase_id || chase.id}
                   onClick={() => isActive(chase) ? stopChase(chase.chase_id || chase.id) : openTargetModal(chase)}
-                  className={`card p-1.5 flex flex-col items-center justify-center min-h-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
+                  className={`card p-1 flex flex-col items-center justify-center min-h-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
                   style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
                 >
-                  <Zap className={`w-4 h-4 mb-0.5 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                  <span className="font-medium text-white text-[10px] truncate w-full text-center">{chase.name}</span>
-                  {isActive(chase) && <span className="text-[8px] text-green-400 mt-0.5">PLAYING</span>}
+                  <Zap className={`w-3.5 h-3.5 mb-0.5 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
+                  <span className="font-medium text-white text-[9px] leading-tight truncate w-full text-center px-0.5">{chase.name}</span>
+                  {isActive(chase) && <span className="text-[7px] text-green-400">PLAYING</span>}
                 </button>
               ))}
             </div>
