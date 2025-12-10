@@ -81,10 +81,11 @@ export default function Scenes() {
     if (!targetModal) return;
     const targetChannels = getTargetChannels();
     const sceneId = targetModal.scene_id || targetModal.id;
+    // Always pass currentUniverse so scenes play on the selected universe
     if (targetChannels === null) {
-      playScene(sceneId, 1000);
+      playScene(sceneId, 1000, { universe: currentUniverse });
     } else if (targetChannels.length > 0) {
-      playScene(sceneId, 1000, { targetChannels });
+      playScene(sceneId, 1000, { targetChannels, universe: currentUniverse });
     }
     setTargetModal(null);
   };

@@ -49,9 +49,11 @@ const useSceneStore = create((set, get) => ({
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
       const isTargeted = options.targetChannels && options.targetChannels.length > 0;
-      console.log('🎬 Playing scene:', scene?.name || id, isTargeted ? `on channels: ${options.targetChannels.length}` : 'all channels');
+      // Use provided universe or fall back to scene's stored universe
+      const universe = options.universe || scene?.universe || 1;
+      console.log('🎬 Playing scene:', scene?.name || id, `on universe ${universe}`, isTargeted ? `channels: ${options.targetChannels.length}` : 'all channels');
 
-      const payload = { fade_ms: fadeMs };
+      const payload = { fade_ms: fadeMs, universe };
       if (isTargeted) {
         payload.target_channels = options.targetChannels;
       }
@@ -60,7 +62,6 @@ const useSceneStore = create((set, get) => ({
 
       // Update playback store (SSOT) - only if full scene play (not targeted)
       if (!isTargeted && scene) {
-        const universe = scene.universe || 1;
         usePlaybackStore.getState().setPlayback(universe, {
           type: 'scene',
           id: scene.scene_id || scene.id,

@@ -11,7 +11,7 @@ const useDMXStore = create((set, get) => ({
 
   // Additional state
   universes: { 1: new Array(512).fill(0) },
-  maxUniverse: 4,  // From settings (SSOT)
+  maxUniverse: 64,  // From settings (SSOT) - no artificial limits
   configuredUniverses: [1],  // Universes that have nodes assigned
   lastUpdate: null,
   loading: false,
@@ -31,8 +31,8 @@ const useDMXStore = create((set, get) => ({
     try {
       const res = await axios.get(getAetherCore() + '/api/settings/dmx');
       if (res.data) {
-        set({ maxUniverse: res.data.maxUniverse || 4 });
-        console.log('✅ DMX settings loaded: maxUniverse =', res.data.maxUniverse || 4);
+        set({ maxUniverse: res.data.maxUniverse || 64 });
+        console.log('✅ DMX settings loaded: maxUniverse =', res.data.maxUniverse || 64);
       }
     } catch (e) {
       console.error('Failed to fetch DMX settings:', e.message);

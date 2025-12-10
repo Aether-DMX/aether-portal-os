@@ -51,9 +51,11 @@ const useChaseStore = create((set, get) => ({
     try {
       const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
       const isTargeted = options.targetChannels && options.targetChannels.length > 0;
-      console.log('🎬 Starting chase:', chase?.name || chaseId, isTargeted ? `on channels: ${options.targetChannels.length}` : 'all channels');
+      // Use provided universe or fall back to chase's stored universe
+      const universe = options.universe || chase?.universe || 1;
+      console.log('🎬 Starting chase:', chase?.name || chaseId, `on universe ${universe}`, isTargeted ? `channels: ${options.targetChannels.length}` : 'all channels');
 
-      const payload = {};
+      const payload = { universe };
       if (isTargeted) {
         payload.target_channels = options.targetChannels;
       }
@@ -62,7 +64,6 @@ const useChaseStore = create((set, get) => ({
 
       // Update playback store (SSOT) - only if full chase (not targeted)
       if (!isTargeted && chase) {
-        const universe = chase.universe || 1;
         usePlaybackStore.getState().setPlayback(universe, {
           type: 'chase',
           id: chase.chase_id || chase.id,
@@ -74,15 +75,15 @@ const useChaseStore = create((set, get) => ({
     }
   },
 
-  stopChase: async (chaseId) => {
+  stopChase: async (chaseId, universe = null) => {
     try {
       const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
-      console.log('⏹️ Stopping chase:', chase?.name || chaseId);
-      await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/stop');
+      const targetUniverse = universe || chase?.universe || 1;
+      console.log('⏹️ Stopping chase:', chase?.name || chaseId, `on universe ${targetUniverse}`);
+      await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/stop', { universe: targetUniverse });
 
       // Clear playback in SSOT
-      const universe = chase?.universe || 1;
-      usePlaybackStore.getState().clearPlayback(universe);
+      usePlaybackStore.getState().clearPlayback(targetUniverse);
     } catch (e) {
       console.error('Failed to stop chase:', e);
     }

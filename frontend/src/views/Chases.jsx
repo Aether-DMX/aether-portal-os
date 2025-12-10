@@ -81,10 +81,11 @@ export default function Chases() {
     if (!targetModal) return;
     const targetChannels = getTargetChannels();
     const chaseId = targetModal.chase_id || targetModal.id;
+    // Always pass currentUniverse so chases play on the selected universe
     if (targetChannels === null) {
-      startChase(chaseId);
+      startChase(chaseId, { universe: currentUniverse });
     } else if (targetChannels.length > 0) {
-      startChase(chaseId, { targetChannels });
+      startChase(chaseId, { targetChannels, universe: currentUniverse });
     }
     setTargetModal(null);
   };
