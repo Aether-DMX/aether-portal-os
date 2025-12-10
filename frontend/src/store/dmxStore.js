@@ -39,16 +39,18 @@ const useDMXStore = create((set, get) => ({
     }
   },
 
-  // Fetch which universes have nodes assigned (SSOT from nodes)
+  // Fetch which universes have ONLINE nodes assigned (SSOT from nodes)
   fetchConfiguredUniverses: async () => {
     try {
       const res = await axios.get(getAetherCore() + '/api/nodes');
       if (res.data && Array.isArray(res.data)) {
-        const universesFromNodes = [...new Set(res.data.map(n => n.universe || 1))].sort((a, b) => a - b);
-        // Always include universe 1, plus any universes with nodes
+        // Only include universes with ONLINE nodes
+        const onlineNodes = res.data.filter(n => n.status === 'online');
+        const universesFromNodes = [...new Set(onlineNodes.map(n => n.universe || 1))].sort((a, b) => a - b);
+        // Always include universe 1, plus any universes with online nodes
         const configured = universesFromNodes.length > 0 ? universesFromNodes : [1];
         set({ configuredUniverses: configured });
-        console.log('✅ Configured universes:', configured);
+        console.log('✅ Configured universes (online):', configured);
       }
     } catch (e) {
       console.error('Failed to fetch configured universes:', e.message);
