@@ -5,13 +5,15 @@ import useChaseStore from '../store/chaseStore';
 import { useFixtureStore } from '../store/fixtureStore';
 import useGroupStore from '../store/groupStore';
 import useDMXStore from '../store/dmxStore';
+import usePlaybackStore from '../store/playbackStore';
 
 export default function Chases() {
   const navigate = useNavigate();
-  const { chases, activeChase, fetchChases, startChase, stopChase, deleteChase } = useChaseStore();
+  const { chases, fetchChases, startChase, stopChase, deleteChase } = useChaseStore();
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
   const { groups } = useGroupStore();
   const { currentUniverse } = useDMXStore();
+  const { playback, syncStatus } = usePlaybackStore();
 
   const [targetModal, setTargetModal] = useState(null);
   const [targetMode, setTargetMode] = useState('all');
@@ -22,9 +24,16 @@ export default function Chases() {
   useEffect(() => {
     fetchChases();
     fetchFixtures();
-  }, [fetchChases, fetchFixtures]);
+    syncStatus(); // Sync playback state from SSOT
+  }, [fetchChases, fetchFixtures, syncStatus]);
 
-  const isActive = (chase) => activeChase?.chase_id === chase.chase_id || activeChase?.id === chase.id;
+  // Check if chase is active using SSOT playback store
+  const isActive = (chase) => {
+    const chaseId = chase.chase_id || chase.id;
+    const universe = chase.universe || 1;
+    const current = playback[universe];
+    return current?.type === 'chase' && current?.id === chaseId;
+  };
 
   const openTargetModal = (chase) => {
     setTargetModal(chase);

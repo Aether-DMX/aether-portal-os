@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import usePlaybackStore from './playbackStore';
 
 const getAetherCore = () => `http://${window.location.hostname}:8891`;
 
 const useSceneStore = create((set, get) => ({
   scenes: [],
-  currentScene: null,
   loading: false,
 
   initializeSampleData: async () => {
@@ -48,18 +48,26 @@ const useSceneStore = create((set, get) => ({
   playScene: async (id, fadeMs = 1500, options = {}) => {
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
-      console.log('🎬 Playing scene:', scene?.name || id, options.targetChannels ? `on channels: ${options.targetChannels.length}` : 'all channels');
+      const isTargeted = options.targetChannels && options.targetChannels.length > 0;
+      console.log('🎬 Playing scene:', scene?.name || id, isTargeted ? `on channels: ${options.targetChannels.length}` : 'all channels');
 
       const payload = { fade_ms: fadeMs };
-      if (options.targetChannels && options.targetChannels.length > 0) {
+      if (isTargeted) {
         payload.target_channels = options.targetChannels;
       }
 
       const res = await axios.post(getAetherCore() + '/api/scenes/' + id + '/play', payload);
 
-      set({ currentScene: scene });
+      // Update playback store (SSOT) - only if full scene play (not targeted)
+      if (!isTargeted && scene) {
+        const universe = scene.universe || 1;
+        usePlaybackStore.getState().setPlayback(universe, {
+          type: 'scene',
+          id: scene.scene_id || scene.id,
+          started: new Date().toISOString()
+        });
+      }
 
-      // Return the scene so caller can update DMX state
       return { scene, result: res.data };
     } catch (e) {
       console.error('Failed to play scene:', e);
@@ -67,7 +75,19 @@ const useSceneStore = create((set, get) => ({
     }
   },
 
-  stopScene: () => set({ currentScene: null }),
+  // Check if a scene is currently playing (uses SSOT)
+  isScenePlaying: (sceneId) => {
+    return usePlaybackStore.getState().isScenePlaying(sceneId);
+  },
+
+  // Get the currently playing scene (uses SSOT)
+  getCurrentScene: (universe = 1) => {
+    const playback = usePlaybackStore.getState().getPlayback(universe);
+    if (playback?.type === 'scene') {
+      return get().scenes.find(s => (s.scene_id || s.id) === playback.id);
+    }
+    return null;
+  },
 
   // Get scenes marked as global (for quick scenes widget)
   getGlobalScenes: () => get().scenes.filter(s => s.isGlobal),

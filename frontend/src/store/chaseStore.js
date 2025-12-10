@@ -1,39 +1,18 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import usePlaybackStore from './playbackStore';
 
 const getAetherCore = () => `http://${window.location.hostname}:8891`;
 
 const useChaseStore = create((set, get) => ({
   chases: [],
-  runningChases: {},
-  activeChase: null,
   loading: false,
 
   initializeSampleData: async () => {
     await get().fetchChases();
-    await get().syncPlaybackStatus();
+    // Sync playback status via unified store
+    await usePlaybackStore.getState().syncStatus();
     console.log('✅ Chase store initialized');
-  },
-
-  // Sync with SSOT playback status
-  syncPlaybackStatus: async () => {
-    try {
-      const res = await axios.get(getAetherCore() + '/api/playback/status');
-      const status = res.data || {};
-      const newRunning = {};
-      let active = null;
-
-      Object.values(status).forEach(playback => {
-        if (playback?.type === 'chase' && playback?.id) {
-          newRunning[playback.id] = true;
-          active = get().chases.find(c => c.chase_id === playback.id || c.id === playback.id);
-        }
-      });
-
-      set({ runningChases: newRunning, activeChase: active });
-    } catch (e) {
-      console.error('Failed to sync playback status:', e);
-    }
   },
 
   fetchChases: async () => {
@@ -70,19 +49,26 @@ const useChaseStore = create((set, get) => ({
 
   startChase: async (chaseId, options = {}) => {
     try {
-      console.log('🎬 Starting chase:', chaseId, options.targetChannels ? `on channels: ${options.targetChannels.length}` : 'all channels');
+      const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
+      const isTargeted = options.targetChannels && options.targetChannels.length > 0;
+      console.log('🎬 Starting chase:', chase?.name || chaseId, isTargeted ? `on channels: ${options.targetChannels.length}` : 'all channels');
 
       const payload = {};
-      if (options.targetChannels && options.targetChannels.length > 0) {
+      if (isTargeted) {
         payload.target_channels = options.targetChannels;
       }
 
       await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play', payload);
 
-      set(state => ({
-        runningChases: { ...state.runningChases, [chaseId]: true },
-        activeChase: state.chases.find(c => c.chase_id === chaseId || c.id === chaseId)
-      }));
+      // Update playback store (SSOT) - only if full chase (not targeted)
+      if (!isTargeted && chase) {
+        const universe = chase.universe || 1;
+        usePlaybackStore.getState().setPlayback(universe, {
+          type: 'chase',
+          id: chase.chase_id || chase.id,
+          started: new Date().toISOString()
+        });
+      }
     } catch (e) {
       console.error('Failed to start chase:', e);
     }
@@ -90,24 +76,38 @@ const useChaseStore = create((set, get) => ({
 
   stopChase: async (chaseId) => {
     try {
-      console.log('⏹️ Stopping chase:', chaseId);
+      const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
+      console.log('⏹️ Stopping chase:', chase?.name || chaseId);
       await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/stop');
-      
-      set(state => {
-        const newRunning = { ...state.runningChases };
-        delete newRunning[chaseId];
-        return { runningChases: newRunning, activeChase: null };
-      });
+
+      // Clear playback in SSOT
+      const universe = chase?.universe || 1;
+      usePlaybackStore.getState().clearPlayback(universe);
     } catch (e) {
       console.error('Failed to stop chase:', e);
     }
   },
 
-  isRunning: (chaseId) => {
-    return get().runningChases[chaseId] === true;
+  // Check if a chase is currently playing (uses SSOT)
+  isChasePlaying: (chaseId) => {
+    return usePlaybackStore.getState().isChasePlaying(chaseId);
   },
 
-  playChase: async (id) => get().startChase(id),
+  // Get the currently active chase (uses SSOT)
+  getActiveChase: (universe = 1) => {
+    const playback = usePlaybackStore.getState().getPlayback(universe);
+    if (playback?.type === 'chase') {
+      return get().chases.find(c => (c.chase_id || c.id) === playback.id);
+    }
+    return null;
+  },
+
+  // Legacy compatibility
+  isRunning: (chaseId) => {
+    return usePlaybackStore.getState().isChasePlaying(chaseId);
+  },
+
+  playChase: async (id, options = {}) => get().startChase(id, options),
 }));
 
 export default useChaseStore;

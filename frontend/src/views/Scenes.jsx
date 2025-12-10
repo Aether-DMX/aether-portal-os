@@ -5,6 +5,7 @@ import useSceneStore from '../store/sceneStore';
 import { useFixtureStore } from '../store/fixtureStore';
 import useGroupStore from '../store/groupStore';
 import useDMXStore from '../store/dmxStore';
+import usePlaybackStore from '../store/playbackStore';
 
 export default function Scenes() {
   const navigate = useNavigate();
@@ -12,6 +13,15 @@ export default function Scenes() {
   const { fixtures, fetchFixtures, getFixtureChannelRange } = useFixtureStore();
   const { groups } = useGroupStore();
   const { currentUniverse } = useDMXStore();
+  const { playback, stopAll, syncStatus } = usePlaybackStore();
+
+  // Check if a scene is active (from SSOT)
+  const isSceneActive = (scene) => {
+    const sceneId = scene.scene_id || scene.id;
+    const universe = scene.universe || 1;
+    const current = playback[universe];
+    return current?.type === 'scene' && current?.id === sceneId;
+  };
 
   const [targetModal, setTargetModal] = useState(null);
   const [targetMode, setTargetMode] = useState('all');
@@ -22,7 +32,8 @@ export default function Scenes() {
   useEffect(() => {
     fetchScenes();
     fetchFixtures();
-  }, [fetchScenes, fetchFixtures]);
+    syncStatus(); // Sync playback state from SSOT
+  }, [fetchScenes, fetchFixtures, syncStatus]);
 
   const openTargetModal = (scene) => {
     setTargetModal(scene);
@@ -112,16 +123,21 @@ export default function Scenes() {
             </div>
           ) : (
             <div className="grid gap-2 h-full w-full overflow-y-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(70px, 15vw, 90px), 1fr))', gridAutoRows: 'minmax(clamp(70px, 15vw, 90px), auto)' }}>
-              {scenes.map((scene) => (
-                <button
-                  key={scene.scene_id || scene.id}
-                  onClick={() => openTargetModal(scene)}
-                  className="card aspect-square p-2 flex flex-col items-center justify-center hover:ring-2 hover:ring-white/30 active:scale-95 transition-all overflow-hidden"
-                >
-                  <Sparkles className="w-5 h-5 theme-text mb-1 flex-shrink-0" />
-                  <span className="font-semibold text-white text-[10px] leading-tight text-center line-clamp-2 w-full">{scene.name}</span>
-                </button>
-              ))}
+              {scenes.map((scene) => {
+                const isActive = isSceneActive(scene);
+                return (
+                  <button
+                    key={scene.scene_id || scene.id}
+                    onClick={() => openTargetModal(scene)}
+                    className={`card aspect-square p-2 flex flex-col items-center justify-center hover:ring-2 hover:ring-white/30 active:scale-95 transition-all overflow-hidden ${isActive ? 'ring-2 ring-[var(--theme-primary)]' : ''}`}
+                    style={isActive ? { background: 'rgba(var(--theme-primary-rgb), 0.15)' } : {}}
+                  >
+                    <Sparkles className={`w-5 h-5 mb-1 flex-shrink-0 ${isActive ? 'theme-text animate-pulse' : 'theme-text'}`} />
+                    <span className="font-semibold text-white text-[10px] leading-tight text-center line-clamp-2 w-full">{scene.name}</span>
+                    {isActive && <span className="text-[8px] theme-text mt-0.5">ACTIVE</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
