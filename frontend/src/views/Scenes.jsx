@@ -111,35 +111,16 @@ export default function Scenes() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-3 grid-rows-3 gap-2 h-full">
-              {scenes.slice(0, 9).map((scene) => (
-                <div key={scene.scene_id || scene.id} className="card p-2 flex flex-col justify-between min-h-0">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Sparkles className="w-3.5 h-3.5 theme-text flex-shrink-0" />
-                    <span className="font-semibold text-white text-xs truncate">{scene.name}</span>
-                  </div>
-
-                  {scene.channels && (
-                    <p className="text-[9px] text-white/40 mb-1">
-                      {Object.keys(scene.channels).length} ch
-                    </p>
-                  )}
-
-                  <div className="flex gap-1.5 mt-auto">
-                    <button
-                      onClick={() => openTargetModal(scene)}
-                      className="flex-1 btn btn-xs btn-primary"
-                    >
-                      <Play className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => deleteScene(scene.scene_id || scene.id)}
-                      className="btn btn-xs btn-danger"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+            <div className="grid grid-cols-4 grid-rows-3 gap-1.5 h-full">
+              {scenes.slice(0, 12).map((scene) => (
+                <button
+                  key={scene.scene_id || scene.id}
+                  onClick={() => openTargetModal(scene)}
+                  className="card p-1.5 flex flex-col items-center justify-center min-h-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all"
+                >
+                  <Sparkles className="w-4 h-4 theme-text mb-0.5" />
+                  <span className="font-medium text-white text-[10px] truncate w-full text-center">{scene.name}</span>
+                </button>
               ))}
             </div>
           )}

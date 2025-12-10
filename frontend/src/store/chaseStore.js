@@ -11,7 +11,29 @@ const useChaseStore = create((set, get) => ({
 
   initializeSampleData: async () => {
     await get().fetchChases();
+    await get().syncPlaybackStatus();
     console.log('✅ Chase store initialized');
+  },
+
+  // Sync with SSOT playback status
+  syncPlaybackStatus: async () => {
+    try {
+      const res = await axios.get(getAetherCore() + '/api/playback/status');
+      const status = res.data || {};
+      const newRunning = {};
+      let active = null;
+
+      Object.values(status).forEach(playback => {
+        if (playback?.type === 'chase' && playback?.id) {
+          newRunning[playback.id] = true;
+          active = get().chases.find(c => c.chase_id === playback.id || c.id === playback.id);
+        }
+      });
+
+      set({ runningChases: newRunning, activeChase: active });
+    } catch (e) {
+      console.error('Failed to sync playback status:', e);
+    }
   },
 
   fetchChases: async () => {

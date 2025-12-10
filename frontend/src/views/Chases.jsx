@@ -113,49 +113,18 @@ export default function Chases() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-3 grid-rows-3 gap-2 h-full">
-              {chases.slice(0, 9).map((chase) => (
-                <div
+            <div className="grid grid-cols-4 grid-rows-3 gap-1.5 h-full">
+              {chases.slice(0, 12).map((chase) => (
+                <button
                   key={chase.chase_id || chase.id}
-                  className={`card p-2 flex flex-col justify-between min-h-0 ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
+                  onClick={() => isActive(chase) ? stopChase(chase.chase_id || chase.id) : openTargetModal(chase)}
+                  className={`card p-1.5 flex flex-col items-center justify-center min-h-0 hover:ring-1 hover:ring-white/30 active:scale-95 transition-all ${isActive(chase) ? 'ring-2 ring-green-400' : ''}`}
                   style={isActive(chase) ? { background: 'rgba(34, 197, 94, 0.15)' } : {}}
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
-                    <span className="font-semibold text-white text-xs truncate">{chase.name}</span>
-                  </div>
-
-                  {chase.steps && (
-                    <p className="text-[9px] text-white/40 mb-1">
-                      {chase.steps.length} steps • {chase.bpm || 120} BPM
-                    </p>
-                  )}
-
-                  <div className="flex gap-1.5 mt-auto">
-                    {isActive(chase) ? (
-                      <button
-                        onClick={() => stopChase(chase.chase_id || chase.id)}
-                        className="flex-1 btn btn-xs btn-danger"
-                      >
-                        <Square className="w-3 h-3" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => openTargetModal(chase)}
-                        className="flex-1 btn btn-xs btn-success"
-                      >
-                        <Play className="w-3 h-3" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteChase(chase.chase_id || chase.id)}
-                      className="btn btn-xs btn-danger"
-                      disabled={isActive(chase)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+                  <Zap className={`w-4 h-4 mb-0.5 ${isActive(chase) ? 'text-green-400 animate-pulse' : 'text-green-400'}`} />
+                  <span className="font-medium text-white text-[10px] truncate w-full text-center">{chase.name}</span>
+                  {isActive(chase) && <span className="text-[8px] text-green-400 mt-0.5">PLAYING</span>}
+                </button>
               ))}
             </div>
           )}
