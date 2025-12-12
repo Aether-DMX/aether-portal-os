@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Settings, X, Check, Plus, ArrowLeft } from 'lucide-react';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
@@ -21,7 +23,7 @@ const zoneIcons = {
 };
 
 // Scene emoji icons
-const sceneEmojis = ['\uD83C\uDF05', '\uD83C\uDF78', '\uD83D\uDD25', '\uD83C\uDF19'];
+const sceneEmojis = ['🌅', '🍸', '🔥', '🌙', '✨', '🎉', '💜', '🌊'];
 
 // Sortable Zone Component
 function SortableZone({ node, brightness, getZoneIcon, onClick }) {
@@ -66,15 +68,82 @@ function SortableZone({ node, brightness, getZoneIcon, onClick }) {
   );
 }
 
+function QuickSceneEditor({ scenes, selectedIds, onSave, onClose }) {
+  const [selected, setSelected] = useState(selectedIds || []);
+  const toggleScene = (id) => {
+    if (selected.includes(id)) {
+      setSelected(selected.filter(s => s !== id));
+    } else if (selected.length < 4) {
+      setSelected([...selected, id]);
+    }
+  };
+  return ReactDOM.createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#0a0a0f", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        <button onClick={onClose} style={{ padding: 8, background: "rgba(255,255,255,0.1)", borderRadius: 8, border: "none", cursor: "pointer" }}>
+          <ArrowLeft size={18} color="#fff" />
+        </button>
+        <span style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>Quick Scenes</span>
+        <span style={{ color: "var(--accent)", fontSize: 12, fontWeight: "bold" }}>{selected.length}/4</span>
+      </div>
+      <div style={{ padding: "8px 16px", background: "rgba(255,255,255,0.03)" }}>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0 }}>Tap to select up to 4 scenes for your dashboard</p>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
+        {scenes.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.4)" }}>No scenes created yet</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {scenes.map((scene, idx) => {
+              const id = scene.scene_id || scene.id;
+              const isSelected = selected.includes(id);
+              const selectIndex = selected.indexOf(id);
+              const canSelect = selected.length < 4 || isSelected;
+              return (
+                <button key={id} onClick={() => toggleScene(id)} style={{
+                  padding: 10, borderRadius: 12,
+                  border: isSelected ? "2px solid var(--accent)" : "1px solid rgba(255,255,255,0.1)",
+                  background: isSelected ? "rgba(0,255,170,0.15)" : "rgba(255,255,255,0.05)",
+                  cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.4,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative",
+                }}>
+                  {isSelected && (
+                    <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: "var(--accent)", color: "#000", fontSize: 10, fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {selectIndex + 1}
+                    </div>
+                  )}
+                  <span style={{ fontSize: 20 }}>{sceneEmojis[idx % sceneEmojis.length]}</span>
+                  <span style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: 600, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                    {scene.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: 8 }}>
+        <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+        <button onClick={() => { onSave(selected); onClose(); }} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: "var(--accent)", color: "#000", fontSize: 14, fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <Check size={16} /> Save
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { nodes } = useNodeStore();
-  const { scenes, currentScene, playScene, getGlobalScenes } = useSceneStore();
+  const { scenes, currentScene, playScene } = useSceneStore();
   const { universes, setChannels, initSocket, configuredUniverses } = useDMXStore();
 
   const [masterValue, setMasterValue] = useState(100);
-  const [lastMasterValue, setLastMasterValue] = useState(100);
+  const [baseUniverseState, setBaseUniverseState] = useState({}); // Store original values for scaling
   const [zoneOrder, setZoneOrder] = useState([]);
+  const [showSceneEditor, setShowSceneEditor] = useState(false);
+  const [quickSceneIds, setQuickSceneIds] = useState([]);
   const masterTrackRef = useRef(null);
   const isDragging = useRef(false);
 
@@ -89,7 +158,34 @@ export default function Dashboard() {
     initSocket();
   }, [initSocket]);
 
-  // Filter to only show configured/paired nodes (nodes with names that aren't default)
+  // Load quick scene IDs from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('quickSceneIds');
+    if (saved) {
+      try {
+        setQuickSceneIds(JSON.parse(saved));
+      } catch (e) {
+        setQuickSceneIds([]);
+      }
+    }
+  }, []);
+
+  // Get quick scenes based on saved IDs or fall back to first 4
+  const quickScenes = useMemo(() => {
+    if (quickSceneIds.length > 0) {
+      return quickSceneIds
+        .map(id => scenes.find(s => (s.scene_id || s.id) === id))
+        .filter(Boolean);
+    }
+    return scenes.slice(0, 4);
+  }, [scenes, quickSceneIds]);
+
+  const saveQuickScenes = (ids) => {
+    setQuickSceneIds(ids);
+    localStorage.setItem('quickSceneIds', JSON.stringify(ids));
+  };
+
+  // Filter to only show configured/paired nodes
   const configuredNodes = useMemo(() => {
     return nodes.filter(n => n.name && n.name !== 'Unknown' && n.name !== 'New Node');
   }, [nodes]);
@@ -135,10 +231,6 @@ export default function Dashboard() {
     }
   };
 
-  // Get global scenes for quick access (fall back to first 4 if none marked)
-  const globalScenes = getGlobalScenes?.() || [];
-  const quickScenes = globalScenes.length > 0 ? globalScenes.slice(0, 4) : scenes.slice(0, 4);
-
   // Calculate zone brightness from actual DMX state
   const getZoneBrightness = (node) => {
     const universe = node.universe || 1;
@@ -170,20 +262,28 @@ export default function Dashboard() {
     return zoneIcons.default;
   };
 
-  // Apply master fader to all configured universes
+  // Capture base state when starting to drag master
+  const captureBaseState = () => {
+    const base = {};
+    configuredUniverses.forEach(universe => {
+      base[universe] = [...(universes[universe] || [])];
+    });
+    setBaseUniverseState(base);
+  };
+
+  // Apply master fader using base state
   const applyMasterValue = (newValue) => {
     const scaleFactor = newValue / 100;
     configuredUniverses.forEach(universe => {
-      const currentState = universes[universe] || [];
+      const baseState = baseUniverseState[universe] || universes[universe] || [];
       const scaledChannels = {};
-      currentState.forEach((val, idx) => {
+      baseState.forEach((val, idx) => {
         if (val > 0) {
-          const newVal = Math.min(255, Math.round(val * scaleFactor));
-          scaledChannels[idx + 1] = newVal;
+          scaledChannels[idx + 1] = Math.round(val * scaleFactor);
         }
       });
       if (Object.keys(scaledChannels).length > 0) {
-        setChannels(universe, scaledChannels, 100);
+        setChannels(universe, scaledChannels, 50);
       }
     });
   };
@@ -196,11 +296,12 @@ export default function Dashboard() {
     const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
     const newValue = Math.round(pct);
     setMasterValue(newValue);
+    applyMasterValue(newValue);
   };
 
   const handleMasterStart = (e) => {
     isDragging.current = true;
-    setLastMasterValue(masterValue);
+    captureBaseState();
     handleMasterDrag(e);
   };
 
@@ -209,11 +310,7 @@ export default function Dashboard() {
   };
 
   const handleMasterEnd = () => {
-    if (isDragging.current) {
-      isDragging.current = false;
-      applyMasterValue(masterValue);
-      setLastMasterValue(masterValue);
-    }
+    isDragging.current = false;
   };
 
   useEffect(() => {
@@ -228,10 +325,12 @@ export default function Dashboard() {
       document.removeEventListener('touchmove', handleMasterMove);
       document.removeEventListener('touchend', handleMasterEnd);
     };
-  }, [masterValue]);
+  }, [baseUniverseState]);
 
   const handleSceneClick = (scene) => {
     playScene(scene.scene_id || scene.id, 1000);
+    // Reset master to 100 when playing a scene
+    setMasterValue(100);
   };
 
   const handleZoneClick = (node) => {
@@ -253,38 +352,36 @@ export default function Dashboard() {
       <div className="quick-scenes">
         <div className="widget-header">
           <span className="widget-title">Quick Scenes</span>
-          <span className="widget-scope">{'\u25CF'} All Zones</span>
+          <button 
+            onClick={() => setShowSceneEditor(true)}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <Settings size={14} className="text-white/60" />
+          </button>
         </div>
         <div className="scenes-row">
-          {quickScenes.map((scene, idx) => (
-            <button
-              key={scene.scene_id || scene.id || idx}
-              className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
-              onClick={() => handleSceneClick(scene)}
-            >
-              <span className="scene-icon">{sceneEmojis[idx % sceneEmojis.length]}</span>
-              <span className="scene-name">{scene.name}</span>
+          {quickScenes.length > 0 ? (
+            quickScenes.map((scene, idx) => (
+              <button
+                key={scene.scene_id || scene.id || idx}
+                className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
+                onClick={() => handleSceneClick(scene)}
+              >
+                <span className="scene-icon">{sceneEmojis[idx % sceneEmojis.length]}</span>
+                <span className="scene-name">{scene.name}</span>
+              </button>
+            ))
+          ) : (
+            <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
+              <span className="scene-icon"><Plus size={20} /></span>
+              <span className="scene-name">Add Scenes</span>
             </button>
-          ))}
-          {quickScenes.length === 0 && (
-            <>
-              <button className="scene-btn" onClick={() => navigate('/scenes')}>
-                <span className="scene-icon">{'\uD83C\uDF05'}</span>
-                <span className="scene-name">Opening</span>
-              </button>
-              <button className="scene-btn" onClick={() => navigate('/scenes')}>
-                <span className="scene-icon">{'\uD83C\uDF78'}</span>
-                <span className="scene-name">Happy Hr</span>
-              </button>
-              <button className="scene-btn" onClick={() => navigate('/scenes')}>
-                <span className="scene-icon">{'\uD83D\uDD25'}</span>
-                <span className="scene-name">Peak</span>
-              </button>
-              <button className="scene-btn" onClick={() => navigate('/scenes')}>
-                <span className="scene-icon">{'\uD83C\uDF19'}</span>
-                <span className="scene-name">Last Call</span>
-              </button>
-            </>
+          )}
+          {quickScenes.length > 0 && quickScenes.length < 4 && (
+            <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
+              <span className="scene-icon"><Plus size={20} /></span>
+              <span className="scene-name">Add</span>
+            </button>
           )}
         </div>
       </div>
@@ -318,7 +415,7 @@ export default function Dashboard() {
               />
             ))}
             {sortedNodes.length === 0 && (
-              <div 
+              <div
                 className="zone-icon"
                 onClick={() => navigate('/nodes')}
                 style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}
@@ -329,6 +426,16 @@ export default function Dashboard() {
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* Quick Scene Editor Modal */}
+      {showSceneEditor && (
+        <QuickSceneEditor
+          scenes={scenes}
+          selectedIds={quickSceneIds}
+          onSave={saveQuickScenes}
+          onClose={() => setShowSceneEditor(false)}
+        />
+      )}
     </div>
   );
 }
