@@ -1,337 +1,367 @@
-import React, { useState, useEffect } from 'react';
-import { Power, PowerOff, Save, Layers, Grid3X3, Cpu, Wifi, Server } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Layers, Sun, Moon, Lock, Unlock, Palette } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 import useNodeStore from '../store/nodeStore';
-import Fader from '../components/controls/Fader';
+import { useFixtureStore } from '../store/fixtureStore';
 
-// Main Entry: Choose Browse Method
-function BrowseMethodSelect({ onSelectMethod, nodes }) {
-  const universes = [...new Set(nodes.map(n => n.universe || 1))].sort((a, b) => a - b);
+const COLOR_PRESETS = [
+  { name: 'Red', rgb: [255, 0, 0] },
+  { name: 'Orange', rgb: [255, 128, 0] },
+  { name: 'Yellow', rgb: [255, 255, 0] },
+  { name: 'Green', rgb: [0, 255, 0] },
+  { name: 'Cyan', rgb: [0, 255, 255] },
+  { name: 'Blue', rgb: [0, 0, 255] },
+  { name: 'Purple', rgb: [128, 0, 255] },
+  { name: 'Magenta', rgb: [255, 0, 255] },
+  { name: 'White', rgb: [255, 255, 255] },
+  { name: 'Warm', rgb: [255, 200, 150] },
+];
 
+function ChannelCell({ channel, value, isSelected, onSelect, isLocked }) {
+  const brightness = Math.round((value / 255) * 100);
+  
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <h2 className="text-xl font-bold text-white mb-1">Channel Control</h2>
-      <p className="text-sm text-white/50 mb-6">Choose how to browse channels</p>
-
-      <div className="grid grid-cols-2 gap-4 max-w-lg w-full">
-        <button
-          onClick={() => onSelectMethod('universe')}
-          className="card p-4 hover:bg-white/5 transition-all text-left"
-        >
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/20">
-              <Layers className="w-6 h-6 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white mb-1">By Universe</h3>
-              <p className="text-[10px] text-white/50 mb-2">Browse all channels</p>
-              <div className="flex flex-wrap gap-1">
-                {universes.map(u => (
-                  <span key={u} className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded">
-                    U{u}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onSelectMethod('device')}
-          className="card p-4 hover:bg-white/5 transition-all text-left"
-        >
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-green-500/20">
-              <Cpu className="w-6 h-6 text-green-400" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white mb-1">By Device</h3>
-              <p className="text-[10px] text-white/50 mb-2">Control by node</p>
-              <div className="flex flex-wrap gap-1">
-                {nodes.slice(0, 2).map(n => (
-                  <span key={n.node_id} className="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] rounded flex items-center gap-1">
-                    {n.is_builtin || n.isBuiltIn ? <Server className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
-                    {(n.name || 'Node').slice(0, 6)}
-                  </span>
-                ))}
-                {nodes.length > 2 && (
-                  <span className="px-2 py-0.5 bg-white/10 text-white/40 text-[10px] rounded">+{nodes.length - 2}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </button>
+    <button
+      onClick={() => onSelect(channel)}
+      className={`relative aspect-square rounded-lg transition-all duration-150 ${
+        isSelected 
+          ? 'ring-2 ring-white scale-105 z-10' 
+          : 'hover:ring-1 hover:ring-white/50'
+      } ${isLocked ? 'opacity-50' : ''}`}
+      style={{
+        background: value > 0 
+          ? `linear-gradient(135deg, rgba(255,255,255,${brightness/100 * 0.3}) 0%, rgba(var(--theme-primary-rgb),${brightness/100 * 0.5}) 100%)`
+          : 'rgba(255,255,255,0.05)',
+        border: `1px solid ${isSelected ? 'white' : 'rgba(255,255,255,0.1)'}`
+      }}
+    >
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-[10px] font-bold ${value > 128 ? 'text-white' : 'text-white/70'}`}>
+          {channel}
+        </span>
+        {value > 0 && (
+          <span className="text-[8px] text-white/60">{brightness}%</span>
+        )}
       </div>
-    </div>
-  );
-}
-
-// Universe Selection
-function UniverseSelect({ onSelect, nodes }) {
-  const universes = [...new Set(nodes.map(n => n.universe || 1))].sort((a, b) => a - b);
-
-  useEffect(() => {
-    if (universes.length === 1) onSelect(universes[0]);
-  }, [universes.length]);
-
-  if (universes.length === 1) {
-    return <div className="flex-1 flex items-center justify-center text-white/50">Loading Universe {universes[0]}...</div>;
-  }
-
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <h2 className="text-xl font-bold text-white mb-1">Select Universe</h2>
-      <p className="text-sm text-white/50 mb-6">Choose a DMX universe</p>
-
-      <div className="grid grid-cols-2 gap-3 max-w-md w-full">
-        {universes.map((universe) => {
-          const nodesInUniverse = nodes.filter(n => (n.universe || 1) === universe);
-          return (
-            <button key={universe} onClick={() => onSelect(universe)} className="card p-4 hover:bg-white/5 transition-all">
-              <div className="flex flex-col items-center gap-2">
-                <Layers className="w-8 h-8 theme-text" />
-                <span className="text-lg font-bold text-white">Universe {universe}</span>
-                <span className="text-xs text-white/50">{nodesInUniverse.length} device{nodesInUniverse.length !== 1 ? 's' : ''}</span>
-              </div>
-            </button>
-          );
-        })}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30 rounded-b-lg overflow-hidden">
+        <div 
+          className="h-full transition-all duration-100"
+          style={{ width: `${brightness}%`, background: 'var(--theme-primary)' }}
+        />
       </div>
-    </div>
-  );
-}
-
-// Device Selection
-function DeviceSelect({ onSelect, nodes }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <h2 className="text-xl font-bold text-white mb-1">Select Device</h2>
-      <p className="text-sm text-white/50 mb-6">Choose a node to control</p>
-
-      <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
-        {nodes.map((node) => {
-          const isBuiltIn = node.is_builtin || node.isBuiltIn;
-          const isOnline = node.status === 'online';
-          const start = node.channel_start || node.channelStart || 1;
-          const end = node.channel_end || node.channelEnd || 512;
-
-          return (
-            <button
-              key={node.node_id}
-              onClick={() => onSelect(node)}
-              className={`card p-3 hover:bg-white/5 transition-all text-left ${!isOnline ? 'opacity-50' : ''}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${isBuiltIn ? 'bg-purple-500/20' : 'bg-green-500/20'}`}>
-                  {isBuiltIn ? (
-                    <Server className={`w-5 h-5 ${isOnline ? 'text-purple-400' : 'text-white/30'}`} />
-                  ) : (
-                    <Wifi className={`w-5 h-5 ${isOnline ? 'text-green-400' : 'text-white/30'}`} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white truncate">{node.name || node.hostname || `Node`}</h3>
-                    <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'}`} />
-                  </div>
-                  <p className="text-[10px] text-white/50">U{node.universe || 1} • Ch {start}-{end}</p>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {nodes.length === 0 && (
-        <div className="card p-6 text-center text-white/50">No devices paired yet.</div>
+      {isLocked && (
+        <div className="absolute top-0.5 right-0.5">
+          <Lock size={8} className="text-yellow-400" />
+        </div>
       )}
-    </div>
+    </button>
   );
 }
 
-// Channel Bank Selection
-function ChannelBankSelect({ universe, device, onSelect, channelRange }) {
-  const minChannel = channelRange?.start || 1;
-  const maxChannel = channelRange?.end || 512;
+function ValueStrip({ value, onChange, onChangeEnd, selectedCount }) {
+  const stripRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const handleInteraction = useCallback((clientX) => {
+    if (!stripRef.current) return;
+    const rect = stripRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    onChange(Math.round((pct / 100) * 255));
+  }, [onChange]);
 
-  const banks = [];
-  for (let i = Math.floor((minChannel - 1) / 100) * 100 + 1; i <= maxChannel; i += 100) {
-    const bankStart = Math.max(i, minChannel);
-    const bankEnd = Math.min(i + 99, maxChannel);
-    if (bankStart <= bankEnd) banks.push({ start: bankStart, end: bankEnd, label: `${bankStart}-${bankEnd}` });
-  }
-
-  useEffect(() => {
-    if (banks.length === 1) onSelect(banks[0]);
-  }, [banks.length]);
-
-  if (banks.length === 1) {
-    return <div className="flex-1 flex items-center justify-center text-white/50">Loading channels {banks[0].label}...</div>;
-  }
-
-  const title = device ? `${device.name || 'Device'}` : `Universe ${universe}`;
-
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <h2 className="text-xl font-bold text-white mb-1">{title}</h2>
-      <p className="text-sm text-white/50 mb-6">Select channel range</p>
-
-      <div className="grid grid-cols-3 gap-3 max-w-md w-full">
-        {banks.map((bank) => (
-          <button key={bank.label} onClick={() => onSelect(bank)} className="card p-3 hover:bg-white/5 transition-all">
-            <div className="flex flex-col items-center gap-1">
-              <Grid3X3 className="w-5 h-5 theme-text" />
-              <span className="text-sm font-bold text-white">{bank.label}</span>
-              <span className="text-[10px] text-white/50">{bank.end - bank.start + 1} ch</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Channel Page Selection
-function ChannelPageSelect({ universe, device, bank, onSelect }) {
-  const pages = [];
-  for (let i = bank.start; i <= bank.end; i += 10) {
-    const end = Math.min(i + 9, bank.end);
-    pages.push({ start: i, end, label: `${i}-${end}` });
-  }
-
-  const title = device ? device.name || 'Device' : `Universe ${universe}`;
-
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <h2 className="text-xl font-bold text-white mb-1">{title}</h2>
-      <p className="text-sm text-white/50 mb-6">Select 10-channel group from {bank.label}</p>
-
-      <div className="grid grid-cols-5 gap-2 max-w-lg w-full">
-        {pages.map((page) => (
-          <button key={page.label} onClick={() => onSelect(page)} className="card p-2 hover:bg-white/5 transition-all">
-            <span className="text-xs font-bold text-white">{page.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Faders View
-function FadersView({ universe, device, page, onSaveScene }) {
-  const { universeState, channelLabels, setChannel, setChannelLabel, fetchUniverseState, setChannels } = useDMXStore();
-  const [allOff, setAllOff] = useState(false);
-
-  const targetUniverse = device?.universe || universe;
-
-  useEffect(() => {
-    fetchUniverseState(targetUniverse);
-  }, [targetUniverse, fetchUniverseState]);
-
-  const handleTogglePower = () => {
-    const channels = {};
-    for (let i = page.start; i <= page.end; i++) {
-      channels[i] = allOff ? 255 : 0;
-    }
-    setChannels(targetUniverse, channels);
-    setAllOff(!allOff);
+  const handleStart = (e) => {
+    setIsDragging(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    handleInteraction(clientX);
   };
 
-  const channelCount = page.end - page.start + 1;
+  const handleMove = useCallback((e) => {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    handleInteraction(clientX);
+  }, [isDragging, handleInteraction]);
+
+  const handleEnd = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      onChangeEnd?.();
+    }
+  }, [isDragging, onChangeEnd]);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchmove', handleMove);
+      window.addEventListener('touchend', handleEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleEnd);
+        window.removeEventListener('touchmove', handleMove);
+        window.removeEventListener('touchend', handleEnd);
+      };
+    }
+  }, [isDragging, handleMove, handleEnd]);
+
+  const pct = Math.round((value / 255) * 100);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Info Bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-black/30 border-b border-white/10">
-        <div className="flex items-center gap-3 text-sm">
-          {device && (
-            <div className="flex items-center gap-1.5">
-              {device.is_builtin || device.isBuiltIn ? (
-                <Server className="w-4 h-4 text-purple-400" />
-              ) : (
-                <Wifi className="w-4 h-4 text-green-400" />
-              )}
-              <span className="font-medium text-white">{(device.name || 'Device').slice(0, 15)}</span>
-            </div>
-          )}
-          <span className="text-white/50">U{targetUniverse}</span>
-          <span className="font-bold text-white">{page.start}-{page.end}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleTogglePower}
-            className={`btn btn-sm ${allOff ? 'btn-success' : 'btn-danger'}`}
-          >
-            {allOff ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-          </button>
-
-          <button onClick={onSaveScene} className="btn btn-sm btn-primary">
-            <Save className="w-4 h-4" /> Save
-          </button>
-        </div>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-white/60">
+          {selectedCount > 0 ? `${selectedCount} channel${selectedCount > 1 ? 's' : ''} selected` : 'Tap channels above'}
+        </span>
+        <span className="font-bold text-white">{pct}%</span>
       </div>
+      <div
+        ref={stripRef}
+        className="h-14 rounded-xl bg-black/40 border border-white/10 relative cursor-pointer overflow-hidden touch-none"
+        onMouseDown={handleStart}
+        onTouchStart={handleStart}
+      >
+        <div 
+          className="absolute inset-0 opacity-30"
+          style={{ background: 'linear-gradient(90deg, #000 0%, var(--theme-primary) 50%, #fff 100%)' }}
+        />
+        <div 
+          className="absolute top-0 bottom-0 left-0 transition-all duration-75"
+          style={{ 
+            width: `${pct}%`,
+            background: 'linear-gradient(90deg, rgba(var(--theme-primary-rgb),0.3) 0%, rgba(var(--theme-primary-rgb),0.8) 100%)'
+          }}
+        />
+        <div 
+          className="absolute top-1 bottom-1 w-1 bg-white rounded-full shadow-lg transition-all duration-75"
+          style={{ left: `calc(${pct}% - 2px)` }}
+        />
+        <div className="absolute top-0 bottom-0 left-1/4 w-px bg-white/10" />
+        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/20" />
+        <div className="absolute top-0 bottom-0 left-3/4 w-px bg-white/10" />
+      </div>
+    </div>
+  );
+}
 
-      {/* Faders Grid */}
-      <div className="flex-1 p-2 overflow-hidden">
-        <div className="h-full grid gap-1" style={{ gridTemplateColumns: `repeat(${channelCount}, 1fr)` }}>
-          {Array.from({ length: channelCount }, (_, i) => {
-            const channel = page.start + i;
+export default function Faders() {
+  const { nodes } = useNodeStore();
+  const { fixtures } = useFixtureStore();
+  const { universeState, setChannel, setChannels, fetchUniverseState } = useDMXStore();
+  
+  const [selectedChannels, setSelectedChannels] = useState(new Set());
+  const [currentBank, setCurrentBank] = useState(0);
+  const [currentUniverse, setCurrentUniverse] = useState(1);
+  const [adjustValue, setAdjustValue] = useState(0);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [lockedChannels, setLockedChannels] = useState(new Set());
+
+  const universes = [...new Set(nodes.map(n => n.universe || 1))].sort((a, b) => a - b);
+  if (universes.length === 0) universes.push(1);
+
+  const CHANNELS_PER_PAGE = 32;
+  const COLS = 8;
+  const startChannel = currentBank * CHANNELS_PER_PAGE + 1;
+  const endChannel = Math.min(startChannel + CHANNELS_PER_PAGE - 1, 512);
+  const totalBanks = Math.ceil(512 / CHANNELS_PER_PAGE);
+
+  useEffect(() => {
+    fetchUniverseState(currentUniverse);
+  }, [currentUniverse, fetchUniverseState]);
+
+  useEffect(() => {
+    if (selectedChannels.size === 1) {
+      const ch = Array.from(selectedChannels)[0];
+      setAdjustValue(universeState[ch - 1] || 0);
+    } else if (selectedChannels.size > 1) {
+      let sum = 0;
+      selectedChannels.forEach(ch => { sum += universeState[ch - 1] || 0; });
+      setAdjustValue(Math.round(sum / selectedChannels.size));
+    }
+  }, [selectedChannels, universeState]);
+
+  const toggleChannel = (ch) => {
+    if (lockedChannels.has(ch)) return;
+    setSelectedChannels(prev => {
+      const next = new Set(prev);
+      if (next.has(ch)) next.delete(ch);
+      else next.add(ch);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    const all = new Set();
+    for (let i = startChannel; i <= endChannel; i++) {
+      if (!lockedChannels.has(i)) all.add(i);
+    }
+    setSelectedChannels(all);
+  };
+
+  const selectNone = () => setSelectedChannels(new Set());
+
+  const handleValueChange = (newValue) => {
+    setAdjustValue(newValue);
+    if (selectedChannels.size > 0) {
+      const channels = {};
+      selectedChannels.forEach(ch => { channels[ch] = newValue; });
+      setChannels(currentUniverse, channels, 0);
+    }
+  };
+
+  const handleValueChangeEnd = () => {
+    if (selectedChannels.size > 0) {
+      const channels = {};
+      selectedChannels.forEach(ch => { channels[ch] = adjustValue; });
+      setChannels(currentUniverse, channels, 100);
+    }
+  };
+
+  const applyColorPreset = (rgb) => {
+    if (selectedChannels.size === 0) return;
+    const sortedChannels = Array.from(selectedChannels).sort((a, b) => a - b);
+    const channels = {};
+    sortedChannels.forEach((ch, idx) => {
+      channels[ch] = rgb[idx % 3];
+    });
+    setChannels(currentUniverse, channels, 200);
+    setShowColorPicker(false);
+  };
+
+  const quickSet = (value) => {
+    if (selectedChannels.size === 0) return;
+    const channels = {};
+    selectedChannels.forEach(ch => { channels[ch] = value; });
+    setChannels(currentUniverse, channels, 200);
+    setAdjustValue(value);
+  };
+
+  const toggleLock = () => {
+    if (selectedChannels.size === 0) return;
+    const allLocked = Array.from(selectedChannels).every(ch => lockedChannels.has(ch));
+    setLockedChannels(prev => {
+      const next = new Set(prev);
+      selectedChannels.forEach(ch => {
+        if (allLocked) next.delete(ch);
+        else next.add(ch);
+      });
+      return next;
+    });
+  };
+
+  return (
+    <div className="page-container flex flex-col h-full overflow-hidden">
+      {/* Top Bar */}
+      <div className="flex items-center gap-2 p-2 border-b border-white/10">
+        <div className="flex gap-1">
+          {universes.map(u => (
+            <button
+              key={u}
+              onClick={() => setCurrentUniverse(u)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                currentUniverse === u 
+                  ? 'bg-gradient-to-r from-[var(--theme-primary)] to-[rgba(var(--theme-primary-rgb),0.7)] text-white' 
+                  : 'bg-white/5 text-white/60 hover:bg-white/10'
+              }`}
+            >
+              U{u}
+            </button>
+          ))}
+        </div>
+        <div className="w-px h-6 bg-white/10" />
+        <div className="flex-1 overflow-x-auto flex gap-1 scrollbar-hide">
+          {Array.from({ length: totalBanks }, (_, i) => {
+            const bankStart = i * CHANNELS_PER_PAGE + 1;
+            const bankEnd = Math.min((i + 1) * CHANNELS_PER_PAGE, 512);
             return (
-              <div key={channel} className="h-full min-h-0">
-                <Fader
-                  channel={channel}
-                  value={universeState[channel - 1] || 0}
-                  label={channelLabels[channel] || `${channel}`}
-                  onChange={(value) => setChannel(targetUniverse, channel, value)}
-                  onLabelChange={(label) => setChannelLabel(channel, label)}
-                />
-              </div>
+              <button
+                key={i}
+                onClick={() => { setCurrentBank(i); setSelectedChannels(new Set()); }}
+                className={`px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap transition-all ${
+                  currentBank === i ? 'bg-white/20 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                }`}
+              >
+                {bankStart}-{bankEnd}
+              </button>
             );
           })}
         </div>
       </div>
-    </div>
-  );
-}
 
-// Main Component
-export default function Faders() {
-  const { nodes, fetchNodes } = useNodeStore();
-  const [step, setStep] = useState('method');
-  const [browseMethod, setBrowseMethod] = useState(null);
-  const [selectedUniverse, setSelectedUniverse] = useState(null);
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [selectedBank, setSelectedBank] = useState(null);
-  const [selectedPage, setSelectedPage] = useState(null);
+      {/* Quick Actions */}
+      <div className="flex items-center gap-1 p-2 border-b border-white/10 overflow-x-auto">
+        <button onClick={selectAll} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10">All</button>
+        <button onClick={selectNone} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10">None</button>
+        <div className="w-px h-4 bg-white/10" />
+        <button onClick={() => quickSet(255)} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10 flex items-center gap-1">
+          <Sun size={10} /> Full
+        </button>
+        <button onClick={() => quickSet(0)} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10 flex items-center gap-1">
+          <Moon size={10} /> Off
+        </button>
+        <button onClick={() => quickSet(128)} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10">50%</button>
+        <div className="w-px h-4 bg-white/10" />
+        <button 
+          onClick={() => setShowColorPicker(!showColorPicker)} 
+          className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 ${showColorPicker ? 'bg-[var(--theme-primary)]/30 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+        >
+          <Palette size={10} /> Color
+        </button>
+        <button onClick={toggleLock} className="px-2 py-1 rounded bg-white/5 text-white/60 text-[10px] font-bold hover:bg-white/10 flex items-center gap-1">
+          {lockedChannels.size > 0 ? <Lock size={10} /> : <Unlock size={10} />} Lock
+        </button>
+      </div>
 
-  useEffect(() => { fetchNodes(); }, []);
+      {/* Color Picker */}
+      {showColorPicker && (
+        <div className="p-2 border-b border-white/10 bg-black/30">
+          <div className="flex gap-1 flex-wrap">
+            {COLOR_PRESETS.map(preset => (
+              <button
+                key={preset.name}
+                onClick={() => applyColorPreset(preset.rgb)}
+                className="w-8 h-8 rounded-lg border border-white/20 hover:scale-110 transition-transform"
+                style={{ backgroundColor: `rgb(${preset.rgb.join(',')})` }}
+                title={preset.name}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-  const getChannelRange = () => {
-    if (selectedDevice) {
-      return {
-        start: selectedDevice.channel_start || selectedDevice.channelStart || 1,
-        end: selectedDevice.channel_end || selectedDevice.channelEnd || 512
-      };
-    }
-    return { start: 1, end: 512 };
-  };
+      {/* Channel Grid */}
+      <div className="flex-1 p-2 overflow-hidden">
+        <div 
+          className="h-full grid gap-1"
+          style={{ 
+            gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+            gridTemplateRows: `repeat(${Math.ceil(CHANNELS_PER_PAGE / COLS)}, 1fr)`
+          }}
+        >
+          {Array.from({ length: endChannel - startChannel + 1 }, (_, i) => {
+            const ch = startChannel + i;
+            return (
+              <ChannelCell
+                key={ch}
+                channel={ch}
+                value={universeState[ch - 1] || 0}
+                isSelected={selectedChannels.has(ch)}
+                isLocked={lockedChannels.has(ch)}
+                onSelect={toggleChannel}
+              />
+            );
+          })}
+        </div>
+      </div>
 
-  const handleMethodSelect = (method) => {
-    setBrowseMethod(method);
-    setStep(method === 'universe' ? 'universe' : 'device');
-  };
-
-  const pairedNodes = nodes.filter(n => n.is_paired !== false || n.is_builtin || n.isBuiltIn);
-
-  return (
-    <div className="page-container">
-      {step === 'method' && <BrowseMethodSelect onSelectMethod={handleMethodSelect} nodes={pairedNodes} />}
-      {step === 'universe' && <UniverseSelect onSelect={(u) => { setSelectedUniverse(u); setStep('bank'); }} nodes={pairedNodes} />}
-      {step === 'device' && <DeviceSelect onSelect={(d) => { setSelectedDevice(d); setSelectedUniverse(d.universe || 1); setStep('bank'); }} nodes={pairedNodes} />}
-      {step === 'bank' && <ChannelBankSelect universe={selectedUniverse} device={selectedDevice} onSelect={(b) => { setSelectedBank(b); setStep('page'); }} channelRange={getChannelRange()} />}
-      {step === 'page' && <ChannelPageSelect universe={selectedUniverse} device={selectedDevice} bank={selectedBank} onSelect={(p) => { setSelectedPage(p); setStep('faders'); }} />}
-      {step === 'faders' && <FadersView universe={selectedUniverse} device={selectedDevice} page={selectedPage} onSaveScene={() => alert('Save Scene - Coming soon!')} />}
+      {/* Value Strip */}
+      <div className="p-3 border-t border-white/10 bg-black/20">
+        <ValueStrip
+          value={adjustValue}
+          onChange={handleValueChange}
+          onChangeEnd={handleValueChangeEnd}
+          selectedCount={selectedChannels.size}
+        />
+      </div>
     </div>
   );
 }

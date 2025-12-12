@@ -15,15 +15,11 @@ import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
 import Groups from './views/Groups';
 import Chases from './views/Chases';
-import SceneCreator from './views/SceneCreator';
-import ChaseCreator from './views/ChaseCreator';
 import PatchFixtures from './views/PatchFixtures';
 import GroupFixtures from './views/GroupFixtures';
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
 import NodeManagement from './components/NodeManagement';
-import Settings from './views/Settings';
-import MobileAI from './views/MobileAI';
 import MoreMenu from './views/MoreMenu';
 import ZoneDetail from './views/ZoneDetail';
 import Screensaver from './components/Screensaver';
@@ -38,13 +34,16 @@ import useAIStore from './store/aiStore';
 import { useFixtureStore } from './store/fixtureStore';
 import AetherBackground from './components/AetherBackground';
 import ToastContainer from './components/Toast';
+import AetherSplash from './components/AetherSplash';
+import AetherOnboarding from './components/AetherOnboarding';
+import AIAssistant from './components/AIAssistant';
+import useAIContext from './hooks/useAIContext';
 
 function AppContent({ onLock }) {
   const [showAIModal, setShowAIModal] = useState(false);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-black relative">
-      {/* Ambient glow background */}
       <div className="ambient-glow" />
       <AetherBackground />
 
@@ -64,15 +63,11 @@ function AppContent({ onLock }) {
           <Route path="/scenes" element={<Scenes />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/chases" element={<Chases />} />
-          <Route path="/scene-creator" element={<SceneCreator />} />
-          <Route path="/chase-creator" element={<ChaseCreator />} />
           <Route path="/patch-fixtures" element={<PatchFixtures />} />
           <Route path="/group-fixtures" element={<GroupFixtures />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/timers" element={<Timers />} />
           <Route path="/nodes" element={<NodeManagement />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/aether-ai" element={<MobileAI />} />
           <Route path="/more" element={<MoreMenu />} />
           <Route path="/zone/:nodeId" element={<ZoneDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -83,6 +78,7 @@ function AppContent({ onLock }) {
 
       {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
       <ToastContainer />
+      <AIAssistant />
     </div>
   );
 }
@@ -92,14 +88,31 @@ function App() {
   const { initializeSampleData: initScenes } = useSceneStore();
   const { initializeSampleData: initChases } = useChaseStore();
   const { fetchNodes } = useNodeStore();
+  const { setupComplete, updateContext } = useAIContext();
 
   const [screensaverActive, setScreensaverActive] = useState(false);
   const [lockTime, setLockTime] = useState(0);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
 
-  // Load all settings from server FIRST
+  useEffect(() => {
+    updateContext();
+  }, []);
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+    if (!setupComplete) {
+      setShowOnboarding(true);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   useEffect(() => {
     const loadAllSettings = async () => {
       console.log('🔄 Loading settings from Pi...');
@@ -115,7 +128,6 @@ function App() {
     loadAllSettings();
   }, []);
 
-  // Initialize stores once settings are loaded
   useEffect(() => {
     if (settingsLoaded) {
       console.log('🚀 Initializing AETHER...');
@@ -124,13 +136,11 @@ function App() {
       fetchNodes();
       useFixtureStore.getState().fetchFixtures();
 
-      // Keep nodes updated every 10 seconds
       const nodeInterval = setInterval(fetchNodes, 10000);
       return () => clearInterval(nodeInterval);
     }
   }, [settingsLoaded, initScenes, initChases, fetchNodes]);
 
-  // Apply accent color AFTER settings are loaded
   useEffect(() => {
     if (!settingsLoaded) return;
 
@@ -188,6 +198,16 @@ function App() {
       window.removeEventListener('touchstart', handleActivity);
     };
   }, [screensaverActive]);
+
+  // Show splash first
+  if (showSplash) {
+    return <AetherSplash onComplete={handleSplashComplete} duration={3000} />;
+  }
+
+  // Show onboarding if not completed
+  if (showOnboarding) {
+    return <AetherOnboarding onComplete={handleOnboardingComplete} />;
+  }
 
   if (screensaverActive) {
     return <Screensaver onExit={() => setScreensaverActive(false)} />;
