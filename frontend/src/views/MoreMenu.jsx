@@ -22,6 +22,7 @@ const quickActions = [
   { icon: '📱', name: 'Remote', action: 'openLiveQR' },
   { icon: '🎚️', name: 'Fixtures', path: '/fixtures-menu' },
   { icon: '📅', name: 'Schedule', path: '/schedules-menu' },
+  { icon: '🎬', name: 'Shows', path: '/shows' },
   { icon: '📡', name: 'Nodes', path: '/nodes' },
 ];
 

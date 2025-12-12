@@ -15,6 +15,7 @@ import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
 import Groups from './views/Groups';
 import Chases from './views/Chases';
+import Shows from './views/Shows';
 import PatchFixtures from './views/PatchFixtures';
 import GroupFixtures from './views/GroupFixtures';
 import Schedules from './views/Schedules';
@@ -63,6 +64,7 @@ function AppContent({ onLock }) {
           <Route path="/scenes" element={<Scenes />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/chases" element={<Chases />} />
+          <Route path="/shows" element={<Shows />} />
           <Route path="/patch-fixtures" element={<PatchFixtures />} />
           <Route path="/group-fixtures" element={<GroupFixtures />} />
           <Route path="/schedules" element={<Schedules />} />
