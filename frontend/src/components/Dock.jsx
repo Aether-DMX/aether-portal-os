@@ -33,7 +33,7 @@ export default function Dock({ onAIClick }) {
   };
 
   // Don't show dock on certain pages
-  const hiddenPaths = ['/aether-ai', '/console'];
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/shows'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }
