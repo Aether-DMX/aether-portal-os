@@ -39,7 +39,7 @@ export default function Shows() {
   const resumeShow = async () => { await fetch(`${API}/api/shows/resume`, { method: 'POST' }); setIsPaused(false); };
   const stopShow = async () => { await fetch(`${API}/api/shows/stop`, { method: 'POST' }); setPlayingShow(null); setIsPaused(false); };
   const setTempoValue = async (t) => { setTempo(t); await fetch(`${API}/api/shows/tempo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tempo: t }) }); };
-  const adjustTempo = (delta) => setTempoValue(Math.max(0.25, Math.min(4.0, tempo + delta)));
+  const adjustTempo = (dir) => { let t; if (dir > 0) { t = tempo < 10 ? tempo + 1 : tempo < 20 ? 20 : tempo < 50 ? 50 : 100; } else { t = tempo > 50 ? 50 : tempo > 20 ? 20 : tempo > 10 ? 10 : Math.max(0.5, tempo - 1); } setTempoValue(t); };
   
   const toggleDistributed = async (show) => {
     const newVal = show.distributed ? 0 : 1;
@@ -123,10 +123,10 @@ export default function Shows() {
               <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>{isPaused ? '⏸' : '▶'} {tempo.toFixed(1)}x</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button onClick={() => adjustTempo(-0.25)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Rewind size={14} color="white" /></button>
+              <button onClick={() => adjustTempo(-1)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Rewind size={14} color="white" /></button>
               <button onClick={stopShow} style={{ background: 'rgba(239,68,68,0.3)', border: 'none', borderRadius: 6, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Square size={14} color="#ef4444" /></button>
               <button onClick={() => isPaused ? resumeShow() : pauseShow()} style={{ background: isPaused ? 'rgba(34,197,94,0.4)' : 'rgba(139,92,246,0.4)', border: 'none', borderRadius: 8, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>{isPaused ? <Play size={18} color="#22c55e" /> : <Pause size={18} color="#a78bfa" />}</button>
-              <button onClick={() => adjustTempo(0.25)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><FastForward size={14} color="white" /></button>
+              <button onClick={() => adjustTempo(1)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><FastForward size={14} color="white" /></button>
             </div>
           </div>
         </div>
