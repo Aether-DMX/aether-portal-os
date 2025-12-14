@@ -2,12 +2,18 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useDMXStore from '../store/dmxStore';
 
+// Import custom icons
+import scenesIcon from '../assets/icons/Scenes_Icon.png';
+import aiIcon from '../assets/icons/AI_Assistant.png';
+import chasesIcon from '../assets/icons/Chases_Icon.png';
+import settingsIcon from '../assets/icons/Settings_Icon.png';
+
 const dockItems = [
-  { id: 'blackout', icon: '\u23FB', label: 'Blackout', action: 'blackout' },
-  { id: 'scenes', icon: '\uD83C\uDFAD', label: 'Scenes', path: '/scenes' },
-  { id: 'aether', icon: '\u2728', label: 'AETHER', action: 'openAI', accent: true },
-  { id: 'chases', icon: '\u26A1', label: 'Chases', path: '/chases' },
-  { id: 'more', icon: '\u2630', label: 'More', path: '/more' },
+  { id: 'blackout', emoji: '⏻', label: 'Blackout', action: 'blackout' },
+  { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
+  { id: 'aether', img: aiIcon, label: 'AETHER', action: 'openAI', accent: true },
+  { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
+  { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
 
 export default function Dock({ onAIClick }) {
@@ -49,7 +55,11 @@ export default function Dock({ onAIClick }) {
               aria-label={item.label}
             >
               <div className={`dock-icon ${item.accent ? 'accent-bg' : ''}`}>
-                {item.icon}
+                {item.img ? (
+                  <img src={item.img} alt={item.label} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                ) : (
+                  item.emoji
+                )}
               </div>
               <span className="dock-label">{item.label}</span>
             </button>
@@ -67,7 +77,7 @@ export default function Dock({ onAIClick }) {
             className="glass-card p-6 max-w-sm w-full text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-4xl mb-4">{'\u23FB'}</div>
+            <div className="text-4xl mb-4">⏻</div>
             <h3 className="text-xl font-bold text-white mb-2">Blackout All Zones?</h3>
             <p className="text-sm text-white/60 mb-6">
               This will fade all lights to 0% over 1.5 seconds.

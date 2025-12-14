@@ -9,6 +9,11 @@ import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 
+// Custom node icons
+import NodeIcon from '../assets/icons/Node_Icon.png';
+import WiredNodeIcon from '../assets/icons/Wired_Node.png';
+import scenesIcon from '../assets/icons/Scenes_Icon.png';
+
 // Zone icons as SVG paths
 const zoneIcons = {
   bar: 'M21 5V3H3v2l8 9v5H6v2h12v-2h-5v-5l8-9zM5.66 5h12.68l-1.78 2H7.43L5.66 5z',
@@ -26,7 +31,7 @@ const zoneIcons = {
 const sceneEmojis = ['🌅', '🍸', '🔥', '🌙', '✨', '🎉', '💜', '🌊'];
 
 // Sortable Zone Component
-function SortableZone({ node, brightness, getZoneIcon, onClick }) {
+function SortableZone({ node, brightness, getNodeIcon, onClick }) {
   const {
     attributes,
     listeners,
@@ -53,9 +58,16 @@ function SortableZone({ node, brightness, getZoneIcon, onClick }) {
       onClick={onClick}
     >
       <div className={`zone-img ${node.status === 'online' ? 'active' : ''}`}>
-        <svg viewBox="0 0 24 24">
-          <path d={getZoneIcon(node.name)} />
-        </svg>
+        <img 
+          src={getNodeIcon(node.type)} 
+          alt="" 
+          style={{ 
+            width: '48px', 
+            height: '48px', 
+            filter: 'brightness(0) invert(1)', 
+            opacity: 1 
+          }} 
+        />
         <div className="zone-bar">
           <div
             className="zone-bar-fill"
@@ -112,7 +124,7 @@ function QuickSceneEditor({ scenes, selectedIds, onSave, onClose }) {
                       {selectIndex + 1}
                     </div>
                   )}
-                  <span style={{ fontSize: 20 }}>{sceneEmojis[idx % sceneEmojis.length]}</span>
+                  <img src={scenesIcon} alt="" style={{ width: 20, height: 20, filter: "brightness(0) invert(1)", display: "block", margin: "0 auto" }} />
                   <span style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: 600, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
                     {scene.name}
                   </span>
@@ -249,17 +261,8 @@ export default function Dashboard() {
     return Math.round((sum / count / 255) * 100);
   };
 
-  const getZoneIcon = (nodeName) => {
-    const name = nodeName?.toLowerCase() || '';
-    if (name.includes('bar')) return zoneIcons.bar;
-    if (name.includes('stage')) return zoneIcons.stage;
-    if (name.includes('din')) return zoneIcons.dining;
-    if (name.includes('dj')) return zoneIcons.dj;
-    if (name.includes('patio') || name.includes('out')) return zoneIcons.patio;
-    if (name.includes('entry') || name.includes('door')) return zoneIcons.entry;
-    if (name.includes('vip')) return zoneIcons.vip;
-    if (name.includes('rest') || name.includes('bath')) return zoneIcons.restroom;
-    return zoneIcons.default;
+  const getNodeIcon = (nodeType) => {
+    return nodeType === 'hardwired' ? WiredNodeIcon : NodeIcon;
   };
 
   // Capture base state when starting to drag master
@@ -367,7 +370,7 @@ export default function Dashboard() {
                 className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
                 onClick={() => handleSceneClick(scene)}
               >
-                <span className="scene-icon">{sceneEmojis[idx % sceneEmojis.length]}</span>
+                <span className="scene-icon"><img src={scenesIcon} alt="" style={{ width: 20, height: 20, filter: "brightness(0) invert(1)", display: "block", margin: "0 auto" }} /></span>
                 <span className="scene-name">{scene.name}</span>
               </button>
             ))
@@ -410,7 +413,7 @@ export default function Dashboard() {
                 key={node.node_id || node.id}
                 node={node}
                 brightness={zoneBrightnesses[node.node_id || node.id] || 0}
-                getZoneIcon={getZoneIcon}
+                getNodeIcon={getNodeIcon}
                 onClick={() => handleZoneClick(node)}
               />
             ))}
