@@ -22,15 +22,9 @@ const quickActions = [
   { icon: '📱', name: 'Remote', action: 'openLiveQR' },
   { icon: '🎚️', name: 'Fixtures', path: '/fixtures-menu' },
   { icon: '📅', name: 'Schedule', path: '/schedules-menu' },
-  { icon: '🎬', name: 'Shows', path: '/shows' },
   { icon: '📡', name: 'Nodes', path: '/nodes' },
 ];
 
-const proFeatures = [
-  { icon: '☁️', name: 'Cloud Sync' },
-  { icon: '🏢', name: 'Multi-Venue' },
-  { icon: '🔌', name: 'API Access' },
-];
 
 const settingsTabs = [
   { id: 'status', label: 'Status', icon: Activity },
@@ -170,18 +164,6 @@ export default function MoreMenu() {
             className="flex-1 flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[var(--accent)] active:scale-95 transition-all">
             <span className="text-lg">{item.icon}</span>
             <span className="text-[10px] font-medium text-white/70">{item.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Pro Features Row */}
-      <div className="flex gap-2 px-3 py-2 border-b border-white/10 shrink-0">
-        {proFeatures.map((item) => (
-          <button key={item.name} onClick={() => alert('Pro features coming soon!')}
-            className="flex-1 flex items-center justify-center gap-1.5 p-2 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all">
-            <span className="text-base">{item.icon}</span>
-            <span className="text-[10px] font-medium text-white/60">{item.name}</span>
-            <span className="text-[8px] font-bold text-purple-400 bg-purple-500/20 px-1 py-0.5 rounded">PRO</span>
           </button>
         ))}
       </div>

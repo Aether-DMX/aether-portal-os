@@ -156,7 +156,7 @@ export default function Screensaver({ onExit, isLocked = false }) {
                 }}
               >
                 <img
-                  src="/Aether_LogoN1.png"
+                  src="/aether_logo.png"
                   alt="AETHER"
                   style={{
                     width: 'clamp(100px, 25vw, 160px)',

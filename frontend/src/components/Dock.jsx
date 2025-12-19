@@ -6,14 +6,12 @@ import scenesIcon from '../assets/icons/Scenes_Icon.png';
 import aiIcon from '../assets/icons/AI_Assistant.png';
 import chasesIcon from '../assets/icons/Chases_Icon.png';
 import settingsIcon from '../assets/icons/Settings_Icon.png';
-import showsIcon from '../assets/icons/Show_Icon.png';
 
 const dockItems = [
   { id: 'blackout', emoji: '⏻', label: 'Blackout', action: 'blackout' },
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
-  { id: 'shows', img: showsIcon, label: 'Shows', path: '/shows' },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
 
@@ -33,7 +31,7 @@ export default function Dock({ onAIClick }) {
   };
 
   // Don't show dock on certain pages
-  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/shows'];
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }
