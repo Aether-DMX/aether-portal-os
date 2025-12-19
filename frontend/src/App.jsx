@@ -38,6 +38,7 @@ import ToastContainer from './components/Toast';
 import AetherSplash from './components/AetherSplash';
 import AetherOnboarding from './components/AetherOnboarding';
 import AIAssistant from './components/AIAssistant';
+import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, MobileSchedules, MobileNodes, MobileMore } from './mobile';
 import useAIContext from './hooks/useAIContext';
 
 function AppContent({ onLock }) {
@@ -72,6 +73,13 @@ function AppContent({ onLock }) {
           <Route path="/nodes" element={<NodeManagement />} />
           <Route path="/more" element={<MoreMenu />} />
           <Route path="/zone/:nodeId" element={<ZoneDetail />} />
+          <Route path="/mobile" element={<MobileLayout><MobileLive /></MobileLayout>} />
+          <Route path="/mobile/scenes" element={<MobileLayout><MobileScenes /></MobileLayout>} />
+          <Route path="/mobile/chases" element={<MobileLayout><MobileChases /></MobileLayout>} />
+          <Route path="/mobile/fixtures" element={<MobileLayout><MobileFixtures /></MobileLayout>} />
+          <Route path="/mobile/more" element={<MobileLayout><MobileMore /></MobileLayout>} />
+          <Route path="/mobile/schedules" element={<MobileLayout><MobileSchedules /></MobileLayout>} />
+          <Route path="/mobile/nodes" element={<MobileLayout><MobileNodes /></MobileLayout>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

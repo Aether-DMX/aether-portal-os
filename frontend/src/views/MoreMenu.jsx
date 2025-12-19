@@ -16,7 +16,7 @@ import useChaseStore from '../store/chaseStore';
 import useToastStore from '../store/toastStore';
 
 const getBackendUrl = () => `http://${window.location.hostname}:8891`;
-const LIVE_CONSOLE_URL = 'http://192.168.50.1:3000/mobile';
+const LIVE_CONSOLE_URL = 'http://192.168.168.51:3000/mobile';
 
 const quickActions = [
   { icon: '📱', name: 'Remote', action: 'openLiveQR' },
