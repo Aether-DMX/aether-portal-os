@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Play, Pause, Trash2, Edit3, Save, Camera, MessageSquare, X, Sparkles, Loader, Sliders, Zap, Sun, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import useNodeStore from '../store/nodeStore';
+import usePlaybackStore from '../store/playbackStore';
 import FaderModal from '../components/FaderModal';
+import PlaySceneModal from '../components/PlaySceneModal';
 
 // AI command processing
 const processAICommand = (prompt, currentChannels = {}) => {
@@ -90,36 +92,66 @@ const PRESETS = [
   { name: 'Red', icon: '🔥', cmd: 'red' },
 ];
 
-// Scene Card
-function SceneCard({ scene, isActive, onPlay, onStop, onEdit, onDelete }) {
+// Scene Card - Tap to Play, Long Press for Menu
+function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
+  const pressTimer = useRef(null);
+  const didLongPress = useRef(false);
+  const handleStart = () => {
+    didLongPress.current = false;
+    pressTimer.current = setTimeout(() => { didLongPress.current = true; onLongPress(scene); }, 500);
+  };
+  const handleEnd = () => {
+    clearTimeout(pressTimer.current);
+    if (!didLongPress.current) { isActive ? onStop() : onPlay(scene); }
+  };
+  const handleCancel = () => clearTimeout(pressTimer.current);
   return (
-    <div className={`bg-white/5 rounded-xl p-3 flex flex-col transition-all ${isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/10' : 'hover:bg-white/10'}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <button
-          onClick={() => isActive ? onStop() : onPlay()}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'
-          }`}
-        >
-          {isActive ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
-        </button>
+    <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
+      onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
+      className={`bg-white/5 rounded-xl p-4 cursor-pointer select-none active:scale-95 transition-transform ${
+        isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/20' : ''}`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/50'}`}>
+          {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+        </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white text-sm truncate">{scene.name}</h3>
+          <h3 className="font-bold text-white truncate">{scene.name}</h3>
           <p className="text-[10px] text-white/40">{Object.keys(scene.channels || {}).length} ch</p>
         </div>
-      </div>
-      <div className="flex gap-2">
-        <button onClick={() => onEdit(scene)} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 text-xs font-medium flex items-center justify-center gap-1">
-          <Edit3 size={12} /> Edit
-        </button>
-        <button onClick={() => onDelete(scene)} className="py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400/60">
-          <Trash2 size={12} />
-        </button>
       </div>
     </div>
   );
 }
 
+
+// Context Menu for Long Press
+function CardContextMenu({ item, type, onEdit, onDelete, onClose }) {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-gray-900 rounded-2xl w-72 border border-white/10" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-white/10">
+          <h3 className="text-white font-bold truncate">{item.name}</h3>
+          <p className="text-white/50 text-sm">{type}</p>
+        </div>
+        <div className="p-2">
+          <button onClick={() => { onEdit(item); onClose(); }} 
+            className="w-full p-3 rounded-xl text-left text-white flex items-center gap-3 hover:bg-white/10">
+            <Edit3 size={20} /> Edit {type}
+          </button>
+          <button onClick={() => { onDelete(item); onClose(); }} 
+            className="w-full p-3 rounded-xl text-left text-red-400 flex items-center gap-3 hover:bg-red-500/10">
+            <Trash2 size={20} /> Delete {type}
+          </button>
+        </div>
+        <div className="p-2 border-t border-white/10">
+          <button onClick={onClose} className="w-full p-3 rounded-xl text-white/50 hover:bg-white/5">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 // Scene Creator Modal
 function SceneCreatorModal({ scene, isOpen, onClose, onSave }) {
   const { universes, setChannels: sendDMX, fetchUniverseState } = useDMXStore();
@@ -355,10 +387,12 @@ function SceneCreatorModal({ scene, isOpen, onClose, onSave }) {
 
 // Main Scenes Component
 export default function Scenes() {
-  const { scenes, currentScene, fetchScenes, playScene, stopScene, createScene, updateScene, deleteScene } = useSceneStore();
+  const { scenes, fetchScenes, isScenePlaying, playScene, stopScene, createScene, updateScene, deleteScene } = useSceneStore();
   const [editingScene, setEditingScene] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [playModalScene, setPlayModalScene] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
   
   const SCENES_PER_PAGE = 8;
   const totalPages = Math.ceil(scenes.length / SCENES_PER_PAGE);
@@ -386,6 +420,13 @@ export default function Scenes() {
     }
   };
 
+  const handlePlayWithOptions = async (scene, options) => {
+    const sceneId = scene.scene_id || scene.id;
+    for (const u of options.universes) {
+      await playScene(sceneId, options.fadeMs, { universe: u });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col p-3">
       {/* Header */}
@@ -410,16 +451,15 @@ export default function Scenes() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-2 flex-1 overflow-hidden">
+          <div className="grid grid-cols-3 gap-3 flex-1 overflow-hidden">
             {paginatedScenes.map(scene => (
               <SceneCard
                 key={scene.scene_id || scene.id}
                 scene={scene}
-                isActive={currentScene?.scene_id === (scene.scene_id || scene.id)}
-                onPlay={() => playScene(scene.scene_id || scene.id)}
+                isActive={isScenePlaying(scene.scene_id || scene.id)}
+                onPlay={(s) => setPlayModalScene(s)}
                 onStop={stopScene}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onLongPress={(s) => setContextMenu(s)}
               />
             ))}
           </div>
@@ -466,6 +506,26 @@ export default function Scenes() {
         onClose={() => { setIsCreating(false); setEditingScene(null); }}
         onSave={handleSave}
       />
+
+      {/* Play Scene Modal */}
+      {playModalScene && (
+        <PlaySceneModal
+          scene={playModalScene}
+          onClose={() => setPlayModalScene(null)}
+          onPlay={handlePlayWithOptions}
+        />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <CardContextMenu
+          item={contextMenu}
+          type="Scene"
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

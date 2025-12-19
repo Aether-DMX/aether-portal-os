@@ -36,6 +36,17 @@ const useSceneStore = create((set, get) => ({
     }
   },
 
+  updateScene: async (id, scene) => {
+    try {
+      const res = await axios.put(getAetherCore() + "/api/scenes/" + id, scene);
+      await get().fetchScenes();
+      return res.data;
+    } catch (e) {
+      console.error("Failed to update scene:", e);
+      throw e;
+    }
+  },
+
   deleteScene: async (id) => {
     try {
       await axios.delete(getAetherCore() + '/api/scenes/' + id);
@@ -105,6 +116,16 @@ const useSceneStore = create((set, get) => ({
       console.error('Failed to update scene global flag:', e);
     }
   },
+  stopScene: async (universe = 1) => {
+    try {
+      console.log("⏹️ Stopping scene on U" + universe);
+      await axios.post(getAetherCore() + "/api/dmx/stop", { universe });
+      usePlaybackStore.getState().clearPlayback(universe);
+    } catch (e) {
+      console.error("Failed to stop scene:", e);
+    }
+  },
+
 }));
 
 export default useSceneStore;

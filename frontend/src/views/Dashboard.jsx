@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Settings, X, Check, Plus, ArrowLeft } from 'lucide-react';
+import { Settings, X, Check, Plus, ArrowLeft, Play, Pause, SkipBack, SkipForward, Square } from 'lucide-react';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
+import usePlaybackStore from '../store/playbackStore';
 
 // Custom node icons
 import NodeIcon from '../assets/icons/Node_Icon.png';
@@ -150,6 +151,7 @@ export default function Dashboard() {
   const { nodes } = useNodeStore();
   const { scenes, currentScene, playScene } = useSceneStore();
   const { universes, setChannels, initSocket, configuredUniverses } = useDMXStore();
+  const { playback, syncStatus, stopAll } = usePlaybackStore();
 
   const [masterValue, setMasterValue] = useState(100);
   const [baseUniverseState, setBaseUniverseState] = useState({}); // Store original values for scaling
@@ -170,6 +172,12 @@ export default function Dashboard() {
     initSocket();
   }, [initSocket]);
 
+  // Sync playback status
+  useEffect(() => {
+    syncStatus();
+    const interval = setInterval(syncStatus, 2000);
+    return () => clearInterval(interval);
+  }, []);
   // Load quick scene IDs from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('quickSceneIds');
@@ -350,85 +358,109 @@ export default function Dashboard() {
   }, [configuredNodes, universes]);
 
   return (
-    <div className="launcher-main">
-      {/* Quick Scenes Widget */}
-      <div className="quick-scenes">
-        <div className="widget-header">
-          <span className="widget-title">Quick Scenes</span>
-          <button 
-            onClick={() => setShowSceneEditor(true)}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-          >
-            <Settings size={14} className="text-white/60" />
-          </button>
-        </div>
-        <div className="scenes-row">
-          {quickScenes.length > 0 ? (
-            quickScenes.map((scene, idx) => (
-              <button
-                key={scene.scene_id || scene.id || idx}
-                className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
-                onClick={() => handleSceneClick(scene)}
-              >
-                <span className="scene-icon"><img src={scenesIcon} alt="" style={{ width: 20, height: 20, filter: "brightness(0) invert(1)", display: "block", margin: "0 auto" }} /></span>
-                <span className="scene-name">{scene.name}</span>
-              </button>
-            ))
-          ) : (
-            <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
-              <span className="scene-icon"><Plus size={20} /></span>
-              <span className="scene-name">Add Scenes</span>
-            </button>
-          )}
-          {quickScenes.length > 0 && quickScenes.length < 4 && (
-            <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
-              <span className="scene-icon"><Plus size={20} /></span>
-              <span className="scene-name">Add</span>
-            </button>
-          )}
-        </div>
+    <div className="launcher-main" style={{ display: "flex", flexDirection: "row" }}>
+      {/* Left - Zones */}
+      <div className="dashboard-left" style={{ flex: 1, minWidth: 0 }}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
+            <div className="zones-grid">
+              {sortedNodes.map((node) => (
+                <SortableZone
+                  key={node.node_id || node.id}
+                  node={node}
+                  brightness={zoneBrightnesses[node.node_id || node.id] || 0}
+                  getNodeIcon={getNodeIcon}
+                  onClick={() => handleZoneClick(node)}
+                />
+              ))}
+              {sortedNodes.length === 0 && (
+                <div className="zone-icon" onClick={() => navigate('/nodes')} 
+                  style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
+                  <span className="zone-name">No zones configured. Tap to add nodes.</span>
+                </div>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
 
-      {/* Master Slider */}
-      <div className="master-row">
-        <span className="master-label">MASTER</span>
-        <div
-          ref={masterTrackRef}
-          className="master-track"
-          onMouseDown={handleMasterStart}
-          onTouchStart={handleMasterStart}
-        >
-          <div className="master-fill" style={{ width: `${masterValue}%` }}>
-            <span className="master-value">{masterValue}%</span>
+      {/* Right - Controls */}
+      <div className="dashboard-right" style={{ width: "50%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
+        {/* Master Slider */}
+        <div className="master-row">
+          <span className="master-label">MASTER</span>
+          <div ref={masterTrackRef} className="master-track" style={{ width: "80%" }} 
+            onMouseDown={handleMasterStart} onTouchStart={handleMasterStart}>
+            <div className="master-fill" style={{ width: `${masterValue}%` }}>
+              <span className="master-value">{masterValue}%</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Zone Grid with Drag and Drop */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
-          <div className="zones-grid">
-            {sortedNodes.map((node) => (
-              <SortableZone
-                key={node.node_id || node.id}
-                node={node}
-                brightness={zoneBrightnesses[node.node_id || node.id] || 0}
-                getNodeIcon={getNodeIcon}
-                onClick={() => handleZoneClick(node)}
-              />
-            ))}
-            {sortedNodes.length === 0 && (
-              <div
-                className="zone-icon"
-                onClick={() => navigate('/nodes')}
-                style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}
-              >
-                <span className="zone-name">No zones configured. Tap to add nodes.</span>
-              </div>
+        {/* Quick Scenes */}
+        <div className="quick-scenes">
+          <div className="widget-header">
+            <span className="widget-title">Quick Scenes</span>
+            <button onClick={() => setShowSceneEditor(true)}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+              <Settings size={14} className="text-white/60" />
+            </button>
+          </div>
+          <div className="scenes-row">
+            {quickScenes.length > 0 ? (
+              quickScenes.map((scene, idx) => (
+                <button key={scene.scene_id || scene.id || idx}
+                  className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
+                  onClick={() => handleSceneClick(scene)}>
+                  <span className="scene-icon">
+                    <img src={scenesIcon} alt="" style={{ width: 20, height: 20, filter: "brightness(0) invert(1)", display: "block", margin: "0 auto" }} />
+                  </span>
+                  <span className="scene-name">{scene.name}</span>
+                </button>
+              ))
+            ) : (
+              <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
+                <span className="scene-icon"><Plus size={20} /></span>
+                <span className="scene-name">Add Scenes</span>
+              </button>
+            )}
+            {quickScenes.length > 0 && quickScenes.length < 4 && (
+              <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
+                <span className="scene-icon"><Plus size={20} /></span>
+                <span className="scene-name">Add</span>
+              </button>
             )}
           </div>
-        </SortableContext>
-      </DndContext>
+        </div>
+        {/* Now Playing */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, position: 'absolute', left: 0 }}>Now Playing</span>
+            {Object.keys(playback).length > 0 ? (
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', textTransform: 'capitalize' }}>
+                {Object.values(playback)[0]?.id?.replace("scene_", "").replace("chase_", "").replace(/_/g, " ")} - {Object.values(playback)[0]?.type}
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SkipBack size={16} />
+            </button>
+            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Play size={16} />
+            </button>
+            <button onClick={() => stopAll()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(239,68,68,0.2)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Square size={16} />
+            </button>
+            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SkipForward size={16} />
+            </button>
+          </div>
+        </div>
+
+      </div>
 
       {/* Quick Scene Editor Modal */}
       {showSceneEditor && (

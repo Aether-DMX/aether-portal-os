@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { ArrowLeft, Plus, Play, Square, Trash2, Edit3, X, Save, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Repeat, Music, Zap, MessageSquare, Sliders, Palette } from 'lucide-react';
 import useChaseStore from '../store/chaseStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import FaderModal from '../components/FaderModal';
+import PlayChaseModal from '../components/PlayChaseModal';
 
 // Color presets for quick step creation
 const COLOR_PRESETS = [
@@ -21,23 +22,33 @@ const COLOR_PRESETS = [
 ];
 
 // Chase Card Component
-function ChaseCard({ chase, isActive, onPlay, onStop, onEdit, onDelete }) {
+// Chase Card - Tap to Play, Long Press for Menu
+function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
+  const pressTimer = useRef(null);
+  const didLongPress = useRef(false);
   const stepCount = chase.steps?.length || 0;
   const bpm = chase.bpm || 120;
-
+  const handleStart = () => {
+    didLongPress.current = false;
+    pressTimer.current = setTimeout(() => { didLongPress.current = true; onLongPress(chase); }, 500);
+  };
+  const handleEnd = () => {
+    clearTimeout(pressTimer.current);
+    if (!didLongPress.current) { isActive ? onStop() : onPlay(chase); }
+  };
+  const handleCancel = () => clearTimeout(pressTimer.current);
   return (
-    <div className={`bg-white/5 rounded-xl p-3 flex flex-col transition-all ${isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/10' : 'hover:bg-white/10'}`}>
-      <div className="flex items-center gap-3 mb-2">
-        <button
-          onClick={() => isActive ? onStop() : onPlay()}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            isActive ? 'bg-[var(--theme-primary)] text-black animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'
-          }`}
-        >
-          {isActive ? <Square size={16} /> : <Play size={18} className="ml-0.5" />}
-        </button>
+    <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
+      onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
+      className={`bg-white/5 rounded-xl p-4 cursor-pointer select-none active:scale-95 transition-transform ${
+        isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/20' : ''}`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/50'}`}>
+          {isActive ? <Square size={18} /> : <Play size={20} className="ml-0.5" />}
+        </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white text-sm truncate">{chase.name}</h3>
+          <h3 className="font-bold text-white truncate">{chase.name}</h3>
           <div className="flex items-center gap-2 text-[10px] text-white/40">
             <span>{stepCount} steps</span>
             <span>•</span>
@@ -46,18 +57,38 @@ function ChaseCard({ chase, isActive, onPlay, onStop, onEdit, onDelete }) {
           </div>
         </div>
       </div>
-      <div className="flex gap-2">
-        <button onClick={() => onEdit(chase)} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 text-xs font-medium flex items-center justify-center gap-1">
-          <Edit3 size={12} /> Edit
-        </button>
-        <button onClick={() => onDelete(chase)} className="py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400/60">
-          <Trash2 size={12} />
-        </button>
-      </div>
     </div>
   );
 }
 
+
+// Context Menu for Long Press
+function CardContextMenu({ item, type, onEdit, onDelete, onClose }) {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-gray-900 rounded-2xl w-72 border border-white/10" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-white/10">
+          <h3 className="text-white font-bold truncate">{item.name}</h3>
+          <p className="text-white/50 text-sm">{type}</p>
+        </div>
+        <div className="p-2">
+          <button onClick={() => { onEdit(item); onClose(); }} 
+            className="w-full p-3 rounded-xl text-left text-white flex items-center gap-3 hover:bg-white/10">
+            <Edit3 size={20} /> Edit {type}
+          </button>
+          <button onClick={() => { onDelete(item); onClose(); }} 
+            className="w-full p-3 rounded-xl text-left text-red-400 flex items-center gap-3 hover:bg-red-500/10">
+            <Trash2 size={20} /> Delete {type}
+          </button>
+        </div>
+        <div className="p-2 border-t border-white/10">
+          <button onClick={onClose} className="w-full p-3 rounded-xl text-white/50 hover:bg-white/5">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 // Tap Tempo Component
 function TapTempo({ onBpmChange }) {
   const [taps, setTaps] = useState([]);
@@ -695,11 +726,13 @@ function ChaseCreatorModal({ chase, isOpen, onClose, onSave, scenes }) {
 
 // Main Chases Component
 export default function Chases() {
-  const { chases, currentChase, fetchChases, playChase, stopChase, createChase, updateChase, deleteChase } = useChaseStore();
+  const { chases, fetchChases, isChasePlaying, playChase, stopChase, createChase, updateChase, deleteChase } = useChaseStore();
   const { scenes, fetchScenes } = useSceneStore();
   const [editingChase, setEditingChase] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [playModalChase, setPlayModalChase] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const CHASES_PER_PAGE = 8;
   const totalPages = Math.ceil(chases.length / CHASES_PER_PAGE);
@@ -723,12 +756,19 @@ export default function Chases() {
     } catch (err) { console.error('Failed to save chase:', err); }
   };
 
+  const handlePlayWithOptions = async (chase, options) => {
+    const chaseId = chase.chase_id || chase.id;
+    setPlayModalChase(null);
+    await playChase(chaseId, { universes: options.universes });
+  };
+
   const handleDelete = async (chase) => {
     if (confirm(`Delete "${chase.name}"?`)) {
       await deleteChase(chase.chase_id || chase.id);
       fetchChases();
     }
   };
+
 
   return (
     <div className="h-full flex flex-col p-3">
@@ -754,16 +794,15 @@ export default function Chases() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-2 flex-1 overflow-hidden">
+          <div className="grid grid-cols-3 gap-3 flex-1 overflow-hidden">
             {paginatedChases.map(chase => (
               <ChaseCard
                 key={chase.chase_id || chase.id}
                 chase={chase}
-                isActive={currentChase?.chase_id === (chase.chase_id || chase.id)}
-                onPlay={() => playChase(chase.chase_id || chase.id)}
+                isActive={isChasePlaying(chase.chase_id || chase.id)}
+                onPlay={(c) => setPlayModalChase(c)}
                 onStop={stopChase}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onLongPress={(c) => setContextMenu(c)}
               />
             ))}
           </div>
@@ -811,6 +850,25 @@ export default function Chases() {
         onSave={handleSave}
         scenes={scenes}
       />
+
+      {playModalChase && (
+        <PlayChaseModal
+          chase={playModalChase}
+          onClose={() => setPlayModalChase(null)}
+          onPlay={handlePlayWithOptions}
+        />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <CardContextMenu
+          item={contextMenu}
+          type="Chase"
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }
