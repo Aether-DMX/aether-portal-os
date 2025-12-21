@@ -144,6 +144,7 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
   const [steps, setSteps] = useState([]);
   const [bpm, setBpm] = useState(120);
   const [loop, setLoop] = useState(true);
+  const [fadePercent, setFadePercent] = useState(30);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiMessage, setAiMessage] = useState('');
   const [showFaders, setShowFaders] = useState(false);
@@ -155,6 +156,12 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
     setSteps(chase?.steps || []);
     setBpm(chase?.bpm || 120);
     setLoop(chase?.loop !== false);
+    if (chase?.fade_percent) setFadePercent(chase.fade_percent);
+    else if (chase?.steps?.[0]?.fade_ms && chase?.bpm) {
+      const stepDur = 60000 / (chase.bpm || 120);
+      const pct = Math.round((chase.steps[0].fade_ms / stepDur) * 100);
+      setFadePercent(Math.min(100, Math.max(0, pct)));
+    }
     setAiMessage('');
   }, [chase]);
 
@@ -299,6 +306,9 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
   const handleSave = () => {
     if (!name.trim()) { setAiMessage('⚠️ Enter a name'); return; }
     if (steps.length === 0) { setAiMessage('⚠️ Add at least one step'); return; }
+    const stepDur = Math.round(60000 / bpm);
+    const fadeDur = Math.round(stepDur * (fadePercent / 100));
+    const holdDur = stepDur - fadeDur;
     onSave({
       ...chase,
       name: name.trim(),
@@ -306,13 +316,15 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
         scene_id: s.scene_id,
         name: s.name,
         channels: s.channels,
-        fade_ms: s.fade_ms || 250,
-        hold_ms: s.hold_ms || 500,
+        fade_ms: fadeDur,
+        hold_ms: holdDur,
       })),
       bpm,
       loop,
+      fade_percent: fadePercent,
     });
   };
+
 
   return (
     <div style={{
@@ -506,6 +518,39 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
             <Repeat size={14} /> {loop ? 'Loop' : 'Once'}
           </button>
         </div>
+
+        {/* Fade Rate Control */}
+        <div style={{
+          display: "flex",
+          gap: "8px",
+          marginBottom: "12px",
+          alignItems: "center",
+          padding: "8px 12px",
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: "12px",
+        }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: "bold", minWidth: "50px" }}>FADE</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={fadePercent}
+            onChange={(e) => setFadePercent(parseInt(e.target.value))}
+            style={{ flex: 1, accentColor: "var(--theme-primary)" }}
+          />
+          <span style={{ color: "white", fontSize: "14px", fontWeight: "bold", minWidth: "45px", textAlign: "right" }}>{fadePercent}%</span>
+          <div style={{ display: "flex", gap: "4px", marginLeft: "8px" }}>
+            {[{ v: 0, l: "Snap" }, { v: 30, l: "Smooth" }, { v: 50, l: "Half" }, { v: 100, l: "Full" }].map(p => (
+              <button key={p.v} onClick={() => setFadePercent(p.v)} style={{
+                padding: "6px 10px", borderRadius: "6px", border: "none", fontSize: "10px", fontWeight: "bold",
+                cursor: "pointer",
+                background: fadePercent === p.v ? "var(--theme-primary)" : "rgba(255,255,255,0.1)",
+                color: fadePercent === p.v ? "black" : "rgba(255,255,255,0.6)",
+              }}>{p.l}</button>
+            ))}
+          </div>
+        </div>
+
 
         {/* Steps Section */}
         <div style={{
