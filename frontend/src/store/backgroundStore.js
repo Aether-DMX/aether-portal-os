@@ -32,6 +32,7 @@ const useBackgroundStore = create(
         const themeColor = document.documentElement.style.getPropertyValue('--theme-primary') || '#3b82f6';
         
         const presets = {
+          live: [themeColor, `${themeColor}aa`, `${themeColor}66`],  // Dynamic - syncs with current playback
           default: [themeColor, `${themeColor}aa`, `${themeColor}66`],
           warm: ['#ff6b6b', '#feca57', '#ff9ff3', '#ff6348'],
           cool: ['#54a0ff', '#5f27cd', '#48dbfb', '#00d2d3'],

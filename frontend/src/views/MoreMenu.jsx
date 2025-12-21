@@ -41,6 +41,7 @@ const accentColors = [
 ];
 
 const bgThemes = [
+  { id: 'live', label: '🎭 Live', colors: ['#00ff88', '#ff00ff'] },
   { id: 'default', label: 'Default', colors: ['var(--theme-primary)'] },
   { id: 'warm', label: 'Warm', colors: ['#ff6b6b', '#feca57'] },
   { id: 'cool', label: 'Cool', colors: ['#54a0ff', '#48dbfb'] },
