@@ -1,85 +1,63 @@
-# AETHER DMX - BETA RELEASE TODO
-## Updated: December 21, 2025
+# AETHER DMX - TODO
+## Updated: December 22, 2025
 
 ---
 
-## CRITICAL BUGS 🔴
+## 🔴 CRITICAL - Beta 1 Blockers
 
-- [ ] **SSOT Race Condition** - Scenes not stopping shows consistently
-- [ ] **Blue fixtures on startup** - ESP32 nodes show blue on restart
-- [ ] **Lock button sizing** - Button broken on some views
-
----
-
-## UI/UX FIXES 🟠
-
-- [ ] **Play/Pause/Stop indicators** - Missing in Scenes AND Chases views
-- [ ] **Header overlapping content** - Some views cut off at top
-- [ ] **Dashboard node spacing** - Tighten layout
-- [ ] **Settings/More page polish** - Needs cleanup
+- [ ] **Desktop flash on boot** - LXDE shows before Chromium
+  - Fix: Pi OS Lite + Cage, or Plymouth splash
+- [ ] **3x reboot stability test**
+- [ ] **3x power cycle test**
 
 ---
 
-## NEW FEATURES TO BUILD 🟢
+## 🟠 UI/UX - In Progress
 
-- [ ] **Master Dimmer** - Global intensity control
-- [ ] **Fixture Patching Tool** - Create/manage fixture groups  
-- [ ] **Plymouth boot screen** - Update with AETHER branding
-- [ ] **MIDI Pad Effects Backend** - Strobe/pulse need proper backend support
+- [ ] Loading screen when backend slow/not ready
+- [ ] Settings page polish
 
 ---
 
-## NICE TO HAVE 🔵
+## 🟢 COMPLETED - December 22, 2025
 
-- [ ] **Cleanup dead API routes** - Audit unused endpoints
-- [ ] **Route security audit** - Verify access controls
-- [ ] **Web remote control** - Phone/tablet access on network
+- [x] Fullscreen views (Scenes/Chases) - no header overlap
+- [x] Grid layout 15 items/page (5x3), 48px cards
+- [x] Pagination buttons 44x44px
+- [x] Back buttons on Scenes/Chases
+- [x] Play state indicators with pulse animation
+- [x] Lock button sizing fixed (44px)
+- [x] Screensaver centered logo with animated glow
+- [x] Kiosk service with port-wait logic
+- [x] Cursor hidden (unclutter)
+- [x] Beta debug logging (AETHER_BETA_DEBUG=1)
 
----
+## 🟢 COMPLETED - Previous
 
-## COMPLETED ✅
-
-### December 21, 2025
-- [x] MIDI Pad Controller - 3x3 grid with scene/chase/effect triggers
-- [x] Effect modes - Strobe, pulse, heartbeat with color selection
-- [x] Trigger modes - Tap, hold, toggle for all pad types
-- [x] Themed Logo System - Dynamic colors matching theme
-- [x] Dynamic Background Bubbles - 15 floating, sync to playback
-- [x] AI Suggestion System - Auto-suggests based on time/holidays
-- [x] Dock 7th Item - Added MIDI Pads button
-- [x] Dashboard Blackout - Working with fade support
-
-### December 14, 2025
-- [x] Shows UI with floating player controls
-- [x] Distributed vs Sync mode toggle
-- [x] Created 11 scenes and 8 shows
-- [x] Tempo controls with smart jumps
-- [x] Dock hidden on content views
-- [x] pause/resume/tempo API routes
-- [x] skip_ssot parameter for shows
-
-### Previous
-- [x] WiFi node fade engine fix
-- [x] Node reconnection spam fix
-- [x] Show looping
-- [x] Custom dock icons
-- [x] Preset scene color fixes
+- [x] SSOT threading locks - race conditions fixed
+- [x] Multi-universe broadcast - all universes get commands
+- [x] Universe targeting fixed - no more U1 only
+- [x] MIDI Pad Controller 3x3 grid
 - [x] Chase fade rate control
-- [x] Dynamic background sync
+- [x] Show timeline sync/distributed modes
+- [x] Themed logo system
+- [x] Dynamic background bubbles
+- [x] Dashboard blackout with fade
+- [x] WiFi node fade engine
+- [x] Node reconnection fixes
 
 ---
 
-## BETA RELEASE CHECKLIST
+## 🔵 NICE TO HAVE (Post-Beta)
 
-- [ ] Fix SSOT race condition (critical)
-- [ ] Fix blue fixture startup issue
-- [ ] Add play state indicators
-- [ ] Full system test on clean Pi
-- [ ] Update README
-- [ ] Record demo video
-- [ ] 10-20 beta testers
-- [ ] Landing page live
+- [ ] Master Dimmer global control
+- [ ] Fixture patching tool
+- [ ] Plymouth AETHER splash
+- [ ] Web remote (phone/tablet)
+- [ ] Cleanup dead API routes
 
 ---
 
-## ESTIMATED: 75% Complete
+## 📊 STATUS: 85% Beta Ready
+
+Blocking: Desktop flash fix only
