@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Play, Square, Trash2, Edit3, X, Save, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Repeat, Music, Zap, MessageSquare, Sliders, Palette } from 'lucide-react';
+import usePlaybackStore from '../store/playbackStore';
 import useChaseStore from '../store/chaseStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
@@ -40,8 +42,8 @@ function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
   return (
     <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
       onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
-      className={`bg-white/5 rounded-xl p-4 cursor-pointer select-none active:scale-95 transition-transform ${
-        isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/20' : ''}`}>
+      className={`control-card ${
+        isActive ? 'active playing' : ''}`}>
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
           isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/50'}`}>
@@ -771,6 +773,7 @@ function ChaseCreatorModal({ chase, isOpen, onClose, onSave, scenes }) {
 
 // Main Chases Component
 export default function Chases() {
+  const navigate = useNavigate();
   const { chases, fetchChases, isChasePlaying, playChase, stopChase, createChase, updateChase, deleteChase } = useChaseStore();
   const { scenes, fetchScenes } = useSceneStore();
   const [editingChase, setEditingChase] = useState(null);
@@ -779,7 +782,7 @@ export default function Chases() {
   const [playModalChase, setPlayModalChase] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
 
-  const CHASES_PER_PAGE = 8;
+  const CHASES_PER_PAGE = 15;
   const totalPages = Math.ceil(chases.length / CHASES_PER_PAGE);
   const paginatedChases = chases.slice(currentPage * CHASES_PER_PAGE, (currentPage + 1) * CHASES_PER_PAGE);
 
@@ -816,12 +819,15 @@ export default function Chases() {
 
 
   return (
-    <div className="h-full flex flex-col p-3">
+    <div className="fullscreen-view">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="view-header">
+        <div className="flex items-center gap-2">
+          <button className="back-btn" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
         <div>
           <h1 className="text-lg font-bold text-white">Chases</h1>
           <p className="text-[10px] text-white/50">{chases.length} saved</p>
+          </div>
         </div>
         <button onClick={handleCreate} className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm">
           <Plus size={16} /> New
@@ -839,7 +845,7 @@ export default function Chases() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 flex-1 overflow-hidden">
+          <div className="control-grid">
             {paginatedChases.map(chase => (
               <ChaseCard
                 key={chase.chase_id || chase.id}

@@ -29,7 +29,7 @@ export default function Screensaver({ onExit, isLocked = false }) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 50,
+        zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -109,7 +109,7 @@ export default function Screensaver({ onExit, isLocked = false }) {
         transition: 'opacity 0.3s',
         animation: 'hint-pulse 3s ease-in-out infinite'
       }}>
-        {isLocked ? 'Tap to unlock' : 'Tap anywhere to continue'}
+        {isLocked ? 'Tap to unlock' : 'Tap anywhere to wake'}
       </div>
 
       <style>{`

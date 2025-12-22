@@ -108,18 +108,14 @@ function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
   return (
     <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
       onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
-      className={`bg-white/5 rounded-xl p-4 cursor-pointer select-none active:scale-95 transition-transform ${
-        isActive ? 'ring-2 ring-[var(--theme-primary)] bg-[var(--theme-primary)]/20' : ''}`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-          isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/50'}`}>
+      className={`control-card ${isActive ? 'active playing' : ''}`}>
+      <div className="card-icon">
           {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white truncate">{scene.name}</h3>
-          <p className="text-[10px] text-white/40">{Object.keys(scene.channels || {}).length} ch</p>
+        <div className="card-info">
+          <div className="card-title">{scene.name}</div>
+          <div className="card-meta">{Object.keys(scene.channels || {}).length} ch</div>
         </div>
-      </div>
     </div>
   );
 }
@@ -387,18 +383,32 @@ function SceneCreatorModal({ scene, isOpen, onClose, onSave }) {
 
 // Main Scenes Component
 export default function Scenes() {
-  const { scenes, fetchScenes, isScenePlaying, playScene, stopScene, createScene, updateScene, deleteScene } = useSceneStore();
+  const navigate = useNavigate();
+  const { scenes, fetchScenes, playScene, stopScene, createScene, updateScene, deleteScene } = useSceneStore();
+  const { playback, syncStatus } = usePlaybackStore();
   const [editingScene, setEditingScene] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [playModalScene, setPlayModalScene] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   
-  const SCENES_PER_PAGE = 8;
+  const SCENES_PER_PAGE = 15;
   const totalPages = Math.ceil(scenes.length / SCENES_PER_PAGE);
   const paginatedScenes = scenes.slice(currentPage * SCENES_PER_PAGE, (currentPage + 1) * SCENES_PER_PAGE);
 
-  useEffect(() => { fetchScenes(); }, [fetchScenes]);
+  useEffect(() => { 
+    fetchScenes(); 
+    syncStatus();
+    const interval = setInterval(syncStatus, 2000);
+    return () => clearInterval(interval);
+  }, [fetchScenes, syncStatus]);
+
+  const isScenePlaying = (id) => {
+    for (const pb of Object.values(playback)) {
+      if (pb?.type === 'scene' && pb?.id === id) return true;
+    }
+    return false;
+  };
 
   const handleEdit = (scene) => { setEditingScene(scene); setIsCreating(true); };
   const handleCreate = () => { setEditingScene({ name: '', channels: {}, fade_time: 1000 }); setIsCreating(true); };
@@ -428,12 +438,14 @@ export default function Scenes() {
   };
 
   return (
-    <div className="h-full flex flex-col p-3">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h1 className="text-lg font-bold text-white">Scenes</h1>
+    <div className="fullscreen-view">
+      <div className="view-header">
+        <div className="flex items-center gap-2">
+          <button className="back-btn" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
+          <div>
+            <h1 className="text-lg font-bold text-white">Scenes</h1>
           <p className="text-[10px] text-white/50">{scenes.length} saved</p>
+          </div>
         </div>
         <button onClick={handleCreate} className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm">
           <Plus size={16} /> New
@@ -441,6 +453,7 @@ export default function Scenes() {
       </div>
 
       {/* Scene Grid */}
+      <div className="view-content">
       {scenes.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <Sparkles size={40} className="text-white/20 mb-2" />
@@ -451,7 +464,7 @@ export default function Scenes() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 flex-1 overflow-hidden">
+          <div className="control-grid">
             {paginatedScenes.map(scene => (
               <SceneCard
                 key={scene.scene_id || scene.id}
@@ -470,16 +483,16 @@ export default function Scenes() {
               <button
                 onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                 disabled={currentPage === 0}
-                className="p-2 rounded-lg bg-white/10 text-white disabled:opacity-30"
+                className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={22} />
               </button>
               <div className="flex gap-1">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i)}
-                    className={`w-8 h-8 rounded-lg text-sm font-bold ${
+                    className={`w-11 h-11 rounded-xl text-base font-bold ${
                       currentPage === i ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/60'
                     }`}
                   >
@@ -490,14 +503,16 @@ export default function Scenes() {
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                 disabled={currentPage >= totalPages - 1}
-                className="p-2 rounded-lg bg-white/10 text-white disabled:opacity-30"
+                className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={22} />
               </button>
             </div>
           )}
         </>
       )}
+
+            </div>
 
       {/* Scene Creator Modal */}
       <SceneCreatorModal
