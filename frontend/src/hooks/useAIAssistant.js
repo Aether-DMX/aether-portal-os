@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import useAIContext from './useAIContext';
 import useSceneStore from '../store/sceneStore';
 import useNodeStore from '../store/nodeStore';
+import { parseIntent } from '../ai/intentRouter';
+import { loadOpsRegistry, isAllowed, needsConfirm, execute } from '../ai/executor';
 
 const PERSONALITY = {
   greetings: ["Hey! Ready to light things up?", "AETHER online. Let's make some magic!", "Your friendly lighting tech, reporting for duty!"],
@@ -127,6 +129,18 @@ export default function useAIAssistant() {
     return null;
   };
 
+  // AI Pipeline: process natural language commands
+  const processCommand = async (input) => {
+    const intent = parseIntent(input);
+    if (intent.local && isAllowed(intent.action)) {
+      if (needsConfirm(intent.action)) {
+        return { needsConfirm: true, intent };
+      }
+      const result = await execute(intent.action, intent.params);
+      return { success: result.success, data: result.data, intent };
+    }
+    return { success: false, error: "Unknown command", intent };
+  };
   return { 
     currentSuggestion, 
     dismissSuggestion, 
@@ -136,6 +150,7 @@ export default function useAIAssistant() {
     getGreeting: context.getGreeting, 
     recordAction: context.recordAction, 
     context: context.currentContext, 
-    userProfile: context.userProfile 
+    userProfile: context.userProfile,
+    processCommand 
   };
 }
