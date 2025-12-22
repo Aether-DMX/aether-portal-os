@@ -1670,3 +1670,12 @@ input[type="range"]::-webkit-slider-runnable-track { height: 8px; background: rg
   flex: 1;
   align-content: center;
 }
+
+/* Simple slow floating animation for background bubbles */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-20px) translateX(10px); }
+}
+.animate-float-slow {
+  animation: float-slow 30s ease-in-out infinite;
+}

@@ -193,18 +193,20 @@ const useDMXStore = create((set, get) => ({
   },
 
   // Blackout
-  blackoutAll: async (universe = 1, fadeMs = 1000) => {
+blackoutAll: async (fadeMs = 1000) => {
     try {
-      console.log('🌑 Blackout universe', universe, 'fade:', fadeMs + 'ms');
+      console.log('🌑 Blackout ALL universes, fade:', fadeMs + 'ms');
       const zeros = new Array(512).fill(0);
       set(state => ({
         universeState: zeros,
-        universes: { ...state.universes, [universe]: zeros },
+        universes: Object.fromEntries(
+          Object.keys(state.universes).map(u => [u, zeros])
+        ),
         lastUpdate: Date.now()
       }));
       
+      // Pass no universe = blackout ALL universes
       await axios.post(getAetherCore() + '/api/dmx/blackout', {
-        universe,
         fade_ms: fadeMs
       });
     } catch (e) {

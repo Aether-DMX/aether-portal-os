@@ -12,6 +12,7 @@ const dockItems = [
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
+  { id: 'midipad', emoji: '🎹', label: 'Pads', path: '/midi-pad' },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
 
@@ -22,7 +23,7 @@ export default function Dock({ onAIClick }) {
 
   const handleDockClick = (item) => {
     if (item.action === 'blackout') {
-      blackoutAll(1, 1500);
+      blackoutAll(1500);
     } else if (item.action === 'openAI') {
       if (onAIClick) onAIClick();
     } else if (item.path) {

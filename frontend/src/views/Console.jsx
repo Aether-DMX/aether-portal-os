@@ -166,7 +166,7 @@ export default function Console() {
 
   const handleBlackout = useCallback(() => {
     if (!isBlackout) {
-      blackoutAll(1);
+      blackoutAll(1000);
       stopScene();
       if (activeChase) {
         stopChase(activeChase.chase_id || activeChase.id);
@@ -176,7 +176,7 @@ export default function Console() {
   }, [isBlackout, blackoutAll, stopScene, activeChase, stopChase]);
 
   const handleStop = useCallback(() => {
-    blackoutAll(1);
+    blackoutAll(1000);
     stopScene();
     if (activeChase) {
       stopChase(activeChase.chase_id || activeChase.id);

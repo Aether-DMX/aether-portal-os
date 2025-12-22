@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import ThemedLogo from './ThemedLogo';
 
 const getApiUrl = () => `http://${window.location.hostname}:8891`;
 
@@ -77,7 +78,7 @@ export default function Header({ onLock }) {
           className="flex items-center gap-2 hover:opacity-80 active:opacity-60 transition-opacity"
           aria-label="Go to Dashboard"
         >
-          <img src="/aether_logo.png" alt="AETHER" className="launcher-logo-icon" style={{ width: "clamp(32px, 8vw, 44px)", height: "clamp(32px, 8vw, 44px)" }} />
+          <ThemedLogo size="clamp(44px, 10vw, 56px)" />
           <div className="launcher-logo-text">
             <span className="launcher-logo-aether">AETHER</span>
             <span className="launcher-logo-dmx">DMX</span>

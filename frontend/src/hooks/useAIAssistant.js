@@ -22,7 +22,9 @@ export default function useAIAssistant() {
   const { nodes } = useNodeStore();
 
   const generateSuggestion = useCallback(() => {
-    const { currentContext, isSuggestionDismissed } = context;
+    const state = useAIContext.getState();
+    const { currentContext, isSuggestionDismissed } = state;
+    console.log("🤖 AI context:", currentContext);
     const suggestions = [];
 
     // Holiday suggestions
@@ -79,7 +81,7 @@ export default function useAIAssistant() {
       context.updateContext();
       const suggestion = generateSuggestion();
       if (suggestion) setCurrentSuggestion(suggestion);
-    }, 8000); // Longer delay - 8 seconds
+    }, 5000); // Longer delay - 8 seconds
 
     // Check less frequently - every 5 minutes
     const interval = setInterval(() => {

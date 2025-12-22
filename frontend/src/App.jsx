@@ -20,6 +20,7 @@ import PatchFixtures from './views/PatchFixtures';
 import GroupFixtures from './views/GroupFixtures';
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
+import MidiPad from './views/MidiPad';
 import NodeManagement from './components/NodeManagement';
 import MoreMenu from './views/MoreMenu';
 import ZoneDetail from './views/ZoneDetail';
@@ -70,6 +71,7 @@ function AppContent({ onLock }) {
           <Route path="/group-fixtures" element={<GroupFixtures />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/timers" element={<Timers />} />
+          <Route path="/midi-pad" element={<MidiPad />} />
           <Route path="/nodes" element={<NodeManagement />} />
           <Route path="/more" element={<MoreMenu />} />
           <Route path="/zone/:nodeId" element={<ZoneDetail />} />
