@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Sliders, Image, Users, Zap, Clock, Radio, Settings, Power } from 'lucide-react';
+import { Home, Sliders, Image, Users, Layers, Zap, Clock, Radio, Settings, Power } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/faders', icon: Sliders, label: 'Faders' },
   { path: '/scenes', icon: Image, label: 'Scenes' },
-  { path: '/groups', icon: Users, label: 'Groups' },
+  { path: '/fixtures', icon: Layers, label: 'Fixtures' },
   { path: '/chases', icon: Zap, label: 'Chases' },
   { path: '/schedules', icon: Clock, label: 'Schedules' },
   { path: '/stage', icon: Radio, label: 'Stage' },

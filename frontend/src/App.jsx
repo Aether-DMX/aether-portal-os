@@ -8,16 +8,16 @@ import LiveDMXMenu from './views/LiveDMXMenu';
 import Console from './views/Console';
 import DMXEffectsMenu from './views/DMXEffectsMenu';
 import MyEffects from './views/MyEffects';
-import FixturesMenu from './views/FixturesMenu';
+import Fixtures from './views/Fixtures';
 import SchedulesMenu from './views/SchedulesMenu';
 import Faders from './views/Faders';
 import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
-import Groups from './views/Groups';
+// import Groups from './views/Groups'; // Deprecated
 import Chases from './views/Chases';
 import Shows from './views/Shows';
-import PatchFixtures from './views/PatchFixtures';
-import GroupFixtures from './views/GroupFixtures';
+// import PatchFixtures from './views/PatchFixtures'; // Deprecated
+// import GroupFixtures from './views/GroupFixtures'; // Deprecated
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
 import MidiPad from './views/MidiPad';
@@ -60,16 +60,16 @@ function AppContent({ onLock }) {
           <Route path="/console" element={<Console />} />
           <Route path="/dmx-effects" element={<DMXEffectsMenu />} />
           <Route path="/my-effects" element={<MyEffects />} />
-          <Route path="/fixtures-menu" element={<FixturesMenu />} />
+          <Route path="/fixtures" element={<Fixtures />} />
           <Route path="/schedules-menu" element={<SchedulesMenu />} />
           <Route path="/faders" element={<Faders />} />
           <Route path="/view-live" element={<ViewLive />} />
           <Route path="/scenes" element={<Scenes />} />
-          <Route path="/groups" element={<Groups />} />
+          {/* <Route path="/groups" element={<Groups />} /> */}
           <Route path="/chases" element={<Chases />} />
           <Route path="/shows" element={<Shows />} />
-          <Route path="/patch-fixtures" element={<PatchFixtures />} />
-          <Route path="/group-fixtures" element={<GroupFixtures />} />
+          {/* <Route path="/patch-fixtures" /> Deprecated */}
+          {/* <Route path="/group-fixtures" /> Deprecated */}
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/timers" element={<Timers />} />
           <Route path="/midi-pad" element={<MidiPad />} />

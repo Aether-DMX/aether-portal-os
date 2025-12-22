@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Sliders, Image, Users, Zap, Calendar, Box, Settings, Menu, X, ArrowLeft } from 'lucide-react';
+import { Home, Sliders, Image, Users, Layers, Zap, Calendar, Box, Settings, Menu, X, ArrowLeft } from 'lucide-react';
 
 const Navbar = () => {
   const location = useLocation();
@@ -12,7 +12,7 @@ const Navbar = () => {
     { path: '/', icon: Home, label: 'Home' },
     { path: '/faders', icon: Sliders, label: 'Faders' },
     { path: '/scenes', icon: Image, label: 'Scenes' },
-    { path: '/groups', icon: Users, label: 'Groups' },
+    { path: '/fixtures', icon: Layers, label: 'Fixtures' },
     { path: '/chases', icon: Zap, label: 'Chases' },
     { path: '/schedules', icon: Calendar, label: 'Schedules' },
     { path: '/stage', icon: Box, label: 'Stage' },
