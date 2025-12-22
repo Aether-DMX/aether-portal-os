@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Settings, X, Check, Plus, ArrowLeft, Play, Pause, SkipBack, SkipForward, Square } from 'lucide-react';
+import { Settings, X, Check, Plus, ArrowLeft, Play, Pause, SkipBack, SkipForward, Square, Sparkles, Loader, ChevronRight } from 'lucide-react';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import usePlaybackStore from '../store/playbackStore';
+import useAIAssistant from '../hooks/useAIAssistant';
 
 // Custom node icons
 import NodeIcon from '../assets/icons/Node_Icon.png';
@@ -159,6 +160,11 @@ export default function Dashboard() {
   const [quickSceneIds, setQuickSceneIds] = useState([]);
   const masterTrackRef = useRef(null);
   const isDragging = useRef(false);
+  
+  // AI Flip Card state
+  const { currentSuggestion, dismissSuggestion } = useAIAssistant();
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isApplyingAI, setIsApplyingAI] = useState(false);
 
   // Sensors for drag and drop (with delay to allow clicks)
   const sensors = useSensors(
@@ -177,6 +183,15 @@ export default function Dashboard() {
     const interval = setInterval(syncStatus, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-flip to AI card when suggestion arrives
+  useEffect(() => {
+    if (currentSuggestion && !isFlipped) {
+      setIsFlipped(true);
+    } else if (!currentSuggestion && isFlipped) {
+      setIsFlipped(false);
+    }
+  }, [currentSuggestion]);
   // Load quick scene IDs from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('quickSceneIds');
@@ -377,39 +392,111 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Scenes */}
-        <div className="quick-scenes">
-          <div className="widget-header">
-            <span className="widget-title">Quick Scenes</span>
-            <button onClick={() => setShowSceneEditor(true)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
-              <Settings size={14} className="text-white/60" />
-            </button>
-          </div>
-          <div className="scenes-row">
-            {quickScenes.length > 0 ? (
-              quickScenes.map((scene, idx) => (
-                <button key={scene.scene_id || scene.id || idx}
-                  className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
-                  onClick={() => handleSceneClick(scene)}>
-                  <span className="scene-icon">
-                    <img src={scenesIcon} alt="" style={{ width: 20, height: 20, filter: "brightness(0) invert(1)", display: "block", margin: "0 auto" }} />
-                  </span>
-                  <span className="scene-name">{scene.name}</span>
+        {/* Quick Scenes / AI Suggestion Flip Card */}
+        <div className="quick-scenes" style={{ perspective: '1000px' }}>
+          <div style={{
+            position: 'relative',
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.3s ease',
+            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+          }}>
+            {/* Front: Quick Scenes */}
+            <div style={{
+              backfaceVisibility: 'hidden',
+              position: isFlipped ? 'absolute' : 'relative',
+              inset: 0,
+              opacity: isFlipped ? 0 : 1,
+              pointerEvents: isFlipped ? 'none' : 'auto'
+            }}>
+              <div className="widget-header">
+                <span className="widget-title">Quick Scenes</span>
+                <button onClick={() => setShowSceneEditor(true)}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                  <Settings size={14} className="text-white/60" />
                 </button>
-              ))
-            ) : (
-              <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
-                <span className="scene-icon"><Plus size={20} /></span>
-                <span className="scene-name">Add Scenes</span>
-              </button>
-            )}
-            {quickScenes.length > 0 && quickScenes.length < 4 && (
-              <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
-                <span className="scene-icon"><Plus size={20} /></span>
-                <span className="scene-name">Add</span>
-              </button>
-            )}
+              </div>
+              <div className="scenes-row">
+                {quickScenes.length > 0 ? (
+                  quickScenes.map((scene, idx) => (
+                    <button key={scene.scene_id || scene.id || idx}
+                      className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
+                      onClick={() => handleSceneClick(scene)}>
+                      <span className="scene-name">{scene.name}</span>
+                    </button>
+                  ))
+                ) : (
+                  <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
+                    <span className="scene-icon"><Plus size={20} /></span>
+                    <span className="scene-name">Add Scenes</span>
+                  </button>
+                )}
+                {quickScenes.length > 0 && quickScenes.length < 4 && (
+                  <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
+                    <span className="scene-icon"><Plus size={20} /></span>
+                    <span className="scene-name">Add</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Back: AI Suggestion */}
+            <div style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              position: isFlipped ? 'relative' : 'absolute',
+              inset: 0,
+              opacity: isFlipped ? 1 : 0,
+              pointerEvents: isFlipped ? 'auto' : 'none'
+            }}>
+              <div className="widget-header">
+                <span className="widget-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Sparkles size={14} style={{ color: 'var(--accent)' }} />
+                  AI Suggestion
+                </span>
+                <button onClick={() => { dismissSuggestion(); setIsFlipped(false); }}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                  <X size={14} className="text-white/60" />
+                </button>
+              </div>
+              {currentSuggestion && (
+                <div style={{ padding: '8px 0' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, margin: '0 0 10px 0' }}>
+                    {currentSuggestion.message}
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { dismissSuggestion(); setIsFlipped(false); }}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 8,
+                        background: 'rgba(255,255,255,0.1)', border: 'none',
+                        color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                      }}>
+                      Dismiss
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setIsApplyingAI(true);
+                        // Navigate to scenes or apply directly based on action
+                        if (currentSuggestion.action?.to) {
+                          navigate(currentSuggestion.action.to);
+                        }
+                        dismissSuggestion();
+                        setIsFlipped(false);
+                        setIsApplyingAI(false);
+                      }}
+                      disabled={isApplyingAI}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 8,
+                        background: 'var(--accent)', border: 'none',
+                        color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
+                      }}>
+                      {isApplyingAI ? <Loader size={14} className="animate-spin" /> : <>Apply <ChevronRight size={14} /></>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* Now Playing */}
@@ -417,24 +504,39 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 8 }}>
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, position: 'absolute', left: 0 }}>Now Playing</span>
             {Object.keys(playback).length > 0 ? (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', textTransform: 'capitalize' }}>
-                {Object.values(playback)[0]?.id?.replace("scene_", "").replace("chase_", "").replace(/_/g, " ")} - {Object.values(playback)[0]?.type}
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'playing-pulse 1.5s ease-in-out infinite' }} />
+                {Object.values(playback)[0]?.id?.replace("scene_", "").replace("chase_", "").replace(/_/g, " ")}
               </span>
             ) : (
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
             )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
-            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/scenes')} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <SkipBack size={16} />
             </button>
-            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Play size={16} />
+            <button 
+              onClick={() => {
+                if (Object.keys(playback).length > 0) {
+                  stopAll();
+                } else {
+                  navigate('/scenes');
+                }
+              }} 
+              style={{ 
+                width: 36, height: 36, borderRadius: 8, 
+                background: Object.keys(playback).length > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
+                border: 'none', 
+                color: Object.keys(playback).length > 0 ? '#000' : '#fff', 
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+              {Object.keys(playback).length > 0 ? <Pause size={16} /> : <Play size={16} />}
             </button>
             <button onClick={() => stopAll()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(239,68,68,0.2)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Square size={16} />
             </button>
-            <button onClick={() => {}} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/chases')} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <SkipForward size={16} />
             </button>
           </div>
