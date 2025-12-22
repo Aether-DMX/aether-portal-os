@@ -38,6 +38,7 @@ import AetherBackground from './components/AetherBackground';
 import ToastContainer from './components/Toast';
 import AetherSplash from './components/AetherSplash';
 import AetherOnboarding from './components/AetherOnboarding';
+import BootLoader from './components/BootLoader';
 import AIAssistant from './components/AIAssistant';
 import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, MobileSchedules, MobileNodes, MobileMore } from './mobile';
 import useAIContext from './hooks/useAIContext';
@@ -107,6 +108,7 @@ function App() {
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [backendReady, setBackendReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
 
@@ -210,6 +212,11 @@ function App() {
       window.removeEventListener('touchstart', handleActivity);
     };
   }, [screensaverActive]);
+
+  // Check backend ready first
+  if (!backendReady) {
+    return <BootLoader onReady={() => setBackendReady(true)} />;
+  }
 
   // Show splash first
   if (showSplash) {
