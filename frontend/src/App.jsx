@@ -39,7 +39,7 @@ import ToastContainer from './components/Toast';
 import AetherSplash from './components/AetherSplash';
 import AetherOnboarding from './components/AetherOnboarding';
 import BootLoader from './components/BootLoader';
-import AIAssistant from './components/AIAssistant';
+import AIBubble from './components/AIBubble';
 import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, MobileSchedules, MobileNodes, MobileMore } from './mobile';
 import useAIContext from './hooks/useAIContext';
 
@@ -91,7 +91,7 @@ function AppContent({ onLock }) {
 
       {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
       <ToastContainer />
-      <AIAssistant />
+      <AIBubble />
     </div>
   );
 }
