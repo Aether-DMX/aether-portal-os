@@ -469,10 +469,43 @@ export default function Fixtures() {
   const handleDeleteFixture = async (id) => { await removeFixture(id); setConfirmDelete(null); setShowEditor(false); setEditingFixture(null); };
   const handleSaveGroup = async (data) => {
     try {
-      if (data.id && groups.some(g => g.id === data.id)) await axios.put(`${API_BASE}/api/groups/${data.id}`, data);
-      else { const res = await axios.post(`${API_BASE}/api/groups`, data); data.id = res.data.id; }
-      setGroups(prev => { const exists = prev.find(g => g.id === data.id); return exists ? prev.map(g => g.id === data.id ? data : g) : [...prev, data]; });
-    } catch (e) { console.error('Failed to save group:', e); }
+      let savedGroup;
+      const isUpdate = data.id && groups.some(g => g.id === data.id);
+
+      if (isUpdate) {
+        // Update existing group
+        const res = await axios.put(`${API_BASE}/api/groups/${data.id}`, data);
+        savedGroup = res.data;
+      } else {
+        // Create new group
+        const res = await axios.post(`${API_BASE}/api/groups`, data);
+        savedGroup = res.data;
+      }
+
+      // Ensure savedGroup has all required fields
+      const validGroup = {
+        id: savedGroup.id || data.id,
+        name: savedGroup.name || data.name,
+        fixture_ids: Array.isArray(savedGroup.fixture_ids) ? savedGroup.fixture_ids : (data.fixture_ids || []),
+        color: savedGroup.color || data.color || '#8b5cf6'
+      };
+
+      // Update local state with the server response
+      setGroups(prev => {
+        const exists = prev.find(g => g.id === validGroup.id);
+        if (exists) {
+          return prev.map(g => g.id === validGroup.id ? validGroup : g);
+        }
+        return [...prev, validGroup];
+      });
+
+      console.log('✅ Group saved:', validGroup);
+    } catch (e) {
+      console.error('Failed to save group:', e);
+      // Show error to user - don't silently fail
+      alert('Failed to save group: ' + (e.response?.data?.error || e.message));
+      return; // Don't close modal on error
+    }
     setShowGroupEditor(false);
     setEditingGroup(null);
   };
