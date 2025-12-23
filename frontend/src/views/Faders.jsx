@@ -23,7 +23,7 @@ const COLOR_PRESETS = [
 ];
 
 // Vertical fader component - touch optimized for 800x480
-function VerticalFader({ channel, value, onChange, onChangeEnd, fixture, isActive }) {
+function VerticalFader({ channel, value, onChange, onDragStart, onDragEnd, fixture, isActive }) {
   const trackRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -42,6 +42,7 @@ function VerticalFader({ channel, value, onChange, onChangeEnd, fixture, isActiv
   const handleStart = (e) => {
     e.preventDefault();
     setIsDragging(true);
+    onDragStart?.();
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     handleInteraction(clientY);
   };
@@ -55,9 +56,9 @@ function VerticalFader({ channel, value, onChange, onChangeEnd, fixture, isActiv
   const handleEnd = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      onChangeEnd?.();
+      onDragEnd?.();
     }
-  }, [isDragging, onChangeEnd]);
+  }, [isDragging, onDragEnd]);
 
   useEffect(() => {
     if (isDragging) {
@@ -157,7 +158,9 @@ export default function Faders() {
     setChannels,
     setCurrentUniverse,
     initSocket,
-    fetchUniverseState
+    fetchUniverseState,
+    stopPolling,
+    startPolling
   } = useDMXStore();
 
   const { nodes: rawNodes, fetchNodes } = useNodeStore();
@@ -174,6 +177,8 @@ export default function Faders() {
   const [showColors, setShowColors] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDraggingAny, setIsDraggingAny] = useState(false);
+  const dragCountRef = useRef(0); // Track number of active drags
 
   // Layout config for 800x480 - 8 faders per page (fits nicely)
   const FADERS_PER_PAGE = 8;
@@ -234,9 +239,31 @@ export default function Faders() {
     setChannels(storeUniverse, { [channel]: value }, 0);
   }, [storeUniverse, setChannels]);
 
-  const handleFaderChangeEnd = useCallback(() => {
-    // Final commit with short fade for smoothness
-  }, []);
+  // Pause polling when any fader starts dragging
+  const handleDragStart = useCallback(() => {
+    dragCountRef.current += 1;
+    if (dragCountRef.current === 1) {
+      // First fader started dragging - pause polling
+      stopPolling();
+      setIsDraggingAny(true);
+      console.log('⏸️ Paused polling - fader drag started');
+    }
+  }, [stopPolling]);
+
+  // Resume polling when all faders stop dragging
+  const handleDragEnd = useCallback(() => {
+    dragCountRef.current = Math.max(0, dragCountRef.current - 1);
+    if (dragCountRef.current === 0) {
+      // All faders stopped dragging - resume polling after a short delay
+      setTimeout(() => {
+        if (dragCountRef.current === 0) {
+          startPolling();
+          setIsDraggingAny(false);
+          console.log('▶️ Resumed polling - fader drag ended');
+        }
+      }, 100); // Small delay to let the last setChannels go through
+    }
+  }, [startPolling]);
 
   // Quick actions - apply to all faders in current bank
   const setAllInBank = (value) => {
@@ -397,7 +424,8 @@ export default function Faders() {
               channel={ch}
               value={value}
               onChange={handleFaderChange}
-              onChangeEnd={handleFaderChangeEnd}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
               fixture={fixture}
               isActive={value > 0}
             />
