@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { X, Save, Play, ChevronLeft, ChevronRight, Palette, Plus, Trash2 } from 'lucide-react';
 import useToastStore from '../../store/toastStore';
 
@@ -249,9 +250,32 @@ export default function SceneEditor({ scene, onSave, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={onClose}>
-      <div className="flex-1 flex flex-col max-h-full" onClick={e => e.stopPropagation()}>
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(0, 0, 0, 0.95)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <div className="flex-1 flex flex-col max-h-full">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 shrink-0">
           <button onClick={onClose} className="p-2 rounded-lg bg-white/10">
@@ -464,6 +488,7 @@ export default function SceneEditor({ scene, onSave, onClose }) {
           <span className="text-white/30">Tap fader track to set value, drag to adjust</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
