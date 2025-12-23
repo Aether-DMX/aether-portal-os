@@ -97,26 +97,37 @@ const PRESETS = [
 function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
-  const handleStart = () => {
+  const handleStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     didLongPress.current = false;
     pressTimer.current = setTimeout(() => { didLongPress.current = true; onLongPress(scene); }, 500);
   };
-  const handleEnd = () => {
+  const handleEnd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     clearTimeout(pressTimer.current);
     if (!didLongPress.current) { isActive ? onStop() : onPlay(scene); }
   };
   const handleCancel = () => clearTimeout(pressTimer.current);
   return (
-    <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
-      onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
-      className={`control-card ${isActive ? 'active playing' : ''}`}>
+    <div
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onTouchMove={handleCancel}
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleCancel}
+      style={{ touchAction: 'manipulation' }}
+      className={`control-card ${isActive ? 'active playing' : ''}`}
+    >
       <div className="card-icon">
-          {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
-        </div>
-        <div className="card-info">
-          <div className="card-title">{scene.name}</div>
-          <div className="card-meta">{Object.keys(scene.channels || {}).length} ch</div>
-        </div>
+        {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+      </div>
+      <div className="card-info">
+        <div className="card-title">{scene.name}</div>
+        <div className="card-meta">{Object.keys(scene.channels || {}).length} ch</div>
+      </div>
     </div>
   );
 }
