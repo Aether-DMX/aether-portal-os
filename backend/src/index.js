@@ -9,6 +9,7 @@ import chaseRoutes from './routes/chase.js';
 import sceneRoutes from './routes/scene.js';
 import nodesRoutes from './routes/nodes.js';
 import settingsRoutes from './routes/settings.js';
+import groupsRoutes from './routes/groups.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +31,7 @@ app.use('/api/chases', chaseRoutes);
 app.use('/api/scenes', sceneRoutes);
 app.use('/api/nodes', nodesRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/groups', groupsRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
