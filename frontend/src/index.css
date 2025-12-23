@@ -42,6 +42,50 @@ input, textarea {
   pointer-events: none !important;
 }
 
+/* === TOUCH SCROLL FIX FOR PI TOUCHSCREEN === */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+/* Make overflow-auto containers touch-scrollable */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pan-x;
+}
+
+/* Wide invisible scrollbar for touch - easier to grab */
+.touch-scroll::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+}
+
+.touch-scroll::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.touch-scroll::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  border: 6px solid transparent;
+  background-clip: padding-box;
+}
+
+.touch-scroll::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border: 6px solid transparent;
+  background-clip: padding-box;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
