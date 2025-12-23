@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { KeyboardProvider } from './context/KeyboardContext';
 import Header from './components/Header';
 import Dock from './components/Dock';
 import ChatModal from './components/ChatModal';
@@ -233,9 +234,11 @@ function App() {
   }
 
   return (
-    <Router>
-      <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
-    </Router>
+    <KeyboardProvider>
+      <Router>
+        <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
+      </Router>
+    </KeyboardProvider>
   );
 }
 
