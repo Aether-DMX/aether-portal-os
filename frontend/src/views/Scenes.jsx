@@ -93,7 +93,7 @@ const PRESETS = [
   { name: 'Red', icon: '🔥', cmd: 'red' },
 ];
 
-// Scene Card - Tap to Play, Long Press for Menu
+// Scene Card - Tap to Play (always opens modal), Long Press for Menu
 function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
@@ -107,7 +107,8 @@ function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
     e.preventDefault();
     e.stopPropagation();
     clearTimeout(pressTimer.current);
-    if (!didLongPress.current) { isActive ? onStop() : onPlay(scene); }
+    // Always open play modal on tap (even if active) - user can reapply or change settings
+    if (!didLongPress.current) { onPlay(scene); }
   };
   const handleCancel = () => clearTimeout(pressTimer.current);
   return (
@@ -122,7 +123,7 @@ function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
       className={`control-card ${isActive ? 'active playing' : ''}`}
     >
       <div className="card-icon">
-        {isActive ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+        {isActive ? <Check size={20} /> : <Play size={20} className="ml-0.5" />}
       </div>
       <div className="card-info">
         <div className="card-title">{scene.name}</div>

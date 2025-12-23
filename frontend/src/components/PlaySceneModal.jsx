@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ReactDOM from "react-dom";
-import { X, Play, Zap, Layers, Merge, Replace, AlertTriangle, Cpu } from "lucide-react";
+import { X, Play, Zap, Layers, Merge, Replace, AlertTriangle, Cpu, Users } from "lucide-react";
 import useNodeStore from "../store/nodeStore";
 import useDMXStore from "../store/dmxStore";
+import useGroupStore from "../store/groupStore";
 
 // Safe array helper
 const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
@@ -10,13 +11,16 @@ const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
 const PlaySceneModal = ({ scene, onClose, onPlay }) => {
   const { nodes: rawNodes } = useNodeStore();
   const { configuredUniverses: rawConfigured } = useDMXStore();
+  const { groups: rawGroups } = useGroupStore();
 
   // Defensive arrays
   const nodes = safeArray(rawNodes);
+  const groups = safeArray(rawGroups);
   const configuredUniverses = safeArray(rawConfigured).length > 0 ? rawConfigured : [1];
 
-  const [scope, setScope] = useState("current"); // current | selected | all | nodes
+  const [scope, setScope] = useState("current"); // current | selected | all | nodes | groups
   const [selectedUniverses, setSelectedUniverses] = useState([]);
+  const [selectedGroups, setSelectedGroups] = useState([]);
   const [mergeMode, setMergeMode] = useState("merge"); // merge | replace
   const [fadeMs, setFadeMs] = useState(1500);
 
@@ -29,8 +33,22 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
   const onlineNodes = useMemo(() => nodes.filter(n => n.status === 'online'), [nodes]);
 
   const toggleUniverse = (u) => setSelectedUniverses(p => p.includes(u) ? p.filter(x=>x!==u) : [...p,u]);
+  const toggleGroup = (g) => setSelectedGroups(p => p.includes(g) ? p.filter(x=>x!==g) : [...p,g]);
 
   const getNode = (u) => nodes.find(n => n.universe === u);
+
+  // Get channels from selected groups
+  const groupChannels = useMemo(() => {
+    if (scope !== 'groups' || selectedGroups.length === 0) return null;
+    const channels = [];
+    selectedGroups.forEach(gid => {
+      const group = groups.find(g => g.id === gid);
+      if (group?.channels) {
+        channels.push(...group.channels);
+      }
+    });
+    return [...new Set(channels)]; // Deduplicate
+  }, [scope, selectedGroups, groups]);
 
   // Calculate what will be affected
   const affectedUniverses = useMemo(() => {
@@ -39,6 +57,7 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
       case 'selected': return selectedUniverses;
       case 'all': return universes;
       case 'nodes': return [...new Set(onlineNodes.map(n => n.universe || 1))];
+      case 'groups': return [1]; // Groups typically on universe 1, but channels are what matter
       default: return [1];
     }
   }, [scope, selectedUniverses, universes, onlineNodes, scene]);
@@ -54,12 +73,17 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
       alert("Select at least one universe");
       return;
     }
+    if (scope === 'groups' && selectedGroups.length === 0) {
+      alert("Select at least one group");
+      return;
+    }
 
     onPlay(scene, {
       fadeMs,
       universes: affectedUniverses,
       mergeMode,
-      scope
+      scope,
+      targetChannels: groupChannels // Pass channels to apply to when using groups
     });
     onClose();
   };
@@ -107,17 +131,17 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
                 }`}>
                 <Layers size={16} /> Select
               </button>
+              <button onClick={()=>setScope("groups")}
+                className={`p-2.5 rounded-xl border flex items-center gap-2 justify-center text-sm ${
+                  scope==="groups" ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/70"
+                }`}>
+                <Users size={16} /> Groups
+              </button>
               <button onClick={()=>setScope("all")}
                 className={`p-2.5 rounded-xl border flex items-center gap-2 justify-center text-sm ${
                   scope==="all" ? "bg-orange-500/20 border-orange-500 text-orange-300" : "bg-white/5 border-white/10 text-white/70"
                 }`}>
                 <Layers size={16} /> All Universes
-              </button>
-              <button onClick={()=>setScope("nodes")}
-                className={`p-2.5 rounded-xl border flex items-center gap-2 justify-center text-sm ${
-                  scope==="nodes" ? "bg-orange-500/20 border-orange-500 text-orange-300" : "bg-white/5 border-white/10 text-white/70"
-                }`}>
-                <Cpu size={16} /> Online Nodes
               </button>
             </div>
           </div>
@@ -149,6 +173,41 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Group Selection (when scope is 'groups') */}
+          {scope === "groups" && (
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {groups.length === 0 ? (
+                <div className="text-center py-4 text-white/40 text-sm">
+                  No groups defined. Create groups in Fixtures.
+                </div>
+              ) : (
+                groups.map(g => {
+                  const s = selectedGroups.includes(g.id);
+                  const channelCount = g.channels?.length || 0;
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => toggleGroup(g.id)}
+                      className={`w-full p-2 rounded-xl border flex items-center justify-between ${
+                        s ? "bg-purple-500/20 border-purple-500" : "bg-white/5 border-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
+                          s ? "bg-purple-500 text-white" : "bg-white/10 text-white/50"
+                        }`}>
+                          <Users size={14} />
+                        </div>
+                        <span className="text-white text-sm">{g.name}</span>
+                      </div>
+                      <span className="text-white/40 text-xs">{channelCount} ch</span>
+                    </button>
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -197,7 +256,10 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/50">Affecting:</span>
               <span className="text-white font-bold">
-                {affectedUniverses.length} universe{affectedUniverses.length !== 1 ? 's' : ''} · {channelCount} channels
+                {scope === 'groups'
+                  ? `${selectedGroups.length} group${selectedGroups.length !== 1 ? 's' : ''} · ${groupChannels?.length || 0} channels`
+                  : `${affectedUniverses.length} universe${affectedUniverses.length !== 1 ? 's' : ''} · ${channelCount} channels`
+                }
               </span>
             </div>
           </div>

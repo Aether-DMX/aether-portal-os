@@ -13,6 +13,7 @@ const dockItems = [
   { id: 'faders', icon: Sliders, label: 'Faders', path: '/faders' },
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
+  { id: 'fixtures', emoji: '🎚️', label: 'Fixtures', path: '/fixtures' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
