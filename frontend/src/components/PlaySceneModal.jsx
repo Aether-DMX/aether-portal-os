@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import ReactDOM from "react-dom";
 import { X, Play, Zap, Layers, Merge, Replace, AlertTriangle, Cpu } from "lucide-react";
 import useNodeStore from "../store/nodeStore";
 import useDMXStore from "../store/dmxStore";
@@ -66,9 +67,13 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
   // Show warning for dangerous operations
   const showWarning = scope === 'all' || scope === 'nodes';
 
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-[#0d0d12] rounded-2xl w-full max-w-md border border-white/10" onClick={e=>e.stopPropagation()}>
+  return ReactDOM.createPortal(
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}
+      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-[#0d0d12] rounded-2xl w-full max-w-md border border-white/10" onClick={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}>
         {/* Header */}
         <div className="p-3 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -223,7 +228,8 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
