@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Sliders } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 // Import custom icons
 import scenesIcon from '../assets/icons/Scenes_Icon.png';
@@ -9,10 +10,10 @@ import settingsIcon from '../assets/icons/Settings_Icon.png';
 
 const dockItems = [
   { id: 'blackout', emoji: '⏻', label: 'Blackout', action: 'blackout' },
+  { id: 'faders', icon: Sliders, label: 'Faders', path: '/faders' },
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
-  { id: 'midipad', emoji: '🎹', label: 'Pads', path: '/midi-pad' },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
 
@@ -31,8 +32,8 @@ export default function Dock({ onAIClick }) {
     }
   };
 
-  // Don't show dock on certain pages
-  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases'];
+  // Don't show dock on certain pages (fullscreen views)
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/faders'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }
@@ -50,6 +51,8 @@ export default function Dock({ onAIClick }) {
             <div className={`dock-icon ${item.accent ? 'accent-bg' : ''}`}>
               {item.img ? (
                 <img src={item.img} alt={item.label} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+              ) : item.icon ? (
+                <item.icon size={28} className="text-white" />
               ) : (
                 item.emoji
               )}

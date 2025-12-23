@@ -432,8 +432,13 @@ export default function Scenes() {
 
   const handlePlayWithOptions = async (scene, options) => {
     const sceneId = scene.scene_id || scene.id;
+    // Apply scene to each universe in scope
     for (const u of options.universes) {
-      await playScene(sceneId, options.fadeMs, { universe: u });
+      await playScene(sceneId, options.fadeMs, {
+        universe: u,
+        mergeMode: options.mergeMode || 'merge',
+        scope: options.scope || 'current'
+      });
     }
   };
 
