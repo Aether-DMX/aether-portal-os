@@ -453,7 +453,11 @@ export default function Scenes() {
           <p className="text-[10px] text-white/50">{scenes.length} saved</p>
           </div>
         </div>
-        <button onClick={handleCreate} className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm">
+        <button
+          onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
+          onClick={handleCreate}
+          className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm"
+        >
           <Plus size={16} /> New
         </button>
       </div>
@@ -464,7 +468,11 @@ export default function Scenes() {
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <Sparkles size={40} className="text-white/20 mb-2" />
           <p className="text-white/40 text-sm mb-3">No scenes yet</p>
-          <button onClick={handleCreate} className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1">
+          <button
+            onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
+            onClick={handleCreate}
+            className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1"
+          >
             <Plus size={16} /> Create Scene
           </button>
         </div>
