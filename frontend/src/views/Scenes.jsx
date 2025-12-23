@@ -7,6 +7,7 @@ import useNodeStore from '../store/nodeStore';
 import usePlaybackStore from '../store/playbackStore';
 import FaderModal from '../components/FaderModal';
 import PlaySceneModal from '../components/PlaySceneModal';
+import SceneEditor from '../components/common/SceneEditor';
 
 // AI command processing
 const processAICommand = (prompt, currentChannels = {}) => {
@@ -519,13 +520,22 @@ export default function Scenes() {
 
             </div>
 
-      {/* Scene Creator Modal */}
-      <SceneCreatorModal
-        scene={editingScene}
-        isOpen={isCreating}
-        onClose={() => { setIsCreating(false); setEditingScene(null); }}
-        onSave={handleSave}
-      />
+      {/* Scene Editor Modal */}
+      {isCreating && (
+        <SceneEditor
+          scene={editingScene}
+          onClose={() => { setIsCreating(false); setEditingScene(null); }}
+          onSave={(sceneData, isTest) => {
+            if (isTest) {
+              // Test mode - just send to DMX, don't save
+              const { setChannels } = useDMXStore.getState();
+              setChannels(sceneData.universe || 1, sceneData.channels, sceneData.fade_ms || 0);
+            } else {
+              handleSave(sceneData);
+            }
+          }}
+        />
+      )}
 
       {/* Play Scene Modal */}
       {playModalScene && (
