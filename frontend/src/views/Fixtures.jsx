@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Check, X, Layers, Lightbulb, Cpu, AlertTriangle, Wifi, WifiOff, Save, ChevronLeft, ChevronRight } from 'lucide-react';
-import useFixtureStore from '../store/fixtureStore';
+import { ArrowLeft, Plus, Trash2, Check, X, Layers, Lightbulb, Cpu, AlertTriangle, Wifi, WifiOff, Save, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useFixtureStore } from '../store/fixtureStore';
 import useNodeStore from '../store/nodeStore';
 import { useKeyboard } from '../context/KeyboardContext';
 import axios from 'axios';
 
 const API_BASE = `http://${window.location.hostname}:3000`;
+
+// Safe array helper - ensures we always have an array
+const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
 
 const FIXTURE_PRESETS = [
   { id: 'dimmer-1ch', name: 'Dimmer', channels: 1, icon: '💡' },
@@ -60,8 +63,9 @@ function GroupTile({ group, count, onTap }) {
 
 // Compact node tile
 function NodeTile({ node, fixtures }) {
-  const nodeFixtures = fixtures.filter(f => f.node_id === node.node_id || (f.universe === node.universe && !f.node_id));
-  const utilization = nodeFixtures.length > 0 ? Math.min(100, (nodeFixtures.reduce((sum, f) => sum + f.channel_count, 0) / 512) * 100) : 0;
+  const safeFixtures = safeArray(fixtures);
+  const nodeFixtures = safeFixtures.filter(f => f.node_id === node.node_id || (f.universe === node.universe && !f.node_id));
+  const utilization = nodeFixtures.length > 0 ? Math.min(100, (nodeFixtures.reduce((sum, f) => sum + (f.channel_count || 0), 0) / 512) * 100) : 0;
   const barColor = utilization > 90 ? '#ef4444' : utilization > 70 ? '#eab308' : '#22c55e';
 
   return (
@@ -278,16 +282,19 @@ function GroupEditor({ group, fixtures, onSave, onClose, onDelete }) {
   const { openKeyboard } = useKeyboard();
   const isEditing = !!group?.id;
   const [name, setName] = useState(group?.name || '');
-  const [selectedIds, setSelectedIds] = useState(group?.fixture_ids || []);
+  const [selectedIds, setSelectedIds] = useState(safeArray(group?.fixture_ids));
   const [color, setColor] = useState(group?.color || COLORS[0]);
   const [page, setPage] = useState(0);
   const perPage = 8;
 
+  // Defensive: ensure fixtures is always an array
+  const safeFixtures = safeArray(fixtures);
+
   const toggleFixture = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const handleSave = () => { if (name.trim()) onSave({ id: group?.id, name: name.trim(), fixture_ids: selectedIds, color }); };
 
-  const pageFixtures = fixtures.slice(page * perPage, (page + 1) * perPage);
-  const totalPages = Math.ceil(fixtures.length / perPage);
+  const pageFixtures = safeFixtures.slice(page * perPage, (page + 1) * perPage);
+  const totalPages = Math.ceil(safeFixtures.length / perPage);
 
   return (
     <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50" onClick={onClose}>
@@ -319,11 +326,11 @@ function GroupEditor({ group, fixtures, onSave, onClose, onDelete }) {
           <div>
             <label className="text-[11px] text-white/50 mb-1 block">FIXTURES ({selectedIds.length} selected)</label>
             <div className="grid grid-cols-4 gap-1">
-              {pageFixtures.map(f => (
-                <button key={f.fixture_id} onClick={() => toggleFixture(f.fixture_id)}
-                  className={`p-2 rounded-lg text-xs transition-all ${selectedIds.includes(f.fixture_id) ? 'bg-[var(--accent)]/30 border border-[var(--accent)]' : 'bg-white/5 border border-transparent'}`}>
-                  <div className="w-5 h-5 rounded mx-auto mb-1" style={{ background: f.color }}>{f.name.charAt(0)}</div>
-                  <div className="truncate">{f.name}</div>
+              {pageFixtures.map(f => f && (
+                <button key={f.fixture_id || f.id} onClick={() => toggleFixture(f.fixture_id || f.id)}
+                  className={`p-2 rounded-lg text-xs transition-all ${selectedIds.includes(f.fixture_id || f.id) ? 'bg-[var(--accent)]/30 border border-[var(--accent)]' : 'bg-white/5 border border-transparent'}`}>
+                  <div className="w-5 h-5 rounded mx-auto mb-1" style={{ background: f.color || '#8b5cf6' }}>{(f.name || '?').charAt(0)}</div>
+                  <div className="truncate">{f.name || 'Unknown'}</div>
                 </button>
               ))}
             </div>
@@ -366,8 +373,12 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 // Main component - grid with pagination, no scroll needed
 export default function Fixtures() {
   const navigate = useNavigate();
-  const { fixtures, fetchFixtures, addFixture, updateFixture, removeFixture } = useFixtureStore();
-  const { nodes } = useNodeStore();
+  const { fixtures: rawFixtures, fetchFixtures, addFixture, updateFixture, removeFixture, loading: fixturesLoading } = useFixtureStore();
+  const { nodes: rawNodes } = useNodeStore();
+
+  // Defensive: ensure arrays
+  const fixtures = safeArray(rawFixtures);
+  const nodes = safeArray(rawNodes);
 
   const [activeTab, setActiveTab] = useState('fixtures');
   const [page, setPage] = useState(0);
@@ -377,6 +388,8 @@ export default function Fixtures() {
   const [editingGroup, setEditingGroup] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [groupsError, setGroupsError] = useState(null);
 
   // Grid config for 800x480 - fits without scrolling
   const ITEMS_PER_PAGE = 10; // 5 columns x 2 rows
@@ -386,12 +399,35 @@ export default function Fixtures() {
 
   useEffect(() => {
     const loadGroups = async () => {
+      setGroupsLoading(true);
+      setGroupsError(null);
       try {
         const res = await axios.get(`${API_BASE}/api/groups`);
-        setGroups(res.data || []);
+        // Validate response is an array
+        const data = Array.isArray(res.data) ? res.data : [];
+        // Validate each group has required fields
+        const validGroups = data.filter(g => g && typeof g === 'object' && g.id && g.name).map(g => ({
+          id: g.id,
+          name: g.name || 'Unnamed',
+          fixture_ids: Array.isArray(g.fixture_ids) ? g.fixture_ids : [],
+          color: g.color || '#8b5cf6'
+        }));
+        setGroups(validGroups);
       } catch (e) {
-        const saved = localStorage.getItem('aether-fixture-groups-v2');
-        if (saved) setGroups(JSON.parse(saved));
+        console.error('Failed to load groups:', e);
+        setGroupsError(e.message);
+        // Fallback to localStorage
+        try {
+          const saved = localStorage.getItem('aether-fixture-groups-v2');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setGroups(Array.isArray(parsed) ? parsed : []);
+          }
+        } catch {
+          setGroups([]);
+        }
+      } finally {
+        setGroupsLoading(false);
       }
     };
     loadGroups();
@@ -404,8 +440,10 @@ export default function Fixtures() {
     const c = new Set();
     const universes = {};
     fixtures.forEach(f => {
+      if (!f || !f.universe || !f.start_channel) return;
       if (!universes[f.universe]) universes[f.universe] = {};
-      for (let ch = f.start_channel; ch < f.start_channel + f.channel_count; ch++) {
+      const channelCount = f.channel_count || 1;
+      for (let ch = f.start_channel; ch < f.start_channel + channelCount; ch++) {
         if (universes[f.universe][ch]) { c.add(f.fixture_id); c.add(universes[f.universe][ch]); }
         universes[f.universe][ch] = f.fixture_id;
       }
@@ -413,7 +451,10 @@ export default function Fixtures() {
     return c;
   }, [fixtures]);
 
-  const currentItems = activeTab === 'fixtures' ? fixtures : activeTab === 'groups' ? groups : nodes.filter(n => n.is_paired || n.is_builtin);
+  // Safe groups array
+  const safeGroups = safeArray(groups);
+  const safeNodes = nodes.filter(n => n && (n.is_paired || n.is_builtin));
+  const currentItems = activeTab === 'fixtures' ? fixtures : activeTab === 'groups' ? safeGroups : safeNodes;
   const totalPages = Math.ceil(currentItems.length / ITEMS_PER_PAGE);
   const pageItems = currentItems.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
 
@@ -469,8 +510,8 @@ export default function Fixtures() {
       <div className="flex border-b border-white/10 shrink-0">
         {[
           { id: 'fixtures', label: 'Fixtures', icon: Lightbulb, count: fixtures.length },
-          { id: 'groups', label: 'Groups', icon: Layers, count: groups.length },
-          { id: 'nodes', label: 'Nodes', icon: Cpu, count: nodes.filter(n => n.is_paired || n.is_builtin).length },
+          { id: 'groups', label: 'Groups', icon: Layers, count: safeGroups.length },
+          { id: 'nodes', label: 'Nodes', icon: Cpu, count: safeNodes.length },
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-2 flex items-center justify-center gap-1 text-sm transition-all ${
@@ -485,7 +526,25 @@ export default function Fixtures() {
 
       {/* Content - grid, no scroll */}
       <div className="flex-1 p-3 flex flex-col">
-        {currentItems.length === 0 ? (
+        {/* Loading state for groups */}
+        {activeTab === 'groups' && groupsLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <Loader2 size={40} className="text-white/40 mb-3 animate-spin" />
+            <p className="text-white/50 text-sm">Loading groups...</p>
+          </div>
+        ) : activeTab === 'groups' && groupsError && safeGroups.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <AlertTriangle size={40} className="text-red-400/60 mb-3" />
+            <h3 className="text-base font-semibold text-white mb-1">Failed to load groups</h3>
+            <p className="text-white/50 text-sm mb-4">{groupsError}</p>
+            <button
+              onClick={() => { setEditingGroup(null); setShowGroupEditor(true); }}
+              className="px-4 py-2 rounded-lg bg-[var(--accent)] text-black font-bold text-sm flex items-center gap-2"
+            >
+              <Plus size={16} /> Create New Group
+            </button>
+          </div>
+        ) : currentItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             {activeTab === 'fixtures' && <Lightbulb size={40} className="text-white/20 mb-3" />}
             {activeTab === 'groups' && <Layers size={40} className="text-white/20 mb-3" />}
