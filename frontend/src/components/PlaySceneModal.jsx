@@ -65,18 +65,32 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
 
   const getNode = (u) => nodes.find(n => n.universe === u);
 
-  // Get channels from selected groups
-  const groupChannels = useMemo(() => {
+  // Get channels from selected groups, organized by universe
+  const groupChannelsByUniverse = useMemo(() => {
     if (scope !== 'groups' || selectedGroups.length === 0) return null;
-    const channels = [];
+    const byUniverse = {};
     selectedGroups.forEach(gid => {
       const group = groups.find(g => g.id === gid);
       if (group?.channels) {
-        channels.push(...group.channels);
+        const univ = group.universe || 1;
+        if (!byUniverse[univ]) byUniverse[univ] = [];
+        byUniverse[univ].push(...group.channels);
       }
     });
-    return [...new Set(channels)]; // Deduplicate
+    // Deduplicate channels per universe
+    Object.keys(byUniverse).forEach(u => {
+      byUniverse[u] = [...new Set(byUniverse[u])];
+    });
+    return byUniverse;
   }, [scope, selectedGroups, groups]);
+
+  // Flat list of all group channels (for display)
+  const groupChannels = useMemo(() => {
+    if (!groupChannelsByUniverse) return null;
+    const allChannels = [];
+    Object.values(groupChannelsByUniverse).forEach(chs => allChannels.push(...chs));
+    return [...new Set(allChannels)];
+  }, [groupChannelsByUniverse]);
 
   // Calculate what will be affected
   const affectedUniverses = useMemo(() => {
@@ -118,7 +132,7 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
       universes: affectedUniverses,
       mergeMode,
       scope,
-      targetChannels: groupChannels // Pass channels to apply to when using groups
+      channelsByUniverse: groupChannelsByUniverse // Pass channels organized by universe for group playback
     });
     onClose();
   };

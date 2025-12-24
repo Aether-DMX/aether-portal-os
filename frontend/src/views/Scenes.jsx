@@ -447,10 +447,13 @@ export default function Scenes() {
     const sceneId = scene.scene_id || scene.id;
     // Apply scene to each universe in scope
     for (const u of options.universes) {
+      // For group-based playback, get channels specific to this universe
+      const targetChannels = options.channelsByUniverse?.[u] || null;
       await playScene(sceneId, options.fadeMs, {
         universe: u,
         mergeMode: options.mergeMode || 'merge',
-        scope: options.scope || 'current'
+        scope: options.scope || 'current',
+        targetChannels // Pass universe-specific channels for group playback
       });
     }
   };
