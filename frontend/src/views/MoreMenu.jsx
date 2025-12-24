@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, X, Activity, Palette, Sparkles, Cpu, Bot, Shield,
-  Globe, Radio, Zap, Network, Eye, EyeOff, Trash2, Thermometer, HardDrive
+  Globe, Radio, Zap, Network, Eye, EyeOff, Trash2, Thermometer, HardDrive,
+  Download, RefreshCw, Check, AlertCircle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { HexColorPicker } from 'react-colorful';
@@ -72,11 +73,16 @@ export default function MoreMenu() {
 
   const [deviceStatus, setDeviceStatus] = useState({ internet: false, aetherNetwork: false, systemHealthy: false, checking: true });
   const [systemStats, setSystemStats] = useState({ cpuLoad: '--', memory: '--', temperature: '--' });
+  const [updateInfo, setUpdateInfo] = useState({ checking: false, available: false, commits: 0, current: '', latest: '' });
+  const [updating, setUpdating] = useState(false);
+  const [autoSync, setAutoSync] = useState({ enabled: false, interval: 30 });
 
   useEffect(() => {
     fetchNodes();
     checkDeviceStatus();
     fetchSystemStats();
+    checkForUpdates();
+    fetchAutoSyncStatus();
     const interval = setInterval(() => { checkDeviceStatus(); fetchSystemStats(); }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -103,6 +109,78 @@ export default function MoreMenu() {
         });
       }
     } catch (e) {}
+  };
+
+  const checkForUpdates = async () => {
+    setUpdateInfo(prev => ({ ...prev, checking: true }));
+    try {
+      const response = await fetch(getBackendUrl() + '/api/system/update/check', { signal: AbortSignal.timeout(30000) });
+      if (response.ok) {
+        const data = await response.json();
+        setUpdateInfo({
+          checking: false,
+          available: data.update_available,
+          commits: data.commits_behind || 0,
+          current: data.current_commit || '',
+          latest: data.latest_commit || ''
+        });
+      }
+    } catch (e) {
+      setUpdateInfo(prev => ({ ...prev, checking: false }));
+    }
+  };
+
+  const applyUpdate = async () => {
+    if (!confirm('Update system? This will restart the backend.')) return;
+    setUpdating(true);
+    try {
+      const response = await fetch(getBackendUrl() + '/api/system/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Updated: ${data.old_commit} → ${data.new_commit}`);
+        // Backend will restart, wait a bit then refresh
+        setTimeout(() => {
+          checkForUpdates();
+          setUpdating(false);
+        }, 5000);
+      } else {
+        toast.error('Update failed');
+        setUpdating(false);
+      }
+    } catch (e) {
+      toast.error('Update failed: ' + e.message);
+      setUpdating(false);
+    }
+  };
+
+  const fetchAutoSyncStatus = async () => {
+    try {
+      const response = await fetch(getBackendUrl() + '/api/system/autosync');
+      if (response.ok) {
+        const data = await response.json();
+        setAutoSync({ enabled: data.enabled, interval: data.interval_minutes });
+      }
+    } catch (e) {}
+  };
+
+  const toggleAutoSync = async () => {
+    const newEnabled = !autoSync.enabled;
+    try {
+      const response = await fetch(getBackendUrl() + '/api/system/autosync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newEnabled, interval_minutes: autoSync.interval })
+      });
+      if (response.ok) {
+        setAutoSync(prev => ({ ...prev, enabled: newEnabled }));
+        toast.success(newEnabled ? 'Auto-sync enabled' : 'Auto-sync disabled');
+      }
+    } catch (e) {
+      toast.error('Failed to toggle auto-sync');
+    }
   };
 
   const handleColorChange = async (color) => {
@@ -283,18 +361,72 @@ export default function MoreMenu() {
 
         {/* SYSTEM */}
         {activeTab === 'system' && (
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'Version', value: '2.0.0' },
-              { label: 'Protocol', value: 'sACN' },
-              { label: 'Device', value: 'Pi 5' },
-              { label: 'OS', value: 'Debian 12' },
-            ].map((item) => (
-              <div key={item.label} className="p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[10px] text-white/40 mb-0.5">{item.label}</div>
-                <div className="text-xs font-bold text-white">{item.value}</div>
+          <div className="space-y-3">
+            {/* Version Info */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Version', value: '2.0.0' },
+                { label: 'Protocol', value: 'sACN' },
+                { label: 'Device', value: 'Pi 5' },
+                { label: 'Commit', value: updateInfo.current || '...' },
+              ].map((item) => (
+                <div key={item.label} className="p-2 rounded-xl bg-white/5 border border-white/10">
+                  <div className="text-[10px] text-white/40 mb-0.5">{item.label}</div>
+                  <div className="text-xs font-bold text-white truncate">{item.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Update Section */}
+            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Download size={14} className="text-[var(--accent)]" />
+                  <span className="text-xs font-bold text-white">System Updates</span>
+                </div>
+                <button onClick={checkForUpdates} disabled={updateInfo.checking}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50">
+                  <RefreshCw size={12} className={'text-white ' + (updateInfo.checking ? 'animate-spin' : '')} />
+                </button>
               </div>
-            ))}
+
+              {updateInfo.available ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                    <AlertCircle size={14} className="text-green-400" />
+                    <span className="text-xs text-green-400">{updateInfo.commits} update{updateInfo.commits > 1 ? 's' : ''} available</span>
+                  </div>
+                  {updateInfo.latest && (
+                    <div className="text-[10px] text-white/50 truncate">Latest: {updateInfo.latest}</div>
+                  )}
+                  <button onClick={applyUpdate} disabled={updating}
+                    className="w-full py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                    {updating ? <RefreshCw size={12} className="animate-spin" /> : <Download size={12} />}
+                    {updating ? 'Updating...' : 'Install Update'}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                  <Check size={14} className="text-[var(--accent)]" />
+                  <span className="text-xs text-white/70">System is up to date</span>
+                </div>
+              )}
+            </div>
+
+            {/* Auto-Sync Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <RefreshCw size={14} className="text-[var(--accent)]" />
+                <div>
+                  <div className="text-xs font-bold text-white">Auto-Sync</div>
+                  <div className="text-[10px] text-white/40">Check every {autoSync.interval} min</div>
+                </div>
+              </div>
+              <div className={'w-10 h-5 rounded-full relative cursor-pointer ' + (autoSync.enabled ? 'bg-[var(--accent)]' : 'bg-white/20')}
+                onClick={toggleAutoSync}>
+                <div className={'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ' + (autoSync.enabled ? 'translate-x-5' : '')} />
+              </div>
+            </div>
           </div>
         )}
 
