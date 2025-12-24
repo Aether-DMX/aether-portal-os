@@ -48,11 +48,28 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', ola: olaService.isConnected() });
 });
 
-// Serve static frontend files
-app.use(express.static(FRONTEND_PATH));
+// Serve static frontend files with cache control
+// JS/CSS files have hashed names so they can be cached long-term
+// HTML files should not be cached to ensure latest JS is loaded
+app.use(express.static(FRONTEND_PATH, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      // Never cache HTML - ensures latest JS bundle is referenced
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else if (filePath.match(/\.(js|css)$/)) {
+      // Hashed assets can be cached for 1 year
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
-// Catch-all: serve index.html for React Router
+// Catch-all: serve index.html for React Router (with no-cache headers)
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(FRONTEND_PATH, 'index.html'));
 });
 app.use(errorHandler);

@@ -7,6 +7,7 @@ import { useKeyboard } from '../context/KeyboardContext';
 import axios from 'axios';
 
 const API_BASE = `http://${window.location.hostname}:3000`;
+const AETHER_CORE_URL = `http://${window.location.hostname}:8891`;
 
 // Safe array helper - ensures we always have an array
 const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
@@ -45,7 +46,8 @@ function FixtureTile({ fixture, onTap, isConflict }) {
 }
 
 // Compact group tile
-function GroupTile({ group, count, onTap }) {
+function GroupTile({ group, onTap }) {
+  const channelCount = group.channels?.length || 0;
   return (
     <button
       onClick={() => onTap(group)}
@@ -56,7 +58,7 @@ function GroupTile({ group, count, onTap }) {
         <Layers size={16} className="text-white" />
       </div>
       <div className="text-xs text-white truncate w-full text-center px-1">{group.name}</div>
-      <div className="text-[10px] text-white/40">{count} fixtures</div>
+      <div className="text-[10px] text-white/40">{channelCount} ch · U{group.universe || 1}</div>
     </button>
   );
 }
@@ -277,24 +279,71 @@ function FixtureEditor({ fixture, onSave, onClose, onDelete, existingFixtures })
   );
 }
 
-// Group editor modal - compact
+// Group editor modal - compact (uses channels for AETHER Core compatibility)
 function GroupEditor({ group, fixtures, onSave, onClose, onDelete }) {
   const { openKeyboard } = useKeyboard();
   const isEditing = !!group?.id;
   const [name, setName] = useState(group?.name || '');
-  const [selectedIds, setSelectedIds] = useState(safeArray(group?.fixture_ids));
   const [color, setColor] = useState(group?.color || COLORS[0]);
+  const [universe, setUniverse] = useState(group?.universe || 1);
   const [page, setPage] = useState(0);
   const perPage = 8;
 
   // Defensive: ensure fixtures is always an array
   const safeFixtures = safeArray(fixtures);
 
-  const toggleFixture = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const handleSave = () => { if (name.trim()) onSave({ id: group?.id, name: name.trim(), fixture_ids: selectedIds, color }); };
+  // Filter fixtures by selected universe
+  const universeFixtures = safeFixtures.filter(f => (f.universe || 1) === universe);
 
-  const pageFixtures = safeFixtures.slice(page * perPage, (page + 1) * perPage);
-  const totalPages = Math.ceil(safeFixtures.length / perPage);
+  // Get fixtures whose channels are in the group's channel list
+  const getSelectedFixtureIds = () => {
+    if (!group?.channels?.length) return [];
+    const channelSet = new Set(group.channels);
+    return universeFixtures
+      .filter(f => {
+        // Check if any of fixture's channels are in the group
+        for (let ch = f.start_channel; ch < f.start_channel + (f.channel_count || 1); ch++) {
+          if (channelSet.has(ch)) return true;
+        }
+        return false;
+      })
+      .map(f => f.fixture_id || f.id);
+  };
+
+  const [selectedIds, setSelectedIds] = useState(getSelectedFixtureIds);
+
+  // Convert selected fixture IDs to channel array
+  const getChannelsFromFixtures = () => {
+    const channels = [];
+    selectedIds.forEach(fid => {
+      const fixture = safeFixtures.find(f => (f.fixture_id || f.id) === fid);
+      if (fixture) {
+        for (let ch = fixture.start_channel; ch < fixture.start_channel + (fixture.channel_count || 1); ch++) {
+          channels.push(ch);
+        }
+      }
+    });
+    return [...new Set(channels)].sort((a, b) => a - b);
+  };
+
+  const toggleFixture = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const channels = getChannelsFromFixtures();
+    onSave({
+      group_id: group?.id,
+      name: name.trim(),
+      universe,
+      channels,
+      color
+    });
+  };
+
+  const pageFixtures = universeFixtures.slice(page * perPage, (page + 1) * perPage);
+  const totalPages = Math.ceil(universeFixtures.length / perPage);
+
+  const channelCount = getChannelsFromFixtures().length;
 
   return (
     <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50" onClick={onClose}>
@@ -313,33 +362,52 @@ function GroupEditor({ group, fixtures, onSave, onClose, onDelete }) {
                 className="w-full p-2 rounded-lg bg-white/10 text-white text-sm border border-white/10" />
             </div>
             <div>
-              <label className="text-[11px] text-white/50 mb-1 block">COLOR</label>
+              <label className="text-[11px] text-white/50 mb-1 block">UNIVERSE</label>
               <div className="flex gap-1">
-                {COLORS.slice(0, 6).map(c => (
-                  <button key={c} onClick={() => setColor(c)}
-                    className={`w-6 h-6 rounded-lg ${color === c ? 'ring-2 ring-white' : ''}`} style={{ background: c }} />
+                {[1, 2, 3].map(u => (
+                  <button key={u} onClick={() => { setUniverse(u); setSelectedIds([]); }}
+                    className={`flex-1 p-2 rounded-lg text-sm font-bold ${universe === u ? 'bg-[var(--accent)] text-black' : 'bg-white/10 text-white/70'}`}>
+                    {u}
+                  </button>
                 ))}
               </div>
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] text-white/50 mb-1 block">FIXTURES ({selectedIds.length} selected)</label>
-            <div className="grid grid-cols-4 gap-1">
-              {pageFixtures.map(f => f && (
-                <button key={f.fixture_id || f.id} onClick={() => toggleFixture(f.fixture_id || f.id)}
-                  className={`p-2 rounded-lg text-xs transition-all ${selectedIds.includes(f.fixture_id || f.id) ? 'bg-[var(--accent)]/30 border border-[var(--accent)]' : 'bg-white/5 border border-transparent'}`}>
-                  <div className="w-5 h-5 rounded mx-auto mb-1" style={{ background: f.color || '#8b5cf6' }}>{(f.name || '?').charAt(0)}</div>
-                  <div className="truncate">{f.name || 'Unknown'}</div>
-                </button>
+            <label className="text-[11px] text-white/50 mb-1 block">COLOR</label>
+            <div className="flex gap-1">
+              {COLORS.slice(0, 8).map(c => (
+                <button key={c} onClick={() => setColor(c)}
+                  className={`w-6 h-6 rounded-lg ${color === c ? 'ring-2 ring-white' : ''}`} style={{ background: c }} />
               ))}
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1 rounded bg-white/10 disabled:opacity-30"><ChevronLeft size={16} /></button>
-                <span className="text-xs text-white/50">{page + 1}/{totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1 rounded bg-white/10 disabled:opacity-30"><ChevronRight size={16} /></button>
-              </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] text-white/50 mb-1 block">FIXTURES ({selectedIds.length} selected · {channelCount} channels)</label>
+            {universeFixtures.length === 0 ? (
+              <div className="text-center py-4 text-white/40 text-sm">No fixtures on Universe {universe}</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-1">
+                  {pageFixtures.map(f => f && (
+                    <button key={f.fixture_id || f.id} onClick={() => toggleFixture(f.fixture_id || f.id)}
+                      className={`p-2 rounded-lg text-xs transition-all ${selectedIds.includes(f.fixture_id || f.id) ? 'bg-[var(--accent)]/30 border border-[var(--accent)]' : 'bg-white/5 border border-transparent'}`}>
+                      <div className="w-5 h-5 rounded mx-auto mb-1 flex items-center justify-center text-white text-[10px] font-bold" style={{ background: f.color || '#8b5cf6' }}>{(f.name || '?').charAt(0)}</div>
+                      <div className="truncate">{f.name || 'Unknown'}</div>
+                      <div className="text-white/40 text-[9px]">Ch{f.start_channel}</div>
+                    </button>
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1 rounded bg-white/10 disabled:opacity-30"><ChevronLeft size={16} /></button>
+                    <span className="text-xs text-white/50">{page + 1}/{totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1 rounded bg-white/10 disabled:opacity-30"><ChevronRight size={16} /></button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -402,30 +470,23 @@ export default function Fixtures() {
       setGroupsLoading(true);
       setGroupsError(null);
       try {
-        const res = await axios.get(`${API_BASE}/api/groups`);
+        // Fetch from AETHER Core (SSOT for groups)
+        const res = await axios.get(`${AETHER_CORE_URL}/api/groups`);
         // Validate response is an array
         const data = Array.isArray(res.data) ? res.data : [];
-        // Validate each group has required fields
-        const validGroups = data.filter(g => g && typeof g === 'object' && g.id && g.name).map(g => ({
-          id: g.id,
+        // Normalize Core's group_id to id for consistency
+        const validGroups = data.filter(g => g && typeof g === 'object' && (g.group_id || g.id) && g.name).map(g => ({
+          id: g.group_id || g.id,
           name: g.name || 'Unnamed',
-          fixture_ids: Array.isArray(g.fixture_ids) ? g.fixture_ids : [],
+          channels: Array.isArray(g.channels) ? g.channels : [],
+          universe: g.universe || 1,
           color: g.color || '#8b5cf6'
         }));
         setGroups(validGroups);
       } catch (e) {
-        console.error('Failed to load groups:', e);
+        console.error('Failed to load groups from AETHER Core:', e);
         setGroupsError(e.message);
-        // Fallback to localStorage
-        try {
-          const saved = localStorage.getItem('aether-fixture-groups-v2');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            setGroups(Array.isArray(parsed) ? parsed : []);
-          }
-        } catch {
-          setGroups([]);
-        }
+        setGroups([]);
       } finally {
         setGroupsLoading(false);
       }
@@ -467,30 +528,39 @@ export default function Fixtures() {
   };
 
   const handleDeleteFixture = async (id) => { await removeFixture(id); setConfirmDelete(null); setShowEditor(false); setEditingFixture(null); };
+
   const handleSaveGroup = async (data) => {
     try {
-      let savedGroup;
-      const isUpdate = data.id && groups.some(g => g.id === data.id);
-
-      if (isUpdate) {
-        // Update existing group
-        const res = await axios.put(`${API_BASE}/api/groups/${data.id}`, data);
-        savedGroup = res.data;
-      } else {
-        // Create new group
-        const res = await axios.post(`${API_BASE}/api/groups`, data);
-        savedGroup = res.data;
-      }
-
-      // Ensure savedGroup has all required fields
-      const validGroup = {
-        id: savedGroup.id || data.id,
-        name: savedGroup.name || data.name,
-        fixture_ids: Array.isArray(savedGroup.fixture_ids) ? savedGroup.fixture_ids : (data.fixture_ids || []),
-        color: savedGroup.color || data.color || '#8b5cf6'
+      // Save to AETHER Core (SSOT)
+      const isUpdate = data.group_id && groups.some(g => g.id === data.group_id);
+      const payload = {
+        group_id: data.group_id,
+        name: data.name,
+        universe: data.universe || 1,
+        channels: data.channels || [],
+        color: data.color || '#8b5cf6'
       };
 
-      // Update local state with the server response
+      let responseGroupId;
+      if (isUpdate) {
+        await axios.put(`${AETHER_CORE_URL}/api/groups/${data.group_id}`, payload);
+        responseGroupId = data.group_id;
+      } else {
+        const res = await axios.post(`${AETHER_CORE_URL}/api/groups`, payload);
+        // Core returns { success: true, group_id: "..." }
+        responseGroupId = res.data.group_id;
+      }
+
+      // Build local group object from our payload data (Core doesn't return full object)
+      const validGroup = {
+        id: responseGroupId,
+        name: data.name,
+        channels: data.channels || [],
+        universe: data.universe || 1,
+        color: data.color || '#8b5cf6'
+      };
+
+      // Update local state
       setGroups(prev => {
         const exists = prev.find(g => g.id === validGroup.id);
         if (exists) {
@@ -499,20 +569,28 @@ export default function Fixtures() {
         return [...prev, validGroup];
       });
 
-      console.log('✅ Group saved:', validGroup);
+      console.log('✅ Group saved to AETHER Core:', validGroup);
     } catch (e) {
-      console.error('Failed to save group:', e);
-      // Show error to user - don't silently fail
+      console.error('Failed to save group to AETHER Core:', e);
       alert('Failed to save group: ' + (e.response?.data?.error || e.message));
-      return; // Don't close modal on error
+      return;
     }
     setShowGroupEditor(false);
     setEditingGroup(null);
   };
+
   const handleDeleteGroup = async (id) => {
-    try { await axios.delete(`${API_BASE}/api/groups/${id}`); setGroups(prev => prev.filter(g => g.id !== id)); }
-    catch (e) { console.error('Failed to delete group:', e); }
-    setConfirmDelete(null); setShowGroupEditor(false); setEditingGroup(null);
+    try {
+      await axios.delete(`${AETHER_CORE_URL}/api/groups/${id}`);
+      setGroups(prev => prev.filter(g => g.id !== id));
+      console.log('✅ Group deleted from AETHER Core:', id);
+    } catch (e) {
+      console.error('Failed to delete group from AETHER Core:', e);
+      alert('Failed to delete group: ' + (e.response?.data?.error || e.message));
+    }
+    setConfirmDelete(null);
+    setShowGroupEditor(false);
+    setEditingGroup(null);
   };
 
   return (
@@ -605,7 +683,7 @@ export default function Fixtures() {
                 activeTab === 'fixtures' ? (
                   <FixtureTile key={item.fixture_id} fixture={item} onTap={f => { setEditingFixture(f); setShowEditor(true); }} isConflict={conflicts.has(item.fixture_id)} />
                 ) : activeTab === 'groups' ? (
-                  <GroupTile key={item.id} group={item} count={fixtures.filter(f => item.fixture_ids?.includes(f.fixture_id)).length} onTap={g => { setEditingGroup(g); setShowGroupEditor(true); }} />
+                  <GroupTile key={item.id} group={item} onTap={g => { setEditingGroup(g); setShowGroupEditor(true); }} />
                 ) : (
                   <NodeTile key={item.node_id} node={item} fixtures={fixtures} />
                 )

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 export default function MobileFixtures() {
   const [fixtures, setFixtures] = useState([]);
   const [groups, setGroups] = useState([]);
-  const backendUrl = 'http://' + window.location.hostname + ':8891';
+  const backendUrl = `http://${window.location.hostname}:8891`;
 
   useEffect(() => {
     fetch(backendUrl + '/api/fixtures').then(r => r.json()).then(setFixtures).catch(console.error);

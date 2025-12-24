@@ -1,21 +1,21 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ReactDOM from "react-dom";
-import { X, Play, Zap, Layers, Merge, Replace, AlertTriangle, Cpu, Users } from "lucide-react";
+import { X, Play, Zap, Layers, Merge, Replace, AlertTriangle, Cpu, Users, Loader } from "lucide-react";
 import useNodeStore from "../store/nodeStore";
 import useDMXStore from "../store/dmxStore";
-import useGroupStore from "../store/groupStore";
+import axios from "axios";
 
 // Safe array helper
 const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
+const API_BASE = `http://${window.location.hostname}:3000`;
+const AETHER_CORE_URL = `http://${window.location.hostname}:8891`;
 
 const PlaySceneModal = ({ scene, onClose, onPlay }) => {
   const { nodes: rawNodes } = useNodeStore();
   const { configuredUniverses: rawConfigured } = useDMXStore();
-  const { groups: rawGroups } = useGroupStore();
 
   // Defensive arrays
   const nodes = safeArray(rawNodes);
-  const groups = safeArray(rawGroups);
   const configuredUniverses = safeArray(rawConfigured).length > 0 ? rawConfigured : [1];
 
   const [scope, setScope] = useState("current"); // current | selected | all | nodes | groups
@@ -23,6 +23,34 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [mergeMode, setMergeMode] = useState("merge"); // merge | replace
   const [fadeMs, setFadeMs] = useState(1500);
+
+  // Fetch groups from backend API
+  const [groups, setGroups] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      setGroupsLoading(true);
+      try {
+        // Fetch from AETHER Core (SSOT for groups)
+        const res = await axios.get(`${AETHER_CORE_URL}/api/groups`);
+        const data = Array.isArray(res.data) ? res.data : [];
+        // Normalize Core's group_id to id for consistency
+        setGroups(data.filter(g => g && (g.group_id || g.id) && g.name).map(g => ({
+          id: g.group_id || g.id,
+          name: g.name,
+          channels: g.channels || [],
+          universe: g.universe || 1,
+          color: g.color || '#8b5cf6'
+        })));
+      } catch (e) {
+        console.error('Failed to load groups from AETHER Core:', e);
+        setGroups([]);
+      }
+      setGroupsLoading(false);
+    };
+    loadGroups();
+  }, []);
 
   // Get unique universes from nodes (online only for node scope)
   const universes = useMemo(() => {
@@ -57,10 +85,17 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
       case 'selected': return selectedUniverses;
       case 'all': return universes;
       case 'nodes': return [...new Set(onlineNodes.map(n => n.universe || 1))];
-      case 'groups': return [1]; // Groups typically on universe 1, but channels are what matter
+      case 'groups': {
+        // Get universes from selected groups
+        const groupUnivs = selectedGroups.map(gid => {
+          const group = groups.find(g => g.id === gid);
+          return group?.universe || 1;
+        });
+        return [...new Set(groupUnivs)];
+      }
       default: return [1];
     }
-  }, [scope, selectedUniverses, universes, onlineNodes, scene]);
+  }, [scope, selectedUniverses, universes, onlineNodes, scene, selectedGroups, groups]);
 
   // Count channels that will be affected
   const channelCount = useMemo(() => {
@@ -179,14 +214,18 @@ const PlaySceneModal = ({ scene, onClose, onPlay }) => {
           {/* Group Selection (when scope is 'groups') */}
           {scope === "groups" && (
             <div className="space-y-1.5 max-h-32 overflow-y-auto">
-              {groups.length === 0 ? (
+              {groupsLoading ? (
+                <div className="text-center py-4 text-white/40 text-sm flex items-center justify-center gap-2">
+                  <Loader size={16} className="animate-spin" /> Loading groups...
+                </div>
+              ) : groups.length === 0 ? (
                 <div className="text-center py-4 text-white/40 text-sm">
                   No groups defined. Create groups in Fixtures.
                 </div>
               ) : (
                 groups.map(g => {
                   const s = selectedGroups.includes(g.id);
-                  const channelCount = g.channels?.length || 0;
+                  const channelCount = g.channels?.length || g.fixture_ids?.length || 0;
                   return (
                     <button
                       key={g.id}
