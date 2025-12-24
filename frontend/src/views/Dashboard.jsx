@@ -219,9 +219,9 @@ export default function Dashboard() {
     localStorage.setItem('quickSceneIds', JSON.stringify(ids));
   };
 
-  // Filter to only show configured/paired nodes
+  // Filter to only show paired nodes (is_paired = 1 or is_builtin = 1)
   const configuredNodes = useMemo(() => {
-    return nodes.filter(n => n.name && n.name !== 'Unknown' && n.name !== 'New Node');
+    return nodes.filter(n => n.is_paired || n.is_builtin);
   }, [nodes]);
 
   // Load zone order from localStorage or use default order

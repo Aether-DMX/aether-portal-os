@@ -53,6 +53,14 @@ const useNodeStore = create((set, get) => ({
     return get().nodes.filter(n => n.status === 'online');
   },
 
+  getPairedNodes: () => {
+    return get().nodes.filter(n => n.is_paired || n.is_builtin);
+  },
+
+  getUnpairedNodes: () => {
+    return get().nodes.filter(n => !n.is_paired && !n.is_builtin && n.status === 'online');
+  },
+
   getNodesByUniverse: (universe) => {
     return get().nodes.filter(n => n.universe === universe);
   }
