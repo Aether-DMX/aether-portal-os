@@ -7,7 +7,7 @@ import useChaseStore from '../store/chaseStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import FaderModal from '../components/FaderModal';
-import PlayChaseModal from '../components/PlayChaseModal';
+import ApplyTargetModal from '../components/ApplyTargetModal';
 
 // Color presets for quick step creation
 const COLOR_PRESETS = [
@@ -902,11 +902,13 @@ export default function Chases() {
         scenes={scenes}
       />
 
+      {/* Play Chase Modal - Uses unified ApplyTargetModal */}
       {playModalChase && (
-        <PlayChaseModal
-          chase={playModalChase}
-          onClose={() => setPlayModalChase(null)}
-          onPlay={handlePlayWithOptions}
+        <ApplyTargetModal
+          mode="chase"
+          item={playModalChase}
+          onConfirm={handlePlayWithOptions}
+          onCancel={() => setPlayModalChase(null)}
         />
       )}
 

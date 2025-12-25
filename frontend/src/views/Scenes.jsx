@@ -6,7 +6,7 @@ import useDMXStore from '../store/dmxStore';
 import useNodeStore from '../store/nodeStore';
 import usePlaybackStore from '../store/playbackStore';
 import FaderModal from '../components/FaderModal';
-import PlaySceneModal from '../components/PlaySceneModal';
+import ApplyTargetModal from '../components/ApplyTargetModal';
 import SceneEditor from '../components/common/SceneEditor';
 
 // AI command processing
@@ -560,12 +560,13 @@ export default function Scenes() {
         />
       )}
 
-      {/* Play Scene Modal */}
+      {/* Play Scene Modal - Uses unified ApplyTargetModal */}
       {playModalScene && (
-        <PlaySceneModal
-          scene={playModalScene}
-          onClose={() => setPlayModalScene(null)}
-          onPlay={handlePlayWithOptions}
+        <ApplyTargetModal
+          mode="scene"
+          item={playModalScene}
+          onConfirm={handlePlayWithOptions}
+          onCancel={() => setPlayModalScene(null)}
         />
       )}
 
