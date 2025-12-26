@@ -807,7 +807,14 @@ export default function Chases() {
   const handlePlayWithOptions = async (chase, options) => {
     const chaseId = chase.chase_id || chase.id;
     setPlayModalChase(null);
-    await playChase(chaseId, { universes: options.universes });
+    // Play chase on each selected universe (matching Scene behavior)
+    for (const u of options.universes) {
+      const targetChannels = options.channelsByUniverse?.[u] || null;
+      await playChase(chaseId, {
+        universe: u,
+        targetChannels
+      });
+    }
   };
 
   const handleDelete = async (chase) => {
