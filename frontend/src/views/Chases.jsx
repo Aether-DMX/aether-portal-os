@@ -819,7 +819,8 @@ export default function Chases() {
       const targetChannels = options.channelsByUniverse?.[u] || null;
       await playChase(chaseId, {
         universe: u,
-        targetChannels
+        targetChannels,
+        fade_ms: options.fadeMs // Pass fade time from modal
       });
     }
   };

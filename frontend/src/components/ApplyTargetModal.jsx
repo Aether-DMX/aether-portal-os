@@ -37,7 +37,7 @@ const MODE_CONFIG = {
     subtitle: (item) => `${item?.bpm || 120} BPM • ${item?.steps?.length || 0} steps`,
     primaryColor: 'purple',
     primaryLabel: 'Play',
-    showFadeOptions: false,
+    showFadeOptions: true, // Enable fade time selection for chases
     showGroups: false, // Chases apply to whole universes
   },
   show: {

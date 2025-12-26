@@ -67,14 +67,15 @@ const useChaseStore = create((set, get) => ({
       const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
       const isTargeted = options.targetChannels && options.targetChannels.length > 0;
       const universe = options.universe || chase?.universe || 1;
-      
-      console.log('🎬 Starting chase:', chase?.name || chaseId, `on universe ${universe}`);
-      
-      const payload = { universe };
+      const fadeMs = options.fade_ms ?? chase?.fade_ms ?? 0;
+
+      console.log('🎬 Starting chase:', chase?.name || chaseId, `on universe ${universe}, fade=${fadeMs}ms`);
+
+      const payload = { universe, fade_ms: fadeMs };
       if (isTargeted) {
         payload.target_channels = options.targetChannels;
       }
-      
+
       await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play', payload);
       
       set({ currentChase: chase });
