@@ -23,40 +23,47 @@ const COLOR_PRESETS = [
   { name: 'Off', channels: { '1:1': 0, '1:2': 0, '1:3': 0 }, color: '#333333' },
 ];
 
-// Chase Card Component
-// Chase Card - Tap to Play, Long Press for Menu
+// Chase Card - Tap to Play, Long Press for Menu (matches SceneCard structure)
 function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   const stepCount = chase.steps?.length || 0;
   const bpm = chase.bpm || 120;
-  const handleStart = () => {
+  const handleStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     didLongPress.current = false;
     pressTimer.current = setTimeout(() => { didLongPress.current = true; onLongPress(chase); }, 500);
   };
-  const handleEnd = () => {
+  const handleEnd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     clearTimeout(pressTimer.current);
-    if (!didLongPress.current) { isActive ? onStop() : onPlay(chase); }
+    // Always open play modal on tap (even if active) - user can reapply or change settings
+    if (!didLongPress.current) { onPlay(chase); }
   };
   const handleCancel = () => clearTimeout(pressTimer.current);
   return (
-    <div onTouchStart={handleStart} onTouchEnd={handleEnd} onTouchMove={handleCancel}
-      onMouseDown={handleStart} onMouseUp={handleEnd} onMouseLeave={handleCancel}
-      className={`control-card ${
-        isActive ? 'active playing' : ''}`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-          isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/50'}`}>
-          {isActive ? <Square size={18} /> : <Play size={20} className="ml-0.5" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white truncate">{chase.name}</h3>
-          <div className="flex items-center gap-2 text-[10px] text-white/40">
-            <span>{stepCount} steps</span>
-            <span>•</span>
-            <span>{bpm} BPM</span>
-            {chase.loop !== false && <Repeat size={10} />}
-          </div>
+    <div
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onTouchMove={handleCancel}
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleCancel}
+      style={{ touchAction: 'manipulation' }}
+      className={`control-card ${isActive ? 'active playing' : ''}`}
+    >
+      <div className="card-icon">
+        {isActive ? <Square size={18} /> : <Play size={20} className="ml-0.5" />}
+      </div>
+      <div className="card-info">
+        <div className="card-title">{chase.name}</div>
+        <div className="card-meta">
+          <span>{stepCount} steps</span>
+          <span>•</span>
+          <span>{bpm} BPM</span>
+          {chase.loop !== false && <Repeat size={10} />}
         </div>
       </div>
     </div>
@@ -836,69 +843,79 @@ export default function Chases() {
           <p className="text-[10px] text-white/50">{chases.length} saved</p>
           </div>
         </div>
-        <button onClick={handleCreate} className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm">
+        <button
+          onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
+          onClick={handleCreate}
+          className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm"
+        >
           <Plus size={16} /> New
         </button>
       </div>
 
-      {/* Chase Grid */}
-      {chases.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <Zap size={40} className="text-white/20 mb-2" />
-          <p className="text-white/40 text-sm mb-3">No chases yet</p>
-          <button onClick={handleCreate} className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1">
-            <Plus size={16} /> Create Chase
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="control-grid">
-            {paginatedChases.map(chase => (
-              <ChaseCard
-                key={chase.chase_id || chase.id}
-                chase={chase}
-                isActive={isChasePlaying(chase.chase_id || chase.id)}
-                onPlay={(c) => setPlayModalChase(c)}
-                onStop={stopChase}
-                onLongPress={(c) => setContextMenu(c)}
-              />
-            ))}
+      {/* Chase Grid - wrapped in view-content like Scenes */}
+      <div className="view-content">
+        {chases.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <Zap size={40} className="text-white/20 mb-2" />
+            <p className="text-white/40 text-sm mb-3">No chases yet</p>
+            <button
+              onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
+              onClick={handleCreate}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1"
+            >
+              <Plus size={16} /> Create Chase
+            </button>
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-white/10">
-              <button
-                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                disabled={currentPage === 0}
-                className="p-2 rounded-lg bg-white/10 text-white disabled:opacity-30"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <div className="flex gap-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i)}
-                    className={`w-8 h-8 rounded-lg text-sm font-bold ${
-                      currentPage === i ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                disabled={currentPage >= totalPages - 1}
-                className="p-2 rounded-lg bg-white/10 text-white disabled:opacity-30"
-              >
-                <ChevronRight size={18} />
-              </button>
+        ) : (
+          <>
+            <div className="control-grid">
+              {paginatedChases.map(chase => (
+                <ChaseCard
+                  key={chase.chase_id || chase.id}
+                  chase={chase}
+                  isActive={isChasePlaying(chase.chase_id || chase.id)}
+                  onPlay={(c) => setPlayModalChase(c)}
+                  onStop={stopChase}
+                  onLongPress={(c) => setContextMenu(c)}
+                />
+              ))}
             </div>
-          )}
-        </>
-      )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-white/10">
+                <button
+                  onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                  disabled={currentPage === 0}
+                  className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={`w-11 h-11 rounded-xl text-base font-bold ${
+                        currentPage === i ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/60'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Chase Creator Modal */}
       <ChaseCreatorModal
