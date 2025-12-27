@@ -9,7 +9,7 @@ const CLAMPS = {
   fade_ms: { min: 0, max: 10000 },
   intensity: { min: 0, max: 100 },
   channel: { min: 1, max: 512 },
-  universe: { min: 1, max: 4 },
+  universe: { min: 1, max: 512 },  // No artificial limit,
 };
 
 export function clampValue(key, value) {
