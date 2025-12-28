@@ -64,7 +64,8 @@ export default function NodeManagement() {
       universe: node.universe || 1,
       channelStart: node.channel_start || 1,
       channelEnd: node.channel_end || 512,
-      name: node.name || getPulseId(node) || ''
+      name: node.name || getPulseId(node) || '',
+      transport: node.type || 'wifi'  // 'wifi' or 'espnow'
     });
     setConflict(null);
     setShowModal(true);
@@ -90,7 +91,8 @@ export default function NodeManagement() {
           name: modalConfig.name || getPulseId(selectedNode),
           universe: modalConfig.universe,
           channel_start: modalConfig.channelStart,
-          channel_end: modalConfig.channelEnd
+          channel_end: modalConfig.channelEnd,
+          type: modalConfig.transport  // 'wifi' or 'espnow' - determines routing
         })
       });
       setShowModal(false);
@@ -200,7 +202,7 @@ export default function NodeManagement() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10, marginBottom: 8 }}>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>IP:</span> <span style={{ color: 'white' }}>{node.ip || 'N/A'}</span></div>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>MAC:</span> <span style={{ color: 'white' }}>{node.mac || 'N/A'}</span></div>
-                        <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Type:</span> <span style={{ color: 'white' }}>{isBuiltIn ? 'Built-in' : 'Wireless'}</span></div>
+                        <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Type:</span> <span style={{ color: 'white' }}>{isBuiltIn ? 'Built-in' : node.type === 'espnow' ? 'ESP-NOW' : 'WiFi'}</span></div>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>FW:</span> <span style={{ color: 'white' }}>{node.firmware || 'N/A'}</span></div>
                       </div>
                       {!isBuiltIn && (
@@ -253,6 +255,18 @@ export default function NodeManagement() {
                   <button key={u} onClick={() => handleConfigChange('universe', u)} style={{ padding: '8px 0', background: modalConfig.universe === u ? '#8b5cf6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{u}</button>
                 ))}
               </div>
+            </div>
+
+            {/* Transport Type */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4 }}>TRANSPORT</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <button onClick={() => handleConfigChange('transport', 'wifi')} style={{ padding: '8px 0', background: modalConfig.transport === 'wifi' ? '#3b82f6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>📶 WiFi</button>
+                <button onClick={() => handleConfigChange('transport', 'espnow')} style={{ padding: '8px 0', background: modalConfig.transport === 'espnow' ? '#22c55e' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>⚡ ESP-NOW</button>
+              </div>
+              {modalConfig.transport === 'espnow' && (
+                <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Routes through UART gateway</div>
+              )}
             </div>
 
             {/* Channels */}
