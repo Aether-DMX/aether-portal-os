@@ -248,9 +248,9 @@ export default function NodeManagement() {
             {/* Universe */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4 }}>UNIVERSE</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[1, 2, 3, 4].map(u => (
-                  <button key={u} onClick={() => handleConfigChange('universe', u)} style={{ flex: 1, padding: '8px 0', background: modalConfig.universe === u ? '#8b5cf6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{u}</button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(u => (
+                  <button key={u} onClick={() => handleConfigChange('universe', u)} style={{ padding: '8px 0', background: modalConfig.universe === u ? '#8b5cf6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{u}</button>
                 ))}
               </div>
             </div>
