@@ -444,11 +444,15 @@ export default function Scenes() {
   };
 
   const handlePlayWithOptions = async (scene, options) => {
+    console.log('🎬 handlePlayWithOptions called:', { scene: scene?.name, options });
+    setPlayModalScene(null); // Close modal immediately
+
     const sceneId = scene.scene_id || scene.id;
     // Apply scene to each universe in scope
     for (const u of options.universes) {
       // For group-based playback, get channels specific to this universe
       const targetChannels = options.channelsByUniverse?.[u] || null;
+      console.log('🔵 Playing scene on universe:', u, 'fade:', options.fadeMs);
       await playScene(sceneId, options.fadeMs, {
         universe: u,
         mergeMode: options.mergeMode || 'merge',
@@ -456,6 +460,7 @@ export default function Scenes() {
         targetChannels // Pass universe-specific channels for group playback
       });
     }
+    console.log('✅ Scene play complete');
   };
 
   return (
