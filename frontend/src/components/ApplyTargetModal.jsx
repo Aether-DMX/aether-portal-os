@@ -89,8 +89,8 @@ const ApplyTargetModal = ({
   const nodes = safeArray(rawNodes);
   const configuredUniverses = safeArray(rawConfigured).length > 0 ? rawConfigured : [1];
 
-  // State
-  const [scope, setScope] = useState(defaultTargets.scope || "current");
+  // State - default to "all" for scenes since fixtures may be on different universes than the scene was created on
+  const [scope, setScope] = useState(defaultTargets.scope || (mode === 'scene' ? 'all' : 'current'));
   const [selectedUniverses, setSelectedUniverses] = useState(defaultTargets.universes || []);
   const [selectedGroups, setSelectedGroups] = useState(defaultTargets.groups || []);
   const [fadeMs, setFadeMs] = useState(defaultTargets.fadeMs || 1000);
