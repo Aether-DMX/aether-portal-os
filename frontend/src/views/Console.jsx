@@ -26,14 +26,12 @@ function ApplyModal({ scene, onApply, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-3"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}
+      onPointerUp={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="glass-panel rounded-2xl border w-full max-w-md"
         style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.3)', background: 'rgba(0,0,0,0.9)' }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         
         {/* Header */}
@@ -124,15 +122,13 @@ function ApplyModal({ scene, onApply, onClose }) {
         {/* Actions */}
         <div className="p-4 border-t border-white/10 flex gap-3">
           <button
-            onClick={onClose}
-            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-white/70 bg-white/10 hover:bg-white/20 transition-all">
+            onPointerUp={(e) => { e.preventDefault(); onClose(); }}
+            className="flex-1 py-3 rounded-xl font-semibold text-white/70 bg-white/10 hover:bg-white/20 transition-all active:scale-95">
             Cancel
           </button>
           <button
-            onClick={handleApplyClick}
-            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleApplyClick(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
+            onPointerUp={(e) => { e.preventDefault(); handleApplyClick(); }}
+            className="flex-1 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
             style={{ background: 'var(--theme-primary)' }}>
             <Play className="w-4 h-4" />
             Apply
