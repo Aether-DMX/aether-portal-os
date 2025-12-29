@@ -451,17 +451,22 @@ export default function Scenes() {
     try {
       const sceneId = scene.scene_id || scene.id;
       console.log('🆔 Scene ID:', sceneId);
-      console.log('🌐 Universes to play:', options.universes);
+
+      // Ensure universes is always a valid array
+      const universes = Array.isArray(options?.universes) && options.universes.length > 0
+        ? options.universes
+        : [1, 2]; // Default to both universes if none specified
+      console.log('🌐 Universes to play:', universes);
 
       // Apply scene to each universe in scope
-      for (const u of options.universes) {
+      for (const u of universes) {
         // For group-based playback, get channels specific to this universe
-        const targetChannels = options.channelsByUniverse?.[u] || null;
-        console.log('🔵 About to call playScene for universe:', u, 'fade:', options.fadeMs);
-        const result = await playScene(sceneId, options.fadeMs, {
+        const targetChannels = options?.channelsByUniverse?.[u] || null;
+        console.log('🔵 About to call playScene for universe:', u, 'fade:', options?.fadeMs);
+        const result = await playScene(sceneId, options?.fadeMs || 1000, {
           universe: u,
-          mergeMode: options.mergeMode || 'merge',
-          scope: options.scope || 'current',
+          mergeMode: options?.mergeMode || 'merge',
+          scope: options?.scope || 'current',
           targetChannels // Pass universe-specific channels for group playback
         });
         console.log('🟢 playScene returned:', result);
