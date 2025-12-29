@@ -376,22 +376,30 @@ const ApplyTargetModal = ({
         {/* Actions */}
         <div className="px-2.5 pb-2.5 flex gap-2">
           <button
-            onClick={onCancel}
-            onPointerUp={(e) => { e.preventDefault(); onCancel(); }}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onCancel(); }}
+            onClick={(e) => { e.preventDefault(); onCancel(); }}
+            style={{ touchAction: 'manipulation' }}
             className="flex-1 py-2 rounded-xl bg-white/10 text-white font-bold text-xs"
           >
             Cancel
           </button>
           <button
-            onClick={handleConfirm}
-            onPointerUp={(e) => {
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (canConfirm && !loading) {
+                console.log('🟡 Apply button onTouchEnd triggered');
+                handleConfirm();
+              }
+            }}
+            onClick={(e) => {
               e.preventDefault();
               if (canConfirm && !loading) {
-                console.log('🟡 Apply button onPointerUp triggered');
                 handleConfirm();
               }
             }}
             disabled={!canConfirm || loading}
+            style={{ touchAction: 'manipulation' }}
             className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5
               ${!canConfirm ? 'opacity-50 cursor-not-allowed' : ''}
               ${getPrimaryButtonClass()}`}
