@@ -193,15 +193,26 @@ const ApplyTargetModal = ({
 
   // Handle confirm
   const handleConfirm = () => {
-    if (!canConfirm) return;
+    console.log('🟣 ApplyTargetModal handleConfirm called');
+    console.log('🔍 canConfirm:', canConfirm);
+    console.log('🔍 affectedUniverses:', affectedUniverses);
+    console.log('🔍 item:', item?.name || item);
+    console.log('🔍 onConfirm type:', typeof onConfirm);
 
-    onConfirm(item, {
+    if (!canConfirm) {
+      console.log('❌ canConfirm is false, returning');
+      return;
+    }
+
+    const options = {
       fadeMs,
       universes: affectedUniverses,
       mergeMode: 'merge',
       scope,
       channelsByUniverse: groupChannelsByUniverse
-    });
+    };
+    console.log('📦 Calling onConfirm with options:', options);
+    onConfirm(item, options);
   };
 
   // Get button colors based on mode and scope
