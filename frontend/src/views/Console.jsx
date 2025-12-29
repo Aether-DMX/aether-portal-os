@@ -2,142 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, Square, AlertTriangle, Activity, Layers,
-  Sparkles, Moon, Zap, RefreshCw, ChevronLeft, ChevronRight, 
+  Sparkles, Moon, Zap, RefreshCw, ChevronLeft, ChevronRight,
   Eye, Check, X, Settings2
 } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 import useSceneStore from '../store/sceneStore';
 import useChaseStore from '../store/chaseStore';
 import useNodeStore from '../store/nodeStore';
-
-// Apply Scene Modal - Select output destination
-function ApplyModal({ scene, onApply, onClose }) {
-  const [fadeTime, setFadeTime] = useState(1.5);
-  const [outputMode, setOutputMode] = useState('all'); // 'all', 'universe', 'node'
-  const [selectedUniverse, setSelectedUniverse] = useState(1);
-
-  if (!scene) return null;
-
-  const handleApplyClick = () => {
-    console.log('🔴 Apply button clicked!', { scene: scene?.name, fadeTime: fadeTime * 1000, outputMode, selectedUniverse });
-    onApply({ scene, fadeTime: fadeTime * 1000, outputMode, selectedUniverse });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-3"
-      onPointerUp={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="glass-panel rounded-2xl border w-full max-w-md"
-        style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.3)', background: 'rgba(0,0,0,0.9)' }}
-        onPointerUp={(e) => e.stopPropagation()}
-      >
-        
-        {/* Header */}
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--theme-primary)' }}>
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">{scene.name}</h2>
-                <p className="text-xs text-white/50">Configure & Apply</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10">
-              <X className="w-5 h-5 text-white/60" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-4 space-y-4">
-          {/* Output Selection */}
-          <div>
-            <label className="text-xs text-white/60 font-semibold mb-2 block">OUTPUT TO</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['all', 'universe'].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setOutputMode(mode)}
-                  className={`py-3 rounded-xl text-sm font-semibold transition-all ${
-                    outputMode === mode 
-                      ? 'text-white' 
-                      : 'bg-white/5 text-white/60 hover:bg-white/10'
-                  }`}
-                  style={outputMode === mode ? { background: 'var(--theme-primary)' } : {}}
-                >
-                  {mode === 'all' ? 'All Outputs' : 'Universe'}
-                </button>
-              ))}
-            </div>
-
-            {outputMode === 'universe' && (
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map(u => (
-                  <button
-                    key={u}
-                    onClick={() => setSelectedUniverse(u)}
-                    className={`py-2 rounded-lg text-sm font-bold transition-all ${
-                      selectedUniverse === u 
-                        ? 'text-white' 
-                        : 'bg-white/10 text-white/60'
-                    }`}
-                    style={selectedUniverse === u ? { background: 'var(--theme-primary)' } : {}}
-                  >
-                    U{u}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Fade Time */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-white/60 font-semibold">FADE TIME</label>
-              <span className="text-sm font-bold text-white">{fadeTime}s</span>
-            </div>
-            <input 
-              type="range" 
-              min="0" 
-              max="5" 
-              step="0.5"
-              value={fadeTime}
-              onChange={(e) => setFadeTime(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer"
-              style={{ 
-                background: `linear-gradient(to right, var(--theme-primary) ${(fadeTime/5)*100}%, rgba(255,255,255,0.1) ${(fadeTime/5)*100}%)`
-              }}
-            />
-            <div className="flex justify-between text-[10px] text-white/40 mt-1">
-              <span>Instant</span>
-              <span>5s</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="p-4 border-t border-white/10 flex gap-3">
-          <button
-            onPointerUp={(e) => { e.preventDefault(); onClose(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-white/70 bg-white/10 hover:bg-white/20 transition-all active:scale-95">
-            Cancel
-          </button>
-          <button
-            onPointerUp={(e) => { e.preventDefault(); handleApplyClick(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
-            style={{ background: 'var(--theme-primary)' }}>
-            <Play className="w-4 h-4" />
-            Apply
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import ApplyTargetModal from '../components/ApplyTargetModal';
 
 export default function Console() {
   const navigate = useNavigate();
@@ -201,19 +73,20 @@ export default function Console() {
     setPendingScene(scene);
   };
 
-  // Apply scene from modal
-  const handleApplyScene = useCallback(async ({ scene, fadeTime, outputMode, selectedUniverse }) => {
-    console.log('🟡 handleApplyScene START', { scene: scene?.name, fadeTime, outputMode, selectedUniverse });
+  // Apply scene from modal (uses ApplyTargetModal interface)
+  const handleApplyScene = useCallback(async (scene, options) => {
+    console.log('🟡 handleApplyScene START', { scene: scene?.name, options });
     // Close modal immediately so user gets feedback
     setPendingScene(null);
 
     try {
       const sceneId = scene.scene_id || scene.id;
-      // Pass universe option based on outputMode selection
-      const options = outputMode === 'universe' ? { universe: selectedUniverse } : {};
-      console.log('🎬 Apply scene:', scene.name, 'fade:', fadeTime, 'output:', outputMode, 'universe:', selectedUniverse);
-      console.log('🔵 Calling playScene with:', sceneId, fadeTime, options);
-      await playScene(sceneId, fadeTime, options);
+      // Apply to each selected universe
+      for (const universe of options.universes) {
+        const targetChannels = options.channelsByUniverse?.[universe] || null;
+        console.log('🎬 Apply scene:', scene.name, 'universe:', universe, 'fade:', options.fadeMs);
+        await playScene(sceneId, options.fadeMs, { universe, targetChannels });
+      }
       console.log('✅ playScene completed');
       setIsBlackout(false);
     } catch (e) {
@@ -485,12 +358,13 @@ export default function Console() {
         </div>
       </div>
 
-      {/* Apply Scene Modal */}
+      {/* Apply Scene Modal - Uses unified ApplyTargetModal */}
       {pendingScene && (
-        <ApplyModal 
-          scene={pendingScene}
-          onApply={handleApplyScene}
-          onClose={() => setPendingScene(null)}
+        <ApplyTargetModal
+          mode="scene"
+          item={pendingScene}
+          onConfirm={handleApplyScene}
+          onCancel={() => setPendingScene(null)}
         />
       )}
     </div>
