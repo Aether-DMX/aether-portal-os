@@ -15,13 +15,26 @@ function ApplyModal({ scene, onApply, onClose }) {
   const [fadeTime, setFadeTime] = useState(1.5);
   const [outputMode, setOutputMode] = useState('all'); // 'all', 'universe', 'node'
   const [selectedUniverse, setSelectedUniverse] = useState(1);
-  
+
   if (!scene) return null;
 
+  const handleApplyClick = () => {
+    console.log('🔴 Apply button clicked!', { scene: scene?.name, fadeTime: fadeTime * 1000, outputMode, selectedUniverse });
+    onApply({ scene, fadeTime: fadeTime * 1000, outputMode, selectedUniverse });
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-3">
-      <div className="glass-panel rounded-2xl border w-full max-w-md"
-        style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.3)', background: 'rgba(0,0,0,0.9)' }}>
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-3"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}
+    >
+      <div
+        className="glass-panel rounded-2xl border w-full max-w-md"
+        style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.3)', background: 'rgba(0,0,0,0.9)' }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="p-4 border-b border-white/10">
@@ -110,12 +123,15 @@ function ApplyModal({ scene, onApply, onClose }) {
 
         {/* Actions */}
         <div className="p-4 border-t border-white/10 flex gap-3">
-          <button onClick={onClose}
+          <button
+            onClick={onClose}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
             className="flex-1 py-3 rounded-xl font-semibold text-white/70 bg-white/10 hover:bg-white/20 transition-all">
             Cancel
           </button>
-          <button 
-            onClick={() => onApply({ scene, fadeTime: fadeTime * 1000, outputMode, selectedUniverse })}
+          <button
+            onClick={handleApplyClick}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleApplyClick(); }}
             className="flex-1 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
             style={{ background: 'var(--theme-primary)' }}>
             <Play className="w-4 h-4" />
@@ -191,13 +207,21 @@ export default function Console() {
 
   // Apply scene from modal
   const handleApplyScene = useCallback(async ({ scene, fadeTime, outputMode, selectedUniverse }) => {
+    console.log('🟡 handleApplyScene START', { scene: scene?.name, fadeTime, outputMode, selectedUniverse });
+    // Close modal immediately so user gets feedback
+    setPendingScene(null);
+
     try {
       const sceneId = scene.scene_id || scene.id;
-      await playScene(sceneId, fadeTime);
+      // Pass universe option based on outputMode selection
+      const options = outputMode === 'universe' ? { universe: selectedUniverse } : {};
+      console.log('🎬 Apply scene:', scene.name, 'fade:', fadeTime, 'output:', outputMode, 'universe:', selectedUniverse);
+      console.log('🔵 Calling playScene with:', sceneId, fadeTime, options);
+      await playScene(sceneId, fadeTime, options);
+      console.log('✅ playScene completed');
       setIsBlackout(false);
-      setPendingScene(null);
     } catch (e) {
-      console.error('Failed to play scene:', e);
+      console.error('❌ Failed to play scene:', e);
     }
   }, [playScene]);
 

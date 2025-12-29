@@ -57,6 +57,7 @@ const useSceneStore = create((set, get) => ({
   },
 
   playScene: async (id, fadeMs = 1500, options = {}) => {
+    console.log('🟢 sceneStore.playScene called:', { id, fadeMs, options });
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
       const isTargeted = options.targetChannels && options.targetChannels.length > 0;
