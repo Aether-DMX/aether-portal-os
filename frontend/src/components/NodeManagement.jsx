@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Wifi, Server, RefreshCw, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, Layers, Edit3, Cpu, Hash } from 'lucide-react';
+import { Wifi, Server, RefreshCw, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, Layers, Edit3, Cpu, Hash, Cable } from 'lucide-react';
 
 const getApiUrl = () => `http://${window.location.hostname}:8891`;
 
@@ -65,7 +65,7 @@ export default function NodeManagement() {
       channelStart: node.channel_start || 1,
       channelEnd: node.channel_end || 512,
       name: node.name || getPulseId(node) || '',
-      transport: node.type || 'wifi'  // 'wifi' or 'espnow'
+      transport: node.type || 'wifi'  // 'wifi' or 'gateway'
     });
     setConflict(null);
     setShowModal(true);
@@ -91,8 +91,8 @@ export default function NodeManagement() {
           name: modalConfig.name || getPulseId(selectedNode),
           universe: modalConfig.universe,
           channel_start: modalConfig.channelStart,
-          channel_end: modalConfig.channelEnd,
-          type: modalConfig.transport  // 'wifi' or 'espnow' - determines routing
+          channel_end: modalConfig.channelEnd
+          // type is auto-detected (wifi or gateway) based on how node connects
         })
       });
       setShowModal(false);
@@ -176,10 +176,10 @@ export default function NodeManagement() {
                 <div key={node.node_id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${isOnline ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {isBuiltIn ? <Server size={16} color="#60a5fa" /> : <Wifi size={16} color={isOnline ? '#22c55e' : '#666'} />}
+                      {isBuiltIn ? <Server size={16} color="#60a5fa" /> : node.type === 'gateway' ? <Cable size={16} color={isOnline ? '#f59e0b' : '#666'} /> : <Wifi size={16} color={isOnline ? '#22c55e' : '#666'} />}
                       <div>
                         <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>{node.name || pulseId}</div>
-                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>Ch {node.channel_start || 1}-{node.channel_end || 512}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>Ch {node.channel_start || 1}-{node.channel_end || 512} {node.type === 'gateway' && <span style={{ color: '#f59e0b' }}>UART</span>}</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -202,7 +202,7 @@ export default function NodeManagement() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10, marginBottom: 8 }}>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>IP:</span> <span style={{ color: 'white' }}>{node.ip || 'N/A'}</span></div>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>MAC:</span> <span style={{ color: 'white' }}>{node.mac || 'N/A'}</span></div>
-                        <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Type:</span> <span style={{ color: 'white' }}>{isBuiltIn ? 'Built-in' : node.type === 'espnow' ? 'ESP-NOW' : 'WiFi'}</span></div>
+                        <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Type:</span> <span style={{ color: node.type === 'gateway' ? '#f59e0b' : 'white' }}>{isBuiltIn ? 'Built-in' : node.type === 'gateway' ? 'Gateway (UART)' : 'WiFi (sACN)'}</span></div>
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>FW:</span> <span style={{ color: 'white' }}>{node.firmware || 'N/A'}</span></div>
                       </div>
                       {!isBuiltIn && (
@@ -257,16 +257,16 @@ export default function NodeManagement() {
               </div>
             </div>
 
-            {/* Transport Type */}
+            {/* Transport Info - read-only, determined by how node connects */}
             <div style={{ marginBottom: 12 }}>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4 }}>TRANSPORT</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <button onClick={() => handleConfigChange('transport', 'wifi')} style={{ padding: '8px 0', background: modalConfig.transport === 'wifi' ? '#3b82f6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>📶 WiFi</button>
-                <button onClick={() => handleConfigChange('transport', 'espnow')} style={{ padding: '8px 0', background: modalConfig.transport === 'espnow' ? '#22c55e' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>⚡ ESP-NOW</button>
+              <div style={{ padding: '8px 12px', background: modalConfig.transport === 'gateway' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)', border: `1px solid ${modalConfig.transport === 'gateway' ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.3)'}`, borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {modalConfig.transport === 'gateway' ? <Cable size={14} color="#f59e0b" /> : <Wifi size={14} color="#3b82f6" />}
+                <span style={{ color: 'white', fontSize: 12 }}>{modalConfig.transport === 'gateway' ? 'Gateway (UART/GPIO)' : 'WiFi (sACN Multicast)'}</span>
               </div>
-              {modalConfig.transport === 'espnow' && (
-                <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Routes through UART gateway</div>
-              )}
+              <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+                {modalConfig.transport === 'gateway' ? 'Direct wired connection via Pi GPIO' : 'Wireless via sACN/E1.31 multicast'}
+              </div>
             </div>
 
             {/* Channels */}
