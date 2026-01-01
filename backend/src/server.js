@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 import http from 'http';
 import dotenv from 'dotenv';
 import logger from './utils/logger.js';
-import olaService from './services/OLAService.js';
 import dmxService from './services/DMXService.js';
 import dmxRoutes from './routes/dmx.js';
 import aiRoutes from './routes/ai.js';
@@ -45,7 +44,7 @@ app.use('/api/chases', chaseRoutes);
 app.use('/api/scenes', sceneRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', ola: olaService.isConnected() });
+  res.json({ status: 'ok', transport: 'udpjson', note: 'DMX output via AETHER Core UDPJSON' });
 });
 
 // Serve static frontend files with cache control

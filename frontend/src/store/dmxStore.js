@@ -6,13 +6,13 @@ const getAetherCore = () => `http://${window.location.hostname}:8891`;
 const useDMXStore = create((set, get) => ({
   // State that ViewLive.jsx and Console.jsx expect
   universeState: new Array(512).fill(0),
-  currentUniverse: 1,
+  currentUniverse: 2,  // Default to universe 2 (universe 1 is offline)
   channelLabels: {},  // { 1: "Red", 2: "Green", etc. }
 
   // Additional state
-  universes: { 1: new Array(512).fill(0) },
+  universes: { 2: new Array(512).fill(0) },
   maxUniverse: 64,  // From settings (SSOT) - no artificial limits
-  configuredUniverses: [1],  // Universes that have nodes assigned
+  configuredUniverses: [2, 3, 4, 5],  // Universes 2-5 (universe 1 is offline)
   lastUpdate: null,
   loading: false,
   polling: false,
@@ -44,13 +44,13 @@ const useDMXStore = create((set, get) => ({
     try {
       const res = await axios.get(getAetherCore() + '/api/nodes');
       if (res.data && Array.isArray(res.data)) {
-        // Only include universes with ONLINE nodes
-        const onlineNodes = res.data.filter(n => n.status === 'online');
-        const universesFromNodes = [...new Set(onlineNodes.map(n => n.universe || 1))].sort((a, b) => a - b);
-        // Always include universe 1, plus any universes with online nodes
-        const configured = universesFromNodes.length > 0 ? universesFromNodes : [1];
+        // Only include universes with ONLINE nodes, exclude universe 1 (offline)
+        const onlineNodes = res.data.filter(n => n.status === 'online' && n.universe !== 1);
+        const universesFromNodes = [...new Set(onlineNodes.map(n => n.universe || 2))].sort((a, b) => a - b);
+        // Default to universes 2-5 if no nodes found (universe 1 is offline)
+        const configured = universesFromNodes.length > 0 ? universesFromNodes : [2, 3, 4, 5];
         set({ configuredUniverses: configured });
-        console.log('✅ Configured universes (online):', configured);
+        console.log('✅ Configured universes (online, excluding U1):', configured);
       }
     } catch (e) {
       console.error('Failed to fetch configured universes:', e.message);
@@ -58,7 +58,7 @@ const useDMXStore = create((set, get) => ({
   },
 
   // Fetch current state from AETHER Core (also sets currentUniverse)
-  fetchState: async (universe = 1) => {
+  fetchState: async (universe = 2) => {  // Default to universe 2
     try {
       const res = await axios.get(getAetherCore() + '/api/dmx/universe/' + universe);
       if (res.data && res.data.channels) {
@@ -78,7 +78,7 @@ const useDMXStore = create((set, get) => ({
   },
 
   // Alias for Console.jsx compatibility
-  fetchUniverseState: async (universe = 1) => {
+  fetchUniverseState: async (universe = 2) => {  // Default to universe 2
     return get().fetchState(universe);
   },
 
