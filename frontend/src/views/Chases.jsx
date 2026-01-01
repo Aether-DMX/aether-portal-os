@@ -814,15 +814,12 @@ export default function Chases() {
   const handlePlayWithOptions = async (chase, options) => {
     const chaseId = chase.chase_id || chase.id;
     setPlayModalChase(null);
-    // Play chase on each selected universe (matching Scene behavior)
-    for (const u of options.universes) {
-      const targetChannels = options.channelsByUniverse?.[u] || null;
-      await playChase(chaseId, {
-        universe: u,
-        targetChannels,
-        fade_ms: options.fadeMs // Pass fade time from modal
-      });
-    }
+
+    // Send single API call with universes array (backend handles all universes at once)
+    await playChase(chaseId, {
+      universes: options.universes,  // Send array of universes
+      fade_ms: options.fadeMs
+    });
   };
 
   const handleDelete = async (chase) => {

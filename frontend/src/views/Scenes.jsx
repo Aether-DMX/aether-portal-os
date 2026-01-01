@@ -445,33 +445,18 @@ export default function Scenes() {
 
   const handlePlayWithOptions = async (scene, options) => {
     console.log('🎬 handlePlayWithOptions called:', { scene: scene?.name, options });
-    console.log('🔍 playScene function exists:', typeof playScene);
     setPlayModalScene(null); // Close modal immediately
 
     try {
       const sceneId = scene.scene_id || scene.id;
-      console.log('🆔 Scene ID:', sceneId);
 
-      // Ensure universes is always a valid array
-      const universes = Array.isArray(options?.universes) && options.universes.length > 0
-        ? options.universes
-        : [1, 2]; // Default to both universes if none specified
-      console.log('🌐 Universes to play:', universes);
-
-      // Apply scene to each universe in scope
-      for (const u of universes) {
-        // For group-based playback, get channels specific to this universe
-        const targetChannels = options?.channelsByUniverse?.[u] || null;
-        console.log('🔵 About to call playScene for universe:', u, 'fade:', options?.fadeMs);
-        const result = await playScene(sceneId, options?.fadeMs || 1000, {
-          universe: u,
-          mergeMode: options?.mergeMode || 'merge',
-          scope: options?.scope || 'current',
-          targetChannels // Pass universe-specific channels for group playback
-        });
-        console.log('🟢 playScene returned:', result);
-      }
-      console.log('✅ Scene play complete');
+      // Send single API call with universes array (backend handles all universes at once)
+      const result = await playScene(sceneId, options?.fadeMs || 1000, {
+        universes: options.universes,  // Send array of universes
+        mergeMode: options?.mergeMode || 'merge',
+        scope: options?.scope || 'current'
+      });
+      console.log('✅ Scene play complete:', result);
     } catch (err) {
       console.error('❌ handlePlayWithOptions error:', err);
     }

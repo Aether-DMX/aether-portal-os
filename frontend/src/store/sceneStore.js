@@ -60,25 +60,35 @@ const useSceneStore = create((set, get) => ({
     console.log('🟢 sceneStore.playScene called:', { id, fadeMs, options });
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
-      const isTargeted = options.targetChannels && options.targetChannels.length > 0;
-      // Use provided universe or fall back to scene's stored universe
-      const universe = options.universe || scene?.universe || 1;
-      console.log('🎬 Playing scene:', scene?.name || id, `on universe ${universe}`, isTargeted ? `channels: ${options.targetChannels.length}` : 'all channels');
 
-      const payload = { fade_ms: fadeMs, universe };
-      if (isTargeted) {
+      // Support both single universe and universes array
+      const universes = options.universes || (options.universe ? [options.universe] : null);
+
+      console.log('🎬 Playing scene:', scene?.name || id,
+        universes ? `on universes [${universes.join(', ')}]` : 'on default universes');
+
+      const payload = { fade_ms: fadeMs };
+
+      // Send universes array if specified (backend filters to online paired nodes by default)
+      if (universes) {
+        payload.universes = universes;
+      }
+
+      if (options.targetChannels && options.targetChannels.length > 0) {
         payload.target_channels = options.targetChannels;
       }
 
       const res = await axios.post(getAetherCore() + '/api/scenes/' + id + '/play', payload);
 
-      // Update playback store (SSOT) - only if full scene play (not targeted)
-      if (!isTargeted && scene) {
-        usePlaybackStore.getState().setPlayback(universe, {
-          type: 'scene',
-          id: scene.scene_id || scene.id,
-          started: new Date().toISOString()
-        });
+      // Update playback store (SSOT) for each targeted universe
+      if (scene && universes) {
+        for (const u of universes) {
+          usePlaybackStore.getState().setPlayback(u, {
+            type: 'scene',
+            id: scene.scene_id || scene.id,
+            started: new Date().toISOString()
+          });
+        }
       }
 
       return { scene, result: res.data };

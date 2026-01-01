@@ -65,27 +65,39 @@ const useChaseStore = create((set, get) => ({
   startChase: async (chaseId, options = {}) => {
     try {
       const chase = get().chases.find(c => c.chase_id === chaseId || c.id === chaseId);
-      const isTargeted = options.targetChannels && options.targetChannels.length > 0;
-      const universe = options.universe || chase?.universe || 1;
       const fadeMs = options.fade_ms ?? chase?.fade_ms ?? 0;
 
-      console.log('🎬 Starting chase:', chase?.name || chaseId, `on universe ${universe}, fade=${fadeMs}ms`);
+      // Support both single universe and universes array
+      const universes = options.universes || (options.universe ? [options.universe] : null);
 
-      const payload = { universe, fade_ms: fadeMs };
-      if (isTargeted) {
+      console.log('🎬 Starting chase:', chase?.name || chaseId,
+        universes ? `on universes [${universes.join(', ')}]` : 'on default universes',
+        `fade=${fadeMs}ms`);
+
+      const payload = { fade_ms: fadeMs };
+
+      // Send universes array if specified (backend filters to online paired nodes by default)
+      if (universes) {
+        payload.universes = universes;
+      }
+
+      if (options.targetChannels && options.targetChannels.length > 0) {
         payload.target_channels = options.targetChannels;
       }
 
       await axios.post(getAetherCore() + '/api/chases/' + chaseId + '/play', payload);
-      
+
       set({ currentChase: chase });
-      
-      if (!isTargeted && chase) {
-        usePlaybackStore.getState().setPlayback(universe, {
-          type: 'chase',
-          id: chase.chase_id || chase.id,
-          started: new Date().toISOString()
-        });
+
+      // Update playback state for each targeted universe
+      if (chase && universes) {
+        for (const u of universes) {
+          usePlaybackStore.getState().setPlayback(u, {
+            type: 'chase',
+            id: chase.chase_id || chase.id,
+            started: new Date().toISOString()
+          });
+        }
       }
     } catch (e) {
       console.error('Failed to start chase:', e);

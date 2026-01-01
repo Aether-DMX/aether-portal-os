@@ -1,14 +1,17 @@
 /**
  * ApplyTargetModal - Unified "Apply Target" UI for Scenes, Chases, Shows, and AI-suggested actions.
  *
- * This is the SINGLE source of truth for target selection when applying any action to DMX universes.
- * All apply actions (scenes, chases, shows, AI suggestions) MUST use this modal.
+ * Full-screen design with tabbed interface: Universes | Fixtures | Groups
+ * - Universe grid with online status indicators and fixture counts
+ * - Fixture-level selection within each universe
+ * - Quick actions: All, Online Only, None
+ * - Sends universes array in single API call
  *
  * Routes through SSOT - does NOT directly manipulate DMX.
  */
 import React, { useState, useMemo, useEffect } from "react";
 import ReactDOM from "react-dom";
-import { X, Play, Zap, Layers, Users, Loader, Music, Sparkles, Film } from "lucide-react";
+import { X, Play, Zap, Layers, Users, Loader, Music, Sparkles, Film, Wifi, WifiOff, Check, Square, ChevronRight } from "lucide-react";
 import useNodeStore from "../store/nodeStore";
 import useDMXStore from "../store/dmxStore";
 import axios from "axios";
@@ -26,9 +29,10 @@ const MODE_CONFIG = {
     title: (item) => item?.name || 'Scene',
     subtitle: null,
     primaryColor: 'green',
-    primaryLabel: 'Apply',
+    primaryLabel: 'Apply Scene',
     showFadeOptions: true,
     showGroups: true,
+    showFixtures: true,
   },
   chase: {
     icon: Music,
@@ -36,9 +40,10 @@ const MODE_CONFIG = {
     title: (item) => item?.name || 'Chase',
     subtitle: (item) => `${item?.bpm || 120} BPM • ${item?.steps?.length || 0} steps`,
     primaryColor: 'purple',
-    primaryLabel: 'Play',
-    showFadeOptions: true, // Enable fade time selection for chases
-    showGroups: false, // Chases apply to whole universes
+    primaryLabel: 'Play Chase',
+    showFadeOptions: true,
+    showGroups: false,
+    showFixtures: false, // Chases apply to whole universes
   },
   show: {
     icon: Film,
@@ -46,9 +51,10 @@ const MODE_CONFIG = {
     title: (item) => item?.name || 'Show',
     subtitle: (item) => item?.duration || null,
     primaryColor: 'amber',
-    primaryLabel: 'Run',
+    primaryLabel: 'Run Show',
     showFadeOptions: false,
     showGroups: false,
+    showFixtures: false,
   },
   ai_scene: {
     icon: Sparkles,
@@ -59,19 +65,21 @@ const MODE_CONFIG = {
     primaryLabel: 'Apply',
     showFadeOptions: true,
     showGroups: true,
+    showFixtures: true,
   },
 };
 
 /**
+ * Tab definitions
+ */
+const TABS = {
+  universes: { id: 'universes', label: 'Universes', icon: Layers },
+  fixtures: { id: 'fixtures', label: 'Fixtures', icon: Zap },
+  groups: { id: 'groups', label: 'Groups', icon: Users },
+};
+
+/**
  * ApplyTargetModal Component
- *
- * @param {Object} props
- * @param {'scene'|'chase'|'show'|'ai_scene'} props.mode - The type of action
- * @param {Object} props.item - The item to apply (scene, chase, etc.)
- * @param {Object} props.defaultTargets - Optional pre-filled targets { scope, universes, groups, fadeMs }
- * @param {Function} props.onConfirm - Called with (item, options) when user confirms
- * @param {Function} props.onCancel - Called when user cancels
- * @param {boolean} props.loading - Shows loading state on confirm button
  */
 const ApplyTargetModal = ({
   mode = 'scene',
@@ -89,13 +97,23 @@ const ApplyTargetModal = ({
   const nodes = safeArray(rawNodes);
   const configuredUniverses = safeArray(rawConfigured).length > 0 ? rawConfigured : [1];
 
-  // State - default to "all" for scenes since fixtures may be on different universes than the scene was created on
-  const [scope, setScope] = useState(defaultTargets.scope || (mode === 'scene' ? 'all' : 'current'));
+  // Determine available tabs based on mode
+  const availableTabs = useMemo(() => {
+    const tabs = [TABS.universes];
+    if (config.showFixtures) tabs.push(TABS.fixtures);
+    if (config.showGroups) tabs.push(TABS.groups);
+    return tabs;
+  }, [config]);
+
+  // State
+  const [activeTab, setActiveTab] = useState('universes');
   const [selectedUniverses, setSelectedUniverses] = useState(defaultTargets.universes || []);
+  const [selectedFixtures, setSelectedFixtures] = useState(defaultTargets.fixtures || {});
   const [selectedGroups, setSelectedGroups] = useState(defaultTargets.groups || []);
   const [fadeMs, setFadeMs] = useState(defaultTargets.fadeMs || 1000);
   const [groups, setGroups] = useState([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [expandedUniverse, setExpandedUniverse] = useState(null);
 
   // Load groups if needed
   useEffect(() => {
@@ -121,25 +139,103 @@ const ApplyTargetModal = ({
     loadGroups();
   }, [config.showGroups]);
 
-  // Apply default targets when they change (for AI pre-fill)
+  // Apply default targets when they change
   useEffect(() => {
-    if (defaultTargets.scope) setScope(defaultTargets.scope);
     if (defaultTargets.universes) setSelectedUniverses(defaultTargets.universes);
     if (defaultTargets.groups) setSelectedGroups(defaultTargets.groups);
     if (defaultTargets.fadeMs) setFadeMs(defaultTargets.fadeMs);
   }, [defaultTargets]);
 
-  // Derived state
-  const universes = useMemo(() => {
+  // Build universe info with online status and fixture counts
+  const universeInfo = useMemo(() => {
     const fromNodes = [...new Set(nodes.map(n => n.universe || 1))].sort((a, b) => a - b);
-    return fromNodes.length > 0 ? fromNodes : configuredUniverses;
+    const allUniverses = fromNodes.length > 0 ? fromNodes : configuredUniverses;
+
+    return allUniverses.map(u => {
+      const universeNodes = nodes.filter(n => n.universe === u);
+      const onlineNodes = universeNodes.filter(n => n.status === 'online');
+      const hasPairedFixture = universeNodes.some(n => n.fixture_count > 0 || n.paired);
+
+      return {
+        universe: u,
+        nodes: universeNodes,
+        onlineCount: onlineNodes.length,
+        totalCount: universeNodes.length,
+        isOnline: onlineNodes.length > 0,
+        hasPairedFixture,
+        fixtureCount: universeNodes.reduce((sum, n) => sum + (n.fixture_count || 0), 0)
+      };
+    });
   }, [nodes, configuredUniverses]);
 
-  const toggleUniverse = (u) => setSelectedUniverses(p => p.includes(u) ? p.filter(x => x !== u) : [...p, u]);
-  const toggleGroup = (g) => setSelectedGroups(p => p.includes(g) ? p.filter(x => x !== g) : [...p, g]);
+  // Get fixtures for a universe
+  const getFixturesForUniverse = (universe) => {
+    return nodes.filter(n => n.universe === universe).map(n => ({
+      id: n.node_id || n.id,
+      name: n.name || `Node ${n.node_id || n.id}`,
+      universe: n.universe,
+      isOnline: n.status === 'online',
+      fixtureCount: n.fixture_count || 0,
+      channels: n.channels || []
+    }));
+  };
 
+  // Toggle functions
+  const toggleUniverse = (u) => {
+    setSelectedUniverses(prev =>
+      prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]
+    );
+  };
+
+  const toggleGroup = (gid) => {
+    setSelectedGroups(prev =>
+      prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]
+    );
+  };
+
+  const toggleFixture = (universeId, fixtureId) => {
+    setSelectedFixtures(prev => {
+      const current = prev[universeId] || [];
+      const updated = current.includes(fixtureId)
+        ? current.filter(x => x !== fixtureId)
+        : [...current, fixtureId];
+      return { ...prev, [universeId]: updated };
+    });
+  };
+
+  // Quick actions
+  const selectAllUniverses = () => {
+    setSelectedUniverses(universeInfo.map(u => u.universe));
+  };
+
+  const selectOnlineOnly = () => {
+    setSelectedUniverses(
+      universeInfo.filter(u => u.isOnline && u.hasPairedFixture).map(u => u.universe)
+    );
+  };
+
+  const selectNone = () => {
+    setSelectedUniverses([]);
+  };
+
+  // Compute affected universes based on current selection mode
+  const affectedUniverses = useMemo(() => {
+    if (activeTab === 'groups' && selectedGroups.length > 0) {
+      const groupUnivs = selectedGroups.map(gid => {
+        const group = groups.find(g => g.id === gid);
+        return group?.universe || 1;
+      });
+      return [...new Set(groupUnivs)];
+    }
+    if (activeTab === 'fixtures') {
+      return Object.keys(selectedFixtures).filter(u => selectedFixtures[u]?.length > 0).map(Number);
+    }
+    return selectedUniverses;
+  }, [activeTab, selectedUniverses, selectedGroups, selectedFixtures, groups]);
+
+  // Group channels by universe for group-based playback
   const groupChannelsByUniverse = useMemo(() => {
-    if (scope !== 'groups' || selectedGroups.length === 0) return null;
+    if (activeTab !== 'groups' || selectedGroups.length === 0) return null;
     const byUniverse = {};
     selectedGroups.forEach(gid => {
       const group = groups.find(g => g.id === gid);
@@ -153,71 +249,47 @@ const ApplyTargetModal = ({
       byUniverse[u] = [...new Set(byUniverse[u])];
     });
     return byUniverse;
-  }, [scope, selectedGroups, groups]);
-
-  const groupChannels = useMemo(() => {
-    if (!groupChannelsByUniverse) return null;
-    const allChannels = [];
-    Object.values(groupChannelsByUniverse).forEach(chs => allChannels.push(...chs));
-    return [...new Set(allChannels)];
-  }, [groupChannelsByUniverse]);
-
-  const affectedUniverses = useMemo(() => {
-    switch (scope) {
-      case 'current': return [item?.universe || 1];
-      case 'selected': return selectedUniverses;
-      case 'all': return universes;
-      case 'groups': {
-        const groupUnivs = selectedGroups.map(gid => {
-          const group = groups.find(g => g.id === gid);
-          return group?.universe || 1;
-        });
-        return [...new Set(groupUnivs)];
-      }
-      default: return [1];
-    }
-  }, [scope, selectedUniverses, universes, item, selectedGroups, groups]);
+  }, [activeTab, selectedGroups, groups]);
 
   // Validation
   const canConfirm = useMemo(() => {
-    if (scope === 'selected' && selectedUniverses.length === 0) return false;
-    if (scope === 'groups' && selectedGroups.length === 0) return false;
+    if (activeTab === 'universes' && selectedUniverses.length === 0) return false;
+    if (activeTab === 'groups' && selectedGroups.length === 0) return false;
+    if (activeTab === 'fixtures') {
+      const hasSelection = Object.values(selectedFixtures).some(arr => arr?.length > 0);
+      if (!hasSelection) return false;
+    }
     return true;
-  }, [scope, selectedUniverses, selectedGroups]);
+  }, [activeTab, selectedUniverses, selectedGroups, selectedFixtures]);
 
   const validationMessage = useMemo(() => {
-    if (scope === 'selected' && selectedUniverses.length === 0) return 'Select at least one universe';
-    if (scope === 'groups' && selectedGroups.length === 0) return 'Select at least one group';
+    if (activeTab === 'universes' && selectedUniverses.length === 0) return 'Select at least one universe';
+    if (activeTab === 'groups' && selectedGroups.length === 0) return 'Select at least one group';
+    if (activeTab === 'fixtures') {
+      const hasSelection = Object.values(selectedFixtures).some(arr => arr?.length > 0);
+      if (!hasSelection) return 'Select at least one fixture';
+    }
     return null;
-  }, [scope, selectedUniverses, selectedGroups]);
+  }, [activeTab, selectedUniverses, selectedGroups, selectedFixtures]);
 
   // Handle confirm
   const handleConfirm = () => {
-    console.log('🟣 ApplyTargetModal handleConfirm called');
-    console.log('🔍 canConfirm:', canConfirm);
-    console.log('🔍 affectedUniverses:', affectedUniverses);
-    console.log('🔍 item:', item?.name || item);
-    console.log('🔍 onConfirm type:', typeof onConfirm);
-
-    if (!canConfirm) {
-      console.log('❌ canConfirm is false, returning');
-      return;
-    }
+    if (!canConfirm) return;
 
     const options = {
       fadeMs,
       universes: affectedUniverses,
       mergeMode: 'merge',
-      scope,
+      scope: activeTab,
       channelsByUniverse: groupChannelsByUniverse
     };
-    console.log('📦 Calling onConfirm with options:', options);
+
+    console.log('📦 ApplyTargetModal confirming with options:', options);
     onConfirm(item, options);
   };
 
-  // Get button colors based on mode and scope
+  // Get button colors based on mode
   const getPrimaryButtonClass = () => {
-    if (scope === 'all') return 'bg-orange-500 text-white';
     switch (config.primaryColor) {
       case 'purple': return 'bg-purple-500 text-white';
       case 'amber': return 'bg-amber-500 text-black';
@@ -226,189 +298,311 @@ const ApplyTargetModal = ({
     }
   };
 
-  // Scope options - conditionally include groups
-  const scopeOptions = [
-    { id: 'current', icon: Zap, label: 'Current' },
-    { id: 'selected', icon: Layers, label: 'Select' },
-    ...(config.showGroups ? [{ id: 'groups', icon: Users, label: 'Groups' }] : []),
-    { id: 'all', icon: Layers, label: 'All' }
-  ];
+  // Summary text
+  const getSummaryText = () => {
+    if (activeTab === 'groups') {
+      const channelCount = groupChannelsByUniverse
+        ? Object.values(groupChannelsByUniverse).flat().length
+        : 0;
+      return `${selectedGroups.length} group${selectedGroups.length !== 1 ? 's' : ''} • ${channelCount} channels`;
+    }
+    if (activeTab === 'fixtures') {
+      const fixtureCount = Object.values(selectedFixtures).flat().length;
+      return `${fixtureCount} fixture${fixtureCount !== 1 ? 's' : ''} across ${affectedUniverses.length} universe${affectedUniverses.length !== 1 ? 's' : ''}`;
+    }
+    const onlineCount = universeInfo.filter(u => selectedUniverses.includes(u.universe) && u.isOnline).length;
+    return `${selectedUniverses.length} universe${selectedUniverses.length !== 1 ? 's' : ''} (${onlineCount} online)`;
+  };
 
   return ReactDOM.createPortal(
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '12px'
-      }}
-      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onCancel(); } }}
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
-    >
-      <div
-        className="bg-[#0d0d12] rounded-2xl w-full max-w-sm border border-white/10"
-        onClick={e => e.stopPropagation()}
-        onTouchEnd={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+    <div className="fixed inset-0 bg-[#0a0a0f] z-[9999] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0d0d12]">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onCancel}
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+          >
+            <X className="w-5 h-5 text-white/60" />
+          </button>
           <div className="flex items-center gap-2">
-            <IconComponent className={`w-4 h-4 ${config.iconColor}`} />
+            <IconComponent className={`w-5 h-5 ${config.iconColor}`} />
             <div>
-              <span className="text-white font-bold text-sm">{config.title(item)}</span>
+              <h2 className="text-white font-bold text-base">{config.title(item)}</h2>
               {config.subtitle && config.subtitle(item) && (
-                <p className="text-white/50 text-[10px]">{config.subtitle(item)}</p>
+                <p className="text-white/50 text-xs">{config.subtitle(item)}</p>
               )}
             </div>
           </div>
-          <button onClick={onCancel} className="p-1.5 hover:bg-white/10 rounded-lg">
-            <X className="w-4 h-4 text-white/50" />
-          </button>
         </div>
+      </div>
 
-        <div className="p-2.5 space-y-2">
-          {/* Scope Selection */}
-          <div className={`grid gap-1.5`} style={{ gridTemplateColumns: `repeat(${scopeOptions.length}, 1fr)` }}>
-            {scopeOptions.map(({ id, icon: Icon, label }) => (
+      {/* Tabs */}
+      <div className="flex border-b border-white/10 bg-[#0d0d12]">
+        {availableTabs.map(tab => {
+          const TabIcon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 flex items-center justify-center gap-2 text-sm font-bold transition-colors ${
+                isActive
+                  ? 'text-white border-b-2 border-[var(--theme-primary)]'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
+              <TabIcon size={16} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4">
+        {/* Universes Tab */}
+        {activeTab === 'universes' && (
+          <div className="space-y-4">
+            {/* Quick Actions */}
+            <div className="flex gap-2">
               <button
-                key={id}
-                onClick={() => setScope(id)}
-                className={`py-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] font-bold ${
-                  scope === id
-                    ? id === 'groups' ? 'bg-purple-500/20 text-purple-300 border border-purple-500'
-                    : id === 'all' ? 'bg-orange-500/20 text-orange-300 border border-orange-500'
-                    : 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]'
-                    : 'bg-white/5 text-white/50 border border-transparent'
-                }`}
+                onClick={selectAllUniverses}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10 transition-colors"
               >
-                <Icon size={14} />
-                {label}
+                All
               </button>
-            ))}
-          </div>
+              <button
+                onClick={selectOnlineOnly}
+                className="flex-1 py-2 px-3 rounded-xl bg-green-500/10 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-colors"
+              >
+                Online Only
+              </button>
+              <button
+                onClick={selectNone}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                None
+              </button>
+            </div>
 
-          {/* Universe Selection */}
-          {scope === "selected" && (
-            <div className="flex flex-wrap gap-1.5">
-              {universes.map(u => {
-                const s = selectedUniverses.includes(u);
-                const isOnline = nodes.some(node => node.universe === u && node.status === 'online');
+            {/* Universe Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {universeInfo.map(info => {
+                const isSelected = selectedUniverses.includes(info.universe);
                 return (
                   <button
-                    key={u}
-                    onClick={() => toggleUniverse(u)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
-                      s ? "bg-[var(--accent)] text-black" : "bg-white/10 text-white/60"
+                    key={info.universe}
+                    onClick={() => toggleUniverse(info.universe)}
+                    className={`p-4 rounded-2xl border-2 transition-all ${
+                      isSelected
+                        ? 'bg-[var(--theme-primary)]/10 border-[var(--theme-primary)]'
+                        : 'bg-white/5 border-transparent hover:border-white/20'
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-                    U{u}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-bold text-white">U{info.universe}</span>
+                      <div className="flex items-center gap-1">
+                        {isSelected && <Check size={16} className="text-[var(--theme-primary)]" />}
+                        {info.isOnline ? (
+                          <Wifi size={14} className="text-green-400" />
+                        ) : (
+                          <WifiOff size={14} className="text-red-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs text-white/50">
+                        {info.onlineCount}/{info.totalCount} nodes online
+                      </div>
+                      {info.fixtureCount > 0 && (
+                        <div className="text-xs text-white/40">
+                          {info.fixtureCount} fixture{info.fixtureCount !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                      {!info.hasPairedFixture && (
+                        <div className="text-xs text-orange-400 mt-1">
+                          No paired fixtures
+                        </div>
+                      )}
+                    </div>
                   </button>
                 );
               })}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Group Selection */}
-          {scope === "groups" && config.showGroups && (
-            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {groupsLoading ? (
-                <div className="text-white/40 text-xs flex items-center gap-1">
-                  <Loader size={12} className="animate-spin" /> Loading...
+        {/* Fixtures Tab */}
+        {activeTab === 'fixtures' && config.showFixtures && (
+          <div className="space-y-3">
+            {universeInfo.map(info => {
+              const fixtures = getFixturesForUniverse(info.universe);
+              const isExpanded = expandedUniverse === info.universe;
+              const selectedInUniverse = selectedFixtures[info.universe] || [];
+
+              return (
+                <div key={info.universe} className="rounded-2xl bg-white/5 overflow-hidden">
+                  <button
+                    onClick={() => setExpandedUniverse(isExpanded ? null : info.universe)}
+                    className="w-full p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-bold text-white">Universe {info.universe}</span>
+                      {info.isOnline ? (
+                        <Wifi size={14} className="text-green-400" />
+                      ) : (
+                        <WifiOff size={14} className="text-red-400" />
+                      )}
+                      {selectedInUniverse.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--theme-primary)] text-black text-xs font-bold">
+                          {selectedInUniverse.length}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronRight
+                      size={18}
+                      className={`text-white/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                    />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-4 pb-4 space-y-2">
+                      {fixtures.length === 0 ? (
+                        <div className="text-white/40 text-sm py-2">No fixtures in this universe</div>
+                      ) : (
+                        fixtures.map(fixture => {
+                          const isSelected = selectedInUniverse.includes(fixture.id);
+                          return (
+                            <button
+                              key={fixture.id}
+                              onClick={() => toggleFixture(info.universe, fixture.id)}
+                              className={`w-full p-3 rounded-xl flex items-center justify-between transition-colors ${
+                                isSelected
+                                  ? 'bg-[var(--theme-primary)]/20 border border-[var(--theme-primary)]'
+                                  : 'bg-white/5 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${fixture.isOnline ? 'bg-green-400' : 'bg-red-400'}`} />
+                                <span className="text-white text-sm">{fixture.name}</span>
+                              </div>
+                              {isSelected ? (
+                                <Check size={16} className="text-[var(--theme-primary)]" />
+                              ) : (
+                                <Square size={16} className="text-white/20" />
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
-              ) : groups.length === 0 ? (
-                <div className="text-white/40 text-xs">No groups available</div>
-              ) : (
-                groups.map(g => {
-                  const s = selectedGroups.includes(g.id);
-                  return (
-                    <button
-                      key={g.id}
-                      onClick={() => toggleGroup(g.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                        s ? "bg-purple-500 text-white" : "bg-white/10 text-white/60"
-                      }`}
-                    >
-                      {g.name} <span className="opacity-60">U{g.universe}</span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          )}
+              );
+            })}
+          </div>
+        )}
 
-          {/* Fade Time - only for scenes */}
-          {config.showFadeOptions && (
-            <div className="flex gap-1">
-              {[0, 500, 1000, 2000].map(ms => (
-                <button
-                  key={ms}
-                  onClick={() => setFadeMs(ms)}
-                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold ${
-                    fadeMs === ms ? "bg-white/20 text-white" : "bg-white/5 text-white/40"
-                  }`}
-                >
-                  {ms === 0 ? "Snap" : `${ms / 1000}s`}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Summary / Validation */}
-          <div className="text-[10px] text-center">
-            {validationMessage ? (
-              <span className="text-red-400">{validationMessage}</span>
+        {/* Groups Tab */}
+        {activeTab === 'groups' && config.showGroups && (
+          <div className="space-y-2">
+            {groupsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader size={24} className="animate-spin text-white/40" />
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="text-center py-8 text-white/40">
+                No groups available
+              </div>
             ) : (
-              <span className="text-white/40">
-                {scope === 'groups'
-                  ? `${selectedGroups.length} group${selectedGroups.length !== 1 ? 's' : ''} · ${groupChannels?.length || 0} ch`
-                  : `${affectedUniverses.length} universe${affectedUniverses.length !== 1 ? 's' : ''}`
-                }
-              </span>
+              groups.map(group => {
+                const isSelected = selectedGroups.includes(group.id);
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => toggleGroup(group.id)}
+                    className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? 'bg-purple-500/20 border border-purple-500'
+                        : 'bg-white/5 border border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <div className="text-left">
+                        <div className="text-white font-medium">{group.name}</div>
+                        <div className="text-white/50 text-xs">
+                          U{group.universe} • {group.channels?.length || 0} channels
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected ? (
+                      <Check size={18} className="text-purple-400" />
+                    ) : (
+                      <Square size={18} className="text-white/20" />
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-white/10 bg-[#0d0d12] p-4 space-y-3">
+        {/* Fade Time */}
+        {config.showFadeOptions && (
+          <div className="flex gap-2">
+            {[0, 500, 1000, 2000].map(ms => (
+              <button
+                key={ms}
+                onClick={() => setFadeMs(ms)}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  fadeMs === ms
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white/5 text-white/40 hover:bg-white/10'
+                }`}
+              >
+                {ms === 0 ? 'Snap' : `${ms / 1000}s`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Summary */}
+        <div className="text-center text-xs">
+          {validationMessage ? (
+            <span className="text-red-400">{validationMessage}</span>
+          ) : (
+            <span className="text-white/50">{getSummaryText()}</span>
+          )}
         </div>
 
         {/* Actions */}
-        <div className="px-2.5 pb-2.5 flex gap-2">
+        <div className="flex gap-3">
           <button
-            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onCancel(); }}
-            onClick={(e) => { e.preventDefault(); onCancel(); }}
-            style={{ touchAction: 'manipulation' }}
-            className="flex-1 py-2 rounded-xl bg-white/10 text-white font-bold text-xs"
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-sm hover:bg-white/15 transition-colors"
           >
             Cancel
           </button>
           <button
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (canConfirm && !loading) {
-                console.log('🟡 Apply button onTouchEnd triggered');
-                handleConfirm();
-              }
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              if (canConfirm && !loading) {
-                handleConfirm();
-              }
-            }}
+            onClick={handleConfirm}
             disabled={!canConfirm || loading}
-            style={{ touchAction: 'manipulation' }}
-            className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5
-              ${!canConfirm ? 'opacity-50 cursor-not-allowed' : ''}
-              ${getPrimaryButtonClass()}`}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+              !canConfirm ? 'opacity-50 cursor-not-allowed' : ''
+            } ${getPrimaryButtonClass()}`}
           >
             {loading ? (
-              <Loader size={14} className="animate-spin" />
+              <Loader size={16} className="animate-spin" />
             ) : (
               <>
-                <IconComponent size={14} />
+                <IconComponent size={16} />
                 {config.primaryLabel}
               </>
             )}
@@ -422,16 +616,6 @@ const ApplyTargetModal = ({
 
 /**
  * Hook for AI-suggested scene integration
- * Returns a function that can be called to open the modal with pre-filled suggestions
- *
- * Usage:
- *   const { openAISuggestion, AISuggestionModal } = useAISuggestionModal(handleApplyScene);
- *
- *   // When AI suggests a scene:
- *   openAISuggestion(suggestedScene, { universes: [2], fadeMs: 1000 });
- *
- *   // In render:
- *   {AISuggestionModal}
  */
 export const useAISuggestionModal = (onApply) => {
   const [state, setState] = useState({ isOpen: false, item: null, targets: {} });
@@ -441,7 +625,6 @@ export const useAISuggestionModal = (onApply) => {
       isOpen: true,
       item: suggestedItem,
       targets: {
-        scope: suggestedTargets.universes?.length ? 'selected' : 'all',
         universes: suggestedTargets.universes || [],
         fadeMs: suggestedTargets.fadeMs || 1000,
         ...suggestedTargets
