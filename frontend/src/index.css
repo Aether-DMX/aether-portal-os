@@ -930,7 +930,7 @@ input[type="range"]::-moz-range-thumb {
 .zones-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: clamp(4px, 1vw, 10px);
+  gap: clamp(6px, 1.2vw, 12px);
   flex: 1;
   align-content: start;
   min-height: 0;
@@ -947,6 +947,20 @@ input[type="range"]::-moz-range-thumb {
 
 .zone-icon:active .zone-img {
   transform: scale(0.9);
+}
+
+/* PULSE Card - Unified node design */
+.pulse-card {
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.pulse-card:hover {
+  transform: scale(1.02);
+}
+
+.pulse-card:active {
+  transform: scale(0.95);
 }
 
 .zone-img {

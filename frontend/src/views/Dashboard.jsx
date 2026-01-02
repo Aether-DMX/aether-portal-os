@@ -32,7 +32,7 @@ const zoneIcons = {
 // Scene emoji icons
 const sceneEmojis = ['🌅', '🍸', '🔥', '🌙', '✨', '🎉', '💜', '🌊'];
 
-// Sortable Zone Component
+// Sortable Zone Component - Unified PULSE card design
 function SortableZone({ node, brightness, getNodeIcon, onClick }) {
   const {
     attributes,
@@ -42,6 +42,30 @@ function SortableZone({ node, brightness, getNodeIcon, onClick }) {
     transition,
     isDragging,
   } = useSortable({ id: node.node_id || node.id });
+
+  const isOnline = node.status === 'online';
+  const statusColor = isOnline ? '#22c55e' : '#eab308'; // green or yellow
+
+  // Get display name - extract MAC suffix (last 4 chars) from node_id or mac
+  // node_id format: "pulse-422C" or "universe-1-builtin"
+  const getDisplayName = () => {
+    // For built-in wired node
+    if (node.is_builtin || node.type === 'hardwired') {
+      return 'WIRED';
+    }
+    // Extract from node_id (e.g., "pulse-422C" -> "422C")
+    if (node.node_id && node.node_id.includes('-')) {
+      const suffix = node.node_id.split('-').pop();
+      if (suffix && suffix.length <= 5) return suffix.toUpperCase();
+    }
+    // Fallback to MAC suffix
+    if (node.mac && node.mac !== 'UART') {
+      return node.mac.slice(-5).replace(':', '').toUpperCase();
+    }
+    return 'NODE';
+  };
+
+  const displayName = getDisplayName();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -56,28 +80,60 @@ function SortableZone({ node, brightness, getNodeIcon, onClick }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="zone-icon"
       onClick={onClick}
+      className="pulse-card"
     >
-      <div className={`zone-img ${node.status === 'online' ? 'active' : ''}`}>
-        <img 
-          src={getNodeIcon(node.type)} 
-          alt="" 
-          style={{ 
-            width: '48px', 
-            height: '48px', 
-            filter: 'brightness(0) invert(1)', 
-            opacity: 1 
-          }} 
-        />
-        <div className="zone-bar">
-          <div
-            className="zone-bar-fill"
-            style={{ width: `${brightness}%` }}
+      {/* Outer status border - hugs the card */}
+      <div style={{
+        padding: 2,
+        borderRadius: 12,
+        background: `linear-gradient(135deg, ${statusColor}, ${statusColor}88)`,
+      }}>
+        {/* Inner card */}
+        <div style={{
+          background: 'rgba(20, 20, 30, 0.95)',
+          borderRadius: 10,
+          padding: '6px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          minWidth: 60,
+        }}>
+          {/* PULSE label at top */}
+          <span style={{
+            fontSize: 8,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.5)',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+          }}>
+            PULSE
+          </span>
+
+          {/* Node icon in center */}
+          <img
+            src={getNodeIcon(node.type)}
+            alt=""
+            style={{
+              width: 28,
+              height: 28,
+              filter: 'brightness(0) invert(1)',
+              opacity: 0.9,
+            }}
           />
+
+          {/* Name/MAC at bottom */}
+          <span style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: '#fff',
+            textAlign: 'center',
+          }}>
+            {displayName}
+          </span>
         </div>
       </div>
-      <span className="zone-name">{node.name}</span>
     </div>
   );
 }
