@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { KeyboardProvider } from './context/KeyboardContext';
 import Header from './components/Header';
 import Dock from './components/Dock';
-import ChatModal from './components/ChatModal';
+import ChatDock from './components/ChatDock';
 import Dashboard from './views/Dashboard';
+import ChatPage from './views/ChatPage';
 import LiveDMXMenu from './views/LiveDMXMenu';
 import Console from './views/Console';
 import DMXEffectsMenu from './views/DMXEffectsMenu';
@@ -45,8 +46,6 @@ import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, M
 import useAIContext from './hooks/useAIContext';
 
 function AppContent({ onLock }) {
-  const [showAIModal, setShowAIModal] = useState(false);
-
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-black relative">
       <div className="ambient-glow" />
@@ -57,6 +56,7 @@ function AppContent({ onLock }) {
       <main className="flex-1 relative z-10 overflow-hidden">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="/live-dmx" element={<LiveDMXMenu />} />
           <Route path="/console" element={<Console />} />
           <Route path="/dmx-effects" element={<DMXEffectsMenu />} />
@@ -88,9 +88,9 @@ function AppContent({ onLock }) {
         </Routes>
       </main>
 
-      <Dock onAIClick={() => setShowAIModal(true)} />
+      <Dock />
 
-      {showAIModal && <ChatModal onClose={() => setShowAIModal(false)} />}
+      <ChatDock />
       <ToastContainer />
       <AIBubble />
     </div>

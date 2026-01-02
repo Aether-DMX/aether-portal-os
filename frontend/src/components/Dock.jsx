@@ -18,7 +18,7 @@ const dockItems = [
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
 
-export default function Dock({ onAIClick }) {
+export default function Dock() {
   const navigate = useNavigate();
   const location = useLocation();
   const { blackoutAll } = useDMXStore();
@@ -27,14 +27,14 @@ export default function Dock({ onAIClick }) {
     if (item.action === 'blackout') {
       blackoutAll(1500);
     } else if (item.action === 'openAI') {
-      if (onAIClick) onAIClick();
+      navigate('/chat');
     } else if (item.path) {
       navigate(item.path);
     }
   };
 
   // Don't show dock on certain pages (fullscreen views)
-  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/faders'];
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/faders', '/chat'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }
