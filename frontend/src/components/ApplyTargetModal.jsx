@@ -593,6 +593,7 @@ const ApplyTargetModal = ({
           </button>
           <button
             onClick={handleConfirm}
+            onTouchEnd={(e) => { e.preventDefault(); handleConfirm(); }}
             disabled={!canConfirm || loading}
             className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
               !canConfirm ? 'opacity-50 cursor-not-allowed' : ''
