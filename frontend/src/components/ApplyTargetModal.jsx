@@ -9,12 +9,16 @@
  *
  * Routes through SSOT - does NOT directly manipulate DMX.
  */
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { X, Play, Zap, Layers, Users, Loader, Music, Sparkles, Film, Wifi, WifiOff, Check, Square, ChevronRight } from "lucide-react";
 import useNodeStore from "../store/nodeStore";
 import useDMXStore from "../store/dmxStore";
 import axios from "axios";
+
+// Debug flag - set to true to enable verbose logging
+const DEBUG_MODAL = true;
+const log = (...args) => DEBUG_MODAL && console.log('[ApplyTargetModal]', ...args);
 
 const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
 const AETHER_CORE_URL = `http://${window.location.hostname}:8891`;
@@ -115,6 +119,12 @@ const ApplyTargetModal = ({
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [expandedUniverse, setExpandedUniverse] = useState(null);
 
+  // Log on mount
+  useEffect(() => {
+    log('MOUNTED', { mode, item: item?.name || item?.id, hasOnConfirm: typeof onConfirm === 'function' });
+    return () => log('UNMOUNTED');
+  }, []);
+
   // Load groups if needed
   useEffect(() => {
     if (!config.showGroups) return;
@@ -180,8 +190,14 @@ const ApplyTargetModal = ({
     }));
   };
 
+  // Log when selectedUniverses changes
+  useEffect(() => {
+    log('selectedUniverses changed:', selectedUniverses, 'canConfirm:', selectedUniverses.length > 0);
+  }, [selectedUniverses]);
+
   // Toggle functions
   const toggleUniverse = (u) => {
+    log('toggleUniverse:', u);
     setSelectedUniverses(prev =>
       prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]
     );
@@ -272,9 +288,31 @@ const ApplyTargetModal = ({
     return null;
   }, [activeTab, selectedUniverses, selectedGroups, selectedFixtures]);
 
-  // Handle confirm
-  const handleConfirm = () => {
-    if (!canConfirm) return;
+  // Handle confirm - unified handler for both click and touch
+  const handleConfirm = useCallback((e) => {
+    // Prevent any default behavior and stop propagation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    log('CONFIRM PRESSED', {
+      eventType: e?.type || 'direct',
+      canConfirm,
+      selectedUniverses,
+      affectedUniverses,
+      hasOnConfirm: typeof onConfirm === 'function'
+    });
+
+    if (!canConfirm) {
+      log('CONFIRM BLOCKED - canConfirm is false');
+      return;
+    }
+
+    if (typeof onConfirm !== 'function') {
+      console.error('[ApplyTargetModal] ERROR: onConfirm is not a function!', onConfirm);
+      return;
+    }
 
     const options = {
       fadeMs,
@@ -284,9 +322,15 @@ const ApplyTargetModal = ({
       channelsByUniverse: groupChannelsByUniverse
     };
 
-    console.log('📦 ApplyTargetModal confirming with options:', options);
-    onConfirm(item, options);
-  };
+    log('CALLING onConfirm with:', { item: item?.name || item?.id, options });
+
+    try {
+      onConfirm(item, options);
+      log('onConfirm called successfully');
+    } catch (err) {
+      console.error('[ApplyTargetModal] ERROR in onConfirm:', err);
+    }
+  }, [canConfirm, onConfirm, item, fadeMs, affectedUniverses, activeTab, groupChannelsByUniverse, selectedUniverses]);
 
   // Get button colors based on mode
   const getPrimaryButtonClass = () => {
@@ -592,10 +636,12 @@ const ApplyTargetModal = ({
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
-            onTouchEnd={(e) => { e.preventDefault(); handleConfirm(); }}
+            onPointerUp={handleConfirm}
             disabled={!canConfirm || loading}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+            style={{ touchAction: 'manipulation' }}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors select-none ${
               !canConfirm ? 'opacity-50 cursor-not-allowed' : ''
             } ${getPrimaryButtonClass()}`}
           >

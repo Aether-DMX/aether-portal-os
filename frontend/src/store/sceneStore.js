@@ -57,14 +57,14 @@ const useSceneStore = create((set, get) => ({
   },
 
   playScene: async (id, fadeMs = 1500, options = {}) => {
-    console.log('🟢 sceneStore.playScene called:', { id, fadeMs, options });
+    console.log('🟢 [sceneStore] playScene ENTRY:', { id, fadeMs, options });
     try {
       const scene = get().scenes.find(s => s.scene_id === id || s.id === id);
 
       // Support both single universe and universes array
       const universes = options.universes || (options.universe ? [options.universe] : null);
 
-      console.log('🎬 Playing scene:', scene?.name || id,
+      console.log('🎬 [sceneStore] Playing scene:', scene?.name || id,
         universes ? `on universes [${universes.join(', ')}]` : 'on default universes');
 
       const payload = { fade_ms: fadeMs };
@@ -78,7 +78,11 @@ const useSceneStore = create((set, get) => ({
         payload.target_channels = options.targetChannels;
       }
 
-      const res = await axios.post(getAetherCore() + '/api/scenes/' + id + '/play', payload);
+      const url = getAetherCore() + '/api/scenes/' + id + '/play';
+      console.log('📤 [sceneStore] POST REQUEST:', { url, payload });
+
+      const res = await axios.post(url, payload);
+      console.log('📥 [sceneStore] POST RESPONSE:', { status: res.status, data: res.data });
 
       // Update playback store (SSOT) for each targeted universe
       if (scene && universes) {
@@ -93,7 +97,7 @@ const useSceneStore = create((set, get) => ({
 
       return { scene, result: res.data };
     } catch (e) {
-      console.error('Failed to play scene:', e);
+      console.error('❌ [sceneStore] playScene FAILED:', e.message, e.response?.status, e.response?.data);
       throw e;
     }
   },
