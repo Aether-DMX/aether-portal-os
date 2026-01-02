@@ -11,6 +11,7 @@ import nodesRoutes from './routes/nodes.js';
 import settingsRoutes from './routes/settings.js';
 import chaseRoutes from './routes/chase.js';
 import sceneRoutes from './routes/scene.js';
+import proxyRoutes from './routes/proxy.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -42,6 +43,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/chase', chaseRoutes);
 app.use('/api/chases', chaseRoutes);
 app.use('/api/scenes', sceneRoutes);
+
+// Additional proxy routes for all other endpoints
+app.use('/api', proxyRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', transport: 'udpjson', note: 'DMX output via AETHER Core UDPJSON' });
