@@ -34,10 +34,33 @@ class AIOrchestrator {
     this.localIntent = new LocalIntentService(this.toolBridge);
     this.sessions = new Map();
     this.actionLog = [];
+    this.pendingConfirmations = new Map(); // sessionId -> pending action
 
     // Mode: 'online' | 'offline' | 'hybrid'
     this.mode = 'hybrid';
     this.isOnline = null; // null = unknown, true/false = tested
+
+    // Safety confirmation tiers
+    this.confirmationTiers = {
+      // Tier 0: No confirmation needed (read-only, safe)
+      safe: [
+        'get_dmx_state', 'list_scenes', 'list_chases', 'list_fixtures',
+        'list_nodes', 'get_scene', 'get_chase', 'playback_status',
+        'system_health', 'system_stats'
+      ],
+      // Tier 1: Low risk - execute with notice
+      low: [
+        'set_channels', 'play_scene', 'stop_playback', 'blackout'
+      ],
+      // Tier 2: Medium risk - warn if interrupting
+      medium: [
+        'play_chase', 'create_scene', 'create_chase'
+      ],
+      // Tier 3: High risk - require explicit confirmation
+      high: [
+        'delete_scene', 'delete_chase', 'strobe_effect'
+      ]
+    };
 
     // Load system prompt
     this.systemPrompt = this.loadSystemPrompt();
@@ -244,11 +267,154 @@ When using tools:
   }
 
   /**
+   * Get the confirmation tier for an action
+   */
+  getActionTier(actionName) {
+    if (this.confirmationTiers.safe.includes(actionName)) return 'safe';
+    if (this.confirmationTiers.low.includes(actionName)) return 'low';
+    if (this.confirmationTiers.medium.includes(actionName)) return 'medium';
+    if (this.confirmationTiers.high.includes(actionName)) return 'high';
+    return 'medium'; // Default to medium for unknown actions
+  }
+
+  /**
+   * Check if an action requires confirmation based on context
+   */
+  async requiresConfirmation(actionName, params, context) {
+    const tier = this.getActionTier(actionName);
+
+    // Safe actions never need confirmation
+    if (tier === 'safe') {
+      return { required: false };
+    }
+
+    // High-risk actions always need confirmation
+    if (tier === 'high') {
+      return {
+        required: true,
+        reason: this.getConfirmationReason(actionName, params),
+        severity: 'high'
+      };
+    }
+
+    // Check for strobe effects with high frequency
+    if (actionName === 'play_chase' && params) {
+      const speed = params.speed || params.stepDuration || 500;
+      if (speed < 100) { // Less than 100ms = >10Hz strobe
+        return {
+          required: true,
+          reason: 'This chase has a very fast speed (>10Hz). This could cause strobing effects.',
+          severity: 'high'
+        };
+      }
+    }
+
+    // Medium-risk actions need confirmation if interrupting playback
+    if (tier === 'medium' && context.playback?.state === 'playing') {
+      return {
+        required: true,
+        reason: 'This will interrupt the currently playing scene/chase.',
+        severity: 'medium'
+      };
+    }
+
+    return { required: false };
+  }
+
+  getConfirmationReason(actionName, params) {
+    switch (actionName) {
+      case 'delete_scene':
+        return `Delete scene "${params?.id || params?.name || 'unknown'}"? This cannot be undone.`;
+      case 'delete_chase':
+        return `Delete chase "${params?.id || params?.name || 'unknown'}"? This cannot be undone.`;
+      case 'strobe_effect':
+        return 'Enable strobe effect? This may cause discomfort for some viewers.';
+      default:
+        return 'This action may have significant effects. Continue?';
+    }
+  }
+
+  /**
+   * Store a pending confirmation for a session
+   */
+  setPendingConfirmation(sessionId, action, params, reason) {
+    this.pendingConfirmations.set(sessionId, {
+      action,
+      params,
+      reason,
+      timestamp: Date.now()
+    });
+    // Auto-expire after 60 seconds
+    setTimeout(() => {
+      const pending = this.pendingConfirmations.get(sessionId);
+      if (pending && pending.timestamp === Date.now()) {
+        this.pendingConfirmations.delete(sessionId);
+      }
+    }, 60000);
+  }
+
+  /**
+   * Get and clear pending confirmation for a session
+   */
+  getPendingConfirmation(sessionId) {
+    const pending = this.pendingConfirmations.get(sessionId);
+    if (pending) {
+      this.pendingConfirmations.delete(sessionId);
+    }
+    return pending;
+  }
+
+  /**
+   * Check if user message is a confirmation response
+   */
+  isConfirmationResponse(message) {
+    const normalized = message.toLowerCase().trim();
+    const confirmWords = ['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'do it', 'confirm', 'proceed', 'go ahead', 'y'];
+    const denyWords = ['no', 'nope', 'cancel', 'stop', 'don\'t', 'dont', 'n', 'nevermind', 'never mind'];
+
+    if (confirmWords.some(w => normalized === w || normalized.startsWith(w + ' '))) {
+      return 'confirm';
+    }
+    if (denyWords.some(w => normalized === w || normalized.startsWith(w + ' '))) {
+      return 'deny';
+    }
+    return null;
+  }
+
+  /**
    * Main chat method - routes to Claude or local fallback
    */
   async chat(userMessage, sessionId = 'default') {
     const session = this.getSession(sessionId);
     const context = await this.getContext();
+
+    // Check for pending confirmation first
+    const pending = this.pendingConfirmations.get(sessionId);
+    if (pending) {
+      const response = this.isConfirmationResponse(userMessage);
+      if (response === 'confirm') {
+        this.pendingConfirmations.delete(sessionId);
+        // Execute the pending action
+        const result = await this.toolBridge.execute(pending.action, pending.params);
+        this.logAction(pending.action, pending.params, result, sessionId);
+        session.messages.push({ role: 'user', content: userMessage });
+        const confirmMsg = result.success !== false
+          ? `Done. ${result.message || 'Action completed successfully.'}`
+          : `Failed: ${result.error || 'Unknown error'}`;
+        session.messages.push({ role: 'assistant', content: confirmMsg });
+        this.sessions.set(sessionId, session);
+        return { message: confirmMsg, mode: 'confirmed', sessionId };
+      } else if (response === 'deny') {
+        this.pendingConfirmations.delete(sessionId);
+        session.messages.push({ role: 'user', content: userMessage });
+        const cancelMsg = 'Cancelled. What else can I help with?';
+        session.messages.push({ role: 'assistant', content: cancelMsg });
+        this.sessions.set(sessionId, session);
+        return { message: cancelMsg, mode: 'cancelled', sessionId };
+      }
+      // Not a confirmation response, clear pending and process normally
+      this.pendingConfirmations.delete(sessionId);
+    }
 
     session.messages.push({ role: 'user', content: userMessage });
 
@@ -274,6 +440,41 @@ When using tools:
   async chatStream(userMessage, sessionId, onChunk) {
     const session = this.getSession(sessionId);
     const context = await this.getContext();
+
+    // Check for pending confirmation first
+    const pending = this.pendingConfirmations.get(sessionId);
+    if (pending) {
+      const response = this.isConfirmationResponse(userMessage);
+      if (response === 'confirm') {
+        this.pendingConfirmations.delete(sessionId);
+        onChunk({ type: 'tool_status', tool: pending.action, status: 'executing' });
+        const result = await this.toolBridge.execute(pending.action, pending.params);
+        this.logAction(pending.action, pending.params, result, sessionId);
+        onChunk({ type: 'tool_status', tool: pending.action, status: 'complete', result });
+        session.messages.push({ role: 'user', content: userMessage });
+        const confirmMsg = result.success !== false
+          ? `Done. ${result.message || 'Action completed successfully.'}`
+          : `Failed: ${result.error || 'Unknown error'}`;
+        // Stream the response
+        for (const word of confirmMsg.split(' ')) {
+          onChunk({ type: 'text', content: word + ' ' });
+        }
+        session.messages.push({ role: 'assistant', content: confirmMsg });
+        this.sessions.set(sessionId, session);
+        return;
+      } else if (response === 'deny') {
+        this.pendingConfirmations.delete(sessionId);
+        session.messages.push({ role: 'user', content: userMessage });
+        const cancelMsg = 'Cancelled. What else can I help with?';
+        for (const word of cancelMsg.split(' ')) {
+          onChunk({ type: 'text', content: word + ' ' });
+        }
+        session.messages.push({ role: 'assistant', content: cancelMsg });
+        this.sessions.set(sessionId, session);
+        return;
+      }
+      this.pendingConfirmations.delete(sessionId);
+    }
 
     session.messages.push({ role: 'user', content: userMessage });
 
@@ -319,6 +520,24 @@ When using tools:
       const toolResults = [];
       for (const content of response.content) {
         if (content.type === 'tool_use') {
+          // Check if this action requires confirmation
+          const confirmCheck = await this.requiresConfirmation(content.name, content.input, context);
+
+          if (confirmCheck.required) {
+            // Store pending confirmation
+            this.setPendingConfirmation(sessionId, content.name, content.input, confirmCheck.reason);
+            session.messages.push({ role: 'assistant', content: response.content });
+            this.sessions.set(sessionId, session);
+            return {
+              message: confirmCheck.reason,
+              needsConfirmation: true,
+              pendingAction: content.name,
+              severity: confirmCheck.severity,
+              mode: 'online',
+              sessionId,
+            };
+          }
+
           const result = await this.toolBridge.execute(content.name, content.input);
           this.logAction(content.name, content.input, result, sessionId);
           toolResults.push({
@@ -455,8 +674,32 @@ When using tools:
       const toolUseBlocks = contentBlocks.filter(b => b.type === 'tool_use');
       onChunk({ type: 'tools', content: toolUseBlocks });
 
+      // Get current context for confirmation checks
+      const context = await this.getContext();
+
       const toolResults = [];
       for (const toolUse of toolUseBlocks) {
+        // Check if this action requires confirmation
+        const confirmCheck = await this.requiresConfirmation(toolUse.name, toolUse.input, context);
+
+        if (confirmCheck.required) {
+          // Store pending confirmation and ask user
+          this.setPendingConfirmation(sessionId, toolUse.name, toolUse.input, confirmCheck.reason);
+          onChunk({ type: 'confirmation_required', tool: toolUse.name, reason: confirmCheck.reason, severity: confirmCheck.severity });
+
+          // Return a "needs confirmation" result to Claude
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({
+              status: 'confirmation_required',
+              message: confirmCheck.reason,
+              instruction: 'Ask the user to confirm before proceeding.'
+            }),
+          });
+          continue;
+        }
+
         onChunk({ type: 'tool_status', tool: toolUse.name, status: 'executing' });
 
         try {
@@ -524,6 +767,20 @@ When using tools:
     lines.push(`- System: ${context.system.healthy ? 'healthy' : 'issues detected'}`);
 
     return lines.join('\n');
+  }
+
+  /**
+   * Check if there's a pending confirmation for a session
+   */
+  hasPendingConfirmation(sessionId) {
+    return this.pendingConfirmations.has(sessionId);
+  }
+
+  /**
+   * Get pending confirmation details (without clearing)
+   */
+  getPendingConfirmationDetails(sessionId) {
+    return this.pendingConfirmations.get(sessionId) || null;
   }
 
   // Legacy compatibility methods
