@@ -103,6 +103,16 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+// Local endpoints (must be before proxy)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', transport: 'udpjson', note: 'DMX output via AETHER Core UDPJSON' });
+});
+
+// Version endpoint for deployment verification (local, not proxied)
+app.get('/api/version', (req, res) => {
+  res.json(VERSION_INFO);
+});
+
 // API Routes - These proxy to AETHER Core (port 8891) which is the SSOT
 app.use('/api/dmx', dmxRoutes);
 app.use('/api/ai', aiRoutes);
@@ -114,15 +124,6 @@ app.use('/api/scenes', sceneRoutes);
 
 // Additional proxy routes for all other endpoints
 app.use('/api', proxyRoutes);
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', transport: 'udpjson', note: 'DMX output via AETHER Core UDPJSON' });
-});
-
-// Version endpoint for deployment verification
-app.get('/api/version', (req, res) => {
-  res.json(VERSION_INFO);
-});
 
 // Serve static frontend files with cache control
 // JS/CSS files have hashed names so they can be cached long-term
