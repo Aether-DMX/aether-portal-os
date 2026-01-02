@@ -1,4 +1,4 @@
-import aiService from '../services/AIService.js';
+import aiOrchestrator from '../services/AIOrchestrator.js';
 import logger from '../utils/logger.js';
 
 // Validation constants
@@ -48,7 +48,7 @@ export const sendMessage = async (req, res) => {
   }
 
   try {
-    const response = await aiService.chat(message, sessionId);
+    const response = await aiOrchestrator.chat(message, sessionId);
     res.json(response);
   } catch (error) {
     logger.error('AI chat error:', error);
@@ -74,7 +74,7 @@ export const streamMessage = async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
 
   try {
-    await aiService.chatStream(message, sessionId, (chunk) => {
+    await aiOrchestrator.chatStream(message, sessionId, (chunk) => {
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
     });
     res.write('data: [DONE]\n\n');
@@ -88,14 +88,30 @@ export const streamMessage = async (req, res) => {
 
 export const getSession = async (req, res) => {
   const { sessionId } = req.query;
-  const session = aiService.getSession(sessionId);
+  const session = aiOrchestrator.getSession(sessionId);
   res.json(session);
 };
 
 export const clearSession = async (req, res) => {
   const { sessionId } = req.body;
-  aiService.clearSession(sessionId);
+  aiOrchestrator.clearSession(sessionId);
   res.json({ success: true });
+};
+
+export const getContext = async (req, res) => {
+  try {
+    const context = await aiOrchestrator.getContext();
+    res.json(context);
+  } catch (error) {
+    logger.error('Context fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getActionLog = async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const actions = aiOrchestrator.getActionLog(limit);
+  res.json({ actions });
 };
 
 export const executeTool = async (req, res) => {
@@ -106,7 +122,7 @@ export const executeTool = async (req, res) => {
   }
 
   try {
-    const result = await aiService.executeTool(toolName, input || {});
+    const result = await aiOrchestrator.executeTool(toolName, input || {});
     res.json(result);
   } catch (error) {
     logger.error('Tool execution error:', error);
@@ -115,11 +131,11 @@ export const executeTool = async (req, res) => {
 };
 
 export const getConfig = async (req, res) => {
-  res.json(aiService.getConfig());
+  res.json(aiOrchestrator.getConfig());
 };
 
 export const updateConfig = async (req, res) => {
   const config = req.body;
-  aiService.updateConfig(config);
+  aiOrchestrator.updateConfig(config);
   res.json({ success: true });
 };
