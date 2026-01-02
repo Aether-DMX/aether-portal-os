@@ -108,7 +108,7 @@ function App() {
   const [lockTime, setLockTime] = useState(0);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false); // Disabled - boot straight to dashboard
   const [backendReady, setBackendReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
@@ -119,10 +119,14 @@ function App() {
 
   const handleSplashComplete = () => {
     setShowSplash(false);
-    if (!setupComplete) {
+  };
+
+  // Check onboarding on backend ready (since splash is disabled)
+  useEffect(() => {
+    if (backendReady && !setupComplete) {
       setShowOnboarding(true);
     }
-  };
+  }, [backendReady, setupComplete]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
