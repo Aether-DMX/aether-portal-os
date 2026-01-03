@@ -46,6 +46,7 @@ import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, M
 import useAIContext from './hooks/useAIContext';
 
 function AppContent({ onLock }) {
+  console.log('[BOOT] AppContent rendering');
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden relative" style={{ background: '#000' }}>
       <div className="ambient-glow" />
@@ -98,6 +99,8 @@ function AppContent({ onLock }) {
 }
 
 function App() {
+  console.log('[BOOT] App() function called');
+
   const { accentColor } = useUIStore();
   const { initializeSampleData: initScenes } = useSceneStore();
   const { initializeSampleData: initChases } = useChaseStore();
@@ -221,25 +224,32 @@ function App() {
   // Wrap everything in a black container to prevent any white flash
   const blackWrapper = { position: 'fixed', inset: 0, background: '#000', overflow: 'hidden' };
 
+  console.log('[BOOT] App render - backendReady:', backendReady, 'showSplash:', showSplash, 'showOnboarding:', showOnboarding, 'screensaverActive:', screensaverActive);
+
   // Check backend ready first
   if (!backendReady) {
-    return <div style={blackWrapper}><BootLoader onReady={() => setBackendReady(true)} /></div>;
+    console.log('[BOOT] Rendering BootLoader');
+    return <div style={blackWrapper}><BootLoader onReady={() => { console.log('[BOOT] BootLoader onReady fired'); setBackendReady(true); }} /></div>;
   }
 
   // Show splash first (currently disabled)
   if (showSplash) {
+    console.log('[BOOT] Rendering AetherSplash');
     return <div style={blackWrapper}><AetherSplash onComplete={handleSplashComplete} duration={3000} /></div>;
   }
 
   // Show onboarding if not completed
   if (showOnboarding) {
+    console.log('[BOOT] Rendering AetherOnboarding');
     return <div style={blackWrapper}><AetherOnboarding onComplete={handleOnboardingComplete} /></div>;
   }
 
   if (screensaverActive) {
+    console.log('[BOOT] Rendering Screensaver');
     return <div style={blackWrapper}><Screensaver onExit={() => setScreensaverActive(false)} /></div>;
   }
 
+  console.log('[BOOT] Rendering AppContent (main dashboard)');
   return (
     <div style={blackWrapper}>
       <KeyboardProvider>
