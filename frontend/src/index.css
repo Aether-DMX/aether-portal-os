@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CRITICAL: Force black background immediately - prevents white flash */
+html, body, #root {
+  background: #000 !important;
+}
+
 /* ============================================
    AETHER DMX - MASTER STYLESHEET
    Target: 800x480 Touchscreen (7" Landscape)

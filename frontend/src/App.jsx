@@ -47,7 +47,7 @@ import useAIContext from './hooks/useAIContext';
 
 function AppContent({ onLock }) {
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-black relative">
+    <div className="flex flex-col h-screen w-screen overflow-hidden relative" style={{ background: '#000' }}>
       <div className="ambient-glow" />
       <AetherBackground />
 
@@ -218,31 +218,36 @@ function App() {
     };
   }, [screensaverActive]);
 
+  // Wrap everything in a black container to prevent any white flash
+  const blackWrapper = { position: 'fixed', inset: 0, background: '#000', overflow: 'hidden' };
+
   // Check backend ready first
   if (!backendReady) {
-    return <BootLoader onReady={() => setBackendReady(true)} />;
+    return <div style={blackWrapper}><BootLoader onReady={() => setBackendReady(true)} /></div>;
   }
 
-  // Show splash first
+  // Show splash first (currently disabled)
   if (showSplash) {
-    return <AetherSplash onComplete={handleSplashComplete} duration={3000} />;
+    return <div style={blackWrapper}><AetherSplash onComplete={handleSplashComplete} duration={3000} /></div>;
   }
 
   // Show onboarding if not completed
   if (showOnboarding) {
-    return <AetherOnboarding onComplete={handleOnboardingComplete} />;
+    return <div style={blackWrapper}><AetherOnboarding onComplete={handleOnboardingComplete} /></div>;
   }
 
   if (screensaverActive) {
-    return <Screensaver onExit={() => setScreensaverActive(false)} />;
+    return <div style={blackWrapper}><Screensaver onExit={() => setScreensaverActive(false)} /></div>;
   }
 
   return (
-    <KeyboardProvider>
-      <Router>
-        <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
-      </Router>
-    </KeyboardProvider>
+    <div style={blackWrapper}>
+      <KeyboardProvider>
+        <Router>
+          <AppContent onLock={() => { setLockTime(Date.now()); setScreensaverActive(true); }} />
+        </Router>
+      </KeyboardProvider>
+    </div>
   );
 }
 

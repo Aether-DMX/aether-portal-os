@@ -6,15 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AETHER DMX - Professional Lighting Control</title>
     <style>
-      body {
+      /* Critical: Prevent ANY white flash on startup */
+      html, body, #root {
         margin: 0;
         padding: 0;
-        background: #0a0a0a !important;
-        color: #ffffff !important;
+        background: #000 !important;
+        color: #fff !important;
         overflow: hidden;
+        min-height: 100vh;
+        min-width: 100vw;
       }
-      #root {
-        background: #0a0a0a !important;
+      /* Hide everything until React hydrates */
+      #root:empty::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: #000;
+        z-index: 99999;
       }
     </style>
   </head>
