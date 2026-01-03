@@ -1,12 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background:#000">
   <head>
     <meta charset="UTF-8" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="msapplication-navbutton-color" content="#000000" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="icon" type="image/svg+xml" href="/Aether_Logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AETHER DMX - Professional Lighting Control</title>
     <style>
-      /* Critical: Prevent ANY white flash on startup */
+      /* CRITICAL: Force black immediately - must be first */
+      *{background-color:#000 !important}
       html, body, #root {
         margin: 0;
         padding: 0;
@@ -16,6 +20,9 @@
         min-height: 100vh;
         min-width: 100vw;
       }
+      /* Reset wildcard after elements load */
+      html *{background-color:unset}
+      html, body, #root{background:#000 !important}
       /* Hide everything until React hydrates */
       #root:empty::before {
         content: '';
@@ -26,8 +33,8 @@
       }
     </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background:#000;margin:0">
+    <div id="root" style="background:#000"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
