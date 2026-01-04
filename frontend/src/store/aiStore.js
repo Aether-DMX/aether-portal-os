@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 const getApiUrl = () => `http://${window.location.hostname}:8891`;
+const getAIApiUrl = () => `http://${window.location.hostname}:3000`;
 
 const useAIStore = create(
   persist(
@@ -21,13 +22,36 @@ const useAIStore = create(
       history: [],
 
       // Setters for Settings.jsx compatibility
-      setApiKey: (apiKey) => {
+      setApiKey: async (apiKey) => {
         set({ apiKey });
+        // Send API key to AI backend (port 3000) to activate Claude
+        try {
+          const response = await fetch(`${getAIApiUrl()}/api/ai/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey })
+          });
+          if (response.ok) {
+            console.log('✅ API key sent to AI backend');
+          }
+        } catch (e) {
+          console.error('Failed to send API key to backend:', e);
+        }
         get().syncToBackend();
       },
 
-      setModel: (model) => {
+      setModel: async (model) => {
         set({ model });
+        // Send model change to AI backend
+        try {
+          await fetch(`${getAIApiUrl()}/api/ai/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model })
+          });
+        } catch (e) {
+          console.error('Failed to update model on backend:', e);
+        }
         get().syncToBackend();
       },
 

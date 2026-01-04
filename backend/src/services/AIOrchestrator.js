@@ -793,11 +793,29 @@ When using tools:
       mode: this.mode,
       isOnline: this.isOnline,
       model: this.model,
+      hasApiKey: !!this.apiKey,
     };
   }
 
   updateConfig(newConfig) {
     if (newConfig.mode) this.mode = newConfig.mode;
+    if (newConfig.model) this.model = newConfig.model;
+
+    // Handle API key update
+    if (newConfig.apiKey !== undefined) {
+      this.apiKey = newConfig.apiKey;
+      // Reinitialize Anthropic client with new key
+      if (this.apiKey) {
+        this.anthropic = new Anthropic({ apiKey: this.apiKey });
+        logger.info('API key updated, reinitializing Claude client');
+        // Immediately check if new key works
+        this.checkOnlineStatus();
+      } else {
+        this.anthropic = null;
+        this.isOnline = false;
+        logger.info('API key cleared, Claude offline');
+      }
+    }
   }
 }
 
