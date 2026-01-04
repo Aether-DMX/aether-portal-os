@@ -34,7 +34,7 @@ export default function Dock() {
   };
 
   // Don't show dock on certain pages (fullscreen views)
-  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/faders', '/chat'];
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/effects', '/faders', '/chat'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }

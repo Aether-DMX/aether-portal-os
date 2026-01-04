@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, PlusCircle, Zap } from 'lucide-react';
+import { FolderOpen, PlusCircle, Zap, Sparkles } from 'lucide-react';
 
 export default function DMXEffectsMenu() {
   const navigate = useNavigate();
 
   const menuItems = [
+    { name: 'Live Effects', icon: Sparkles, path: '/effects', description: 'Dynamic light effects' },
     { name: 'My Effects', icon: FolderOpen, path: '/my-effects', description: 'View saved effects' },
     { name: 'Scene Creator', icon: PlusCircle, path: '/scene-creator', description: 'Create new scenes' },
     { name: 'Chase Creator', icon: Zap, path: '/chase-creator', description: 'Create new chases' },

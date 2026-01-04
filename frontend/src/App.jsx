@@ -17,6 +17,7 @@ import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
 // import Groups from './views/Groups'; // Deprecated
 import Chases from './views/Chases';
+import Effects from './views/Effects';
 import Shows from './views/Shows';
 // import PatchFixtures from './views/PatchFixtures'; // Deprecated
 // import GroupFixtures from './views/GroupFixtures'; // Deprecated
@@ -69,6 +70,7 @@ function AppContent({ onLock }) {
           <Route path="/scenes" element={<Scenes />} />
           {/* <Route path="/groups" element={<Groups />} /> */}
           <Route path="/chases" element={<Chases />} />
+          <Route path="/effects" element={<Effects />} />
           <Route path="/shows" element={<Shows />} />
           {/* <Route path="/patch-fixtures" /> Deprecated */}
           {/* <Route path="/group-fixtures" /> Deprecated */}
