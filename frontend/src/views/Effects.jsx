@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Square, Sparkles, TreePine, Stars, Waves, X, Palette, Zap, Sun, Moon, Flame, Settings, ChevronDown } from 'lucide-react';
-import ApplyTargetModal from '../components/ApplyTargetModal';
+import { ArrowLeft, Play, Square, Sparkles, TreePine, Stars, Waves, X, Zap, Sun, Moon, Flame, Settings, ChevronDown, Check, Wifi, WifiOff, Layers } from 'lucide-react';
+import useNodeStore from '../store/nodeStore';
 
 // Color presets for effects
 const COLOR_PRESETS = [
@@ -13,22 +14,22 @@ const COLOR_PRESETS = [
   { name: 'Blue', color: '#0000ff', rgb: [0, 0, 255, 0] },
   { name: 'Purple', color: '#8000ff', rgb: [128, 0, 255, 0] },
   { name: 'Magenta', color: '#ff00ff', rgb: [255, 0, 255, 0] },
-  { name: 'White', color: '#ffffff', rgb: [255, 255, 255, 0] },
+  { name: 'White', color: '#ffffff', rgb: [255, 255, 255, 255] },
   { name: 'Warm', color: '#ffaa55', rgb: [255, 170, 85, 0] },
 ];
 
 // Color schemes for effects
 const COLOR_SCHEMES = [
-  { name: 'Christmas', colors: ['#ff0000', '#00ff00'], description: 'Red & Green' },
-  { name: 'Ocean', colors: ['#0066ff', '#00ffff'], description: 'Blue & Cyan' },
-  { name: 'Sunset', colors: ['#ff4500', '#ffff00'], description: 'Orange & Yellow' },
-  { name: 'Galaxy', colors: ['#8000ff', '#ff00ff'], description: 'Purple & Magenta' },
-  { name: 'Fire', colors: ['#ff0000', '#ff8000'], description: 'Red & Orange' },
-  { name: 'Ice', colors: ['#00ffff', '#ffffff'], description: 'Cyan & White' },
-  { name: 'Rainbow', colors: ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'], description: 'Full Spectrum' },
-  { name: 'Warm White', colors: ['#ffaa55', '#ffffff'], description: 'Amber & White' },
-  { name: 'Cool Blue', colors: ['#0044ff', '#00aaff', '#00ffff'], description: 'Blues' },
-  { name: 'Purple Haze', colors: ['#4400ff', '#8800ff', '#ff00ff'], description: 'Purples' },
+  { name: 'Christmas', colors: ['#ff0000', '#00ff00'], rgb: [[255,0,0,0], [0,255,0,0]], description: 'Red & Green' },
+  { name: 'Ocean', colors: ['#0066ff', '#00ffff'], rgb: [[0,102,255,0], [0,255,255,0]], description: 'Blue & Cyan' },
+  { name: 'Sunset', colors: ['#ff4500', '#ffff00'], rgb: [[255,69,0,0], [255,255,0,0]], description: 'Orange & Yellow' },
+  { name: 'Galaxy', colors: ['#8000ff', '#ff00ff'], rgb: [[128,0,255,0], [255,0,255,0]], description: 'Purple & Magenta' },
+  { name: 'Fire', colors: ['#ff0000', '#ff8000'], rgb: [[255,0,0,0], [255,128,0,0]], description: 'Red & Orange' },
+  { name: 'Ice', colors: ['#00ffff', '#ffffff'], rgb: [[0,255,255,0], [255,255,255,255]], description: 'Cyan & White' },
+  { name: 'Rainbow', colors: ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'], rgb: [[255,0,0,0], [255,128,0,0], [255,255,0,0], [0,255,0,0], [0,255,255,0], [0,0,255,0], [255,0,255,0]], description: 'Full Spectrum' },
+  { name: 'Warm White', colors: ['#ffaa55', '#ffffff'], rgb: [[255,170,85,0], [255,255,255,255]], description: 'Amber & White' },
+  { name: 'Cool Blue', colors: ['#0044ff', '#00aaff', '#00ffff'], rgb: [[0,68,255,0], [0,170,255,0], [0,255,255,0]], description: 'Blues' },
+  { name: 'Purple Haze', colors: ['#4400ff', '#8800ff', '#ff00ff'], rgb: [[68,0,255,0], [136,0,255,0], [255,0,255,0]], description: 'Purples' },
 ];
 
 // Available effects - organized by category
@@ -42,7 +43,7 @@ const EFFECTS = [
     iconColor: 'text-green-400',
     endpoint: '/api/effects/christmas',
     category: 'pattern',
-    hasColors: false, // Uses hardcoded red/green
+    hasColors: false,
     hasSpeed: true,
     defaultParams: { fade_ms: 1500, hold_ms: 1000, stagger_ms: 300 },
   },
@@ -79,11 +80,10 @@ const EFFECTS = [
     endpoint: '/api/effects/wave',
     category: 'chase',
     hasColors: true,
-    singleColor: true, // Only takes one color
+    singleColor: true,
     hasSpeed: true,
     defaultParams: { wave_speed_ms: 2000, tail_length: 2 },
   },
-  // Intensity Effects (no colors needed)
   {
     id: 'strobe',
     name: 'Strobe',
@@ -130,7 +130,7 @@ const EFFECTS = [
     iconColor: 'text-orange-500',
     endpoint: '/api/effects/fire',
     category: 'ambient',
-    hasColors: false, // Uses hardcoded fire colors
+    hasColors: false,
     hasSpeed: true,
     defaultParams: { intensity: 0.8 },
   },
@@ -196,255 +196,397 @@ function EffectCard({ effect, isActive, onPlay, onStop }) {
   );
 }
 
-// Effect Configuration Modal
+// Full-screen Effect Configuration Modal with Universe Selection
 function EffectConfigModal({ effect, onConfirm, onCancel }) {
-  const [mode, setMode] = useState('scheme');
+  const { nodes: rawNodes } = useNodeStore();
+  const nodes = Array.isArray(rawNodes) ? rawNodes : [];
+
+  // Step: 'config' or 'universe'
+  const [step, setStep] = useState('config');
+
+  // Config state
+  const [colorMode, setColorMode] = useState('presets'); // 'presets' or 'schemes'
+  const [selectedPreset, setSelectedPreset] = useState(COLOR_PRESETS[0]);
   const [selectedScheme, setSelectedScheme] = useState(COLOR_SCHEMES[0]);
-  const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [fixturesPerUniverse, setFixturesPerUniverse] = useState(2);
   const [channelsPerFixture, setChannelsPerFixture] = useState(4);
-  const [speed, setSpeed] = useState('normal'); // slow, normal, fast
+  const [speed, setSpeed] = useState('normal');
+
+  // Universe state
+  const [selectedUniverses, setSelectedUniverses] = useState([]);
 
   const speedMultipliers = { slow: 2, normal: 1, fast: 0.5 };
 
+  // Build universe info
+  const universeInfo = React.useMemo(() => {
+    const fromNodes = [...new Set(nodes.map(n => n.universe || 1))].sort((a, b) => a - b);
+    const allUniverses = fromNodes.length > 0 ? fromNodes : [1, 2, 3, 4, 5];
+
+    return allUniverses.map(u => {
+      const universeNodes = nodes.filter(n => n.universe === u);
+      const onlineNodes = universeNodes.filter(n => n.status === 'online');
+      return {
+        universe: u,
+        onlineCount: onlineNodes.length,
+        totalCount: universeNodes.length,
+        isOnline: onlineNodes.length > 0,
+      };
+    });
+  }, [nodes]);
+
+  const toggleUniverse = (u) => {
+    setSelectedUniverses(prev =>
+      prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]
+    );
+  };
+
+  const selectAllUniverses = () => setSelectedUniverses(universeInfo.map(u => u.universe));
+  const selectOnlineOnly = () => setSelectedUniverses(universeInfo.filter(u => u.isOnline).map(u => u.universe));
+  const selectNone = () => setSelectedUniverses([]);
+
+  const handleNext = () => {
+    setStep('universe');
+  };
+
+  const handleBack = () => {
+    setStep('config');
+  };
+
   const handleConfirm = () => {
+    if (selectedUniverses.length === 0) return;
+
     const config = {
       fixturesPerUniverse,
       channelsPerFixture,
       speedMultiplier: speedMultipliers[speed],
+      universes: selectedUniverses,
     };
 
+    // Add colors based on effect type and selection
     if (effect.hasColors) {
       if (effect.singleColor) {
-        config.color = selectedColor.rgb;
-        config.colorHex = selectedColor.color;
-      } else if (mode === 'scheme') {
-        config.colors = selectedScheme.colors;
+        // Single color effects use preset
+        config.color = selectedPreset.rgb;
+      } else if (colorMode === 'schemes') {
+        // Multi-color effects can use scheme
+        config.colors = selectedScheme.rgb;
       } else {
-        config.color = selectedColor.rgb;
-        config.colorHex = selectedColor.color;
+        // Or single preset color repeated
+        config.color = selectedPreset.rgb;
       }
     }
 
     onConfirm(config);
   };
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/90 z-[9998] flex items-center justify-center p-4"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-[#0d0d1a] rounded-2xl w-full max-w-md border border-white/10 overflow-hidden max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <effect.icon className={`w-6 h-6 ${effect.iconColor}`} />
+  const IconComponent = effect.icon;
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 bg-[#0a0a0f] z-[9999] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#0d0d12]">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={step === 'universe' ? handleBack : onCancel}
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+          >
+            {step === 'universe' ? <ArrowLeft className="w-5 h-5 text-white/60" /> : <X className="w-5 h-5 text-white/60" />}
+          </button>
+          <div className="flex items-center gap-2">
+            <IconComponent className={`w-5 h-5 ${effect.iconColor}`} />
             <div>
-              <h3 className="text-white font-bold">{effect.name}</h3>
-              <p className="text-white/50 text-xs">{effect.description}</p>
+              <h2 className="text-white font-bold text-base">{effect.name}</h2>
+              <p className="text-white/50 text-xs">
+                {step === 'config' ? 'Configure effect' : 'Select universes'}
+              </p>
             </div>
           </div>
-          <button onClick={onCancel} className="p-2 rounded-xl hover:bg-white/10">
-            <X size={20} className="text-white/60" />
-          </button>
         </div>
+      </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Speed Selection */}
-          {effect.hasSpeed && (
-            <div>
-              <div className="text-white/50 text-xs font-bold mb-2">SPEED</div>
-              <div className="flex gap-2">
-                {['slow', 'normal', 'fast'].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setSpeed(s)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
-                      speed === s
-                        ? 'bg-[var(--theme-primary)] text-black'
-                        : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4">
+        {step === 'config' ? (
+          <div className="space-y-5">
+            {/* Speed Selection */}
+            {effect.hasSpeed && (
+              <div>
+                <div className="text-white/50 text-xs font-bold mb-2 uppercase">Speed</div>
+                <div className="flex gap-2">
+                  {['slow', 'normal', 'fast'].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSpeed(s)}
+                      className={`flex-1 py-3 rounded-xl text-sm font-bold capitalize transition-all ${
+                        speed === s
+                          ? 'bg-[var(--theme-primary)] text-black'
+                          : 'bg-white/10 text-white/60'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Color Selection */}
-          {effect.hasColors && (
-            <>
-              {/* Mode Toggle (only if not single color) */}
-              {!effect.singleColor && (
-                <div className="flex border-b border-white/10">
-                  <button
-                    onClick={() => setMode('scheme')}
-                    className={`flex-1 py-2 text-sm font-bold transition-colors ${
-                      mode === 'scheme'
-                        ? 'text-white border-b-2 border-[var(--theme-primary)]'
-                        : 'text-white/40'
-                    }`}
-                  >
-                    Color Schemes
-                  </button>
-                  <button
-                    onClick={() => setMode('color')}
-                    className={`flex-1 py-2 text-sm font-bold transition-colors ${
-                      mode === 'color'
-                        ? 'text-white border-b-2 border-[var(--theme-primary)]'
-                        : 'text-white/40'
-                    }`}
-                  >
-                    Single Color
-                  </button>
+            {/* Color Selection */}
+            {effect.hasColors && (
+              <div>
+                <div className="text-white/50 text-xs font-bold mb-2 uppercase">
+                  {effect.singleColor ? 'Color' : 'Colors'}
                 </div>
-              )}
 
-              {/* Scheme Selection */}
-              {(!effect.singleColor && mode === 'scheme') && (
-                <div className="grid grid-cols-2 gap-2">
-                  {COLOR_SCHEMES.map(scheme => {
-                    const isSelected = selectedScheme.name === scheme.name;
-                    return (
-                      <button
-                        key={scheme.name}
-                        onClick={() => setSelectedScheme(scheme)}
-                        className={`p-2 rounded-xl border-2 transition-all ${
-                          isSelected
-                            ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)]/10'
-                            : 'border-transparent bg-white/5'
-                        }`}
-                      >
-                        <div className="flex gap-1 mb-1 justify-center">
-                          {scheme.colors.slice(0, 4).map((color, i) => (
-                            <div
-                              key={i}
-                              className="w-4 h-4 rounded-full border border-white/20"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                          {scheme.colors.length > 4 && (
-                            <span className="text-white/40 text-xs">+{scheme.colors.length - 4}</span>
-                          )}
-                        </div>
-                        <div className="text-white text-xs font-bold">{scheme.name}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                {/* Mode Toggle for multi-color effects */}
+                {!effect.singleColor && (
+                  <div className="flex mb-3 border-b border-white/10">
+                    <button
+                      onClick={() => setColorMode('presets')}
+                      className={`flex-1 py-2 text-sm font-bold transition-colors ${
+                        colorMode === 'presets'
+                          ? 'text-white border-b-2 border-[var(--theme-primary)]'
+                          : 'text-white/40'
+                      }`}
+                    >
+                      Single Color
+                    </button>
+                    <button
+                      onClick={() => setColorMode('schemes')}
+                      className={`flex-1 py-2 text-sm font-bold transition-colors ${
+                        colorMode === 'schemes'
+                          ? 'text-white border-b-2 border-[var(--theme-primary)]'
+                          : 'text-white/40'
+                      }`}
+                    >
+                      Color Schemes
+                    </button>
+                  </div>
+                )}
 
-              {/* Single Color Selection */}
-              {(effect.singleColor || mode === 'color') && (
-                <div className="grid grid-cols-5 gap-2">
-                  {COLOR_PRESETS.map(preset => {
-                    const isSelected = selectedColor.name === preset.name;
-                    return (
-                      <button
-                        key={preset.name}
-                        onClick={() => setSelectedColor(preset)}
-                        className={`aspect-square rounded-xl border-2 transition-all flex items-center justify-center ${
-                          isSelected ? 'border-white scale-105' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: preset.color }}
-                      >
-                        <span
-                          className="text-[9px] font-bold"
-                          style={{
-                            color: ['White', 'Yellow', 'Cyan', 'Warm'].includes(preset.name) ? '#000' : '#fff',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                          }}
+                {/* Color Presets Grid */}
+                {(effect.singleColor || colorMode === 'presets') && (
+                  <div className="grid grid-cols-5 gap-3">
+                    {COLOR_PRESETS.map(preset => {
+                      const isSelected = selectedPreset.name === preset.name;
+                      return (
+                        <button
+                          key={preset.name}
+                          onClick={() => setSelectedPreset(preset)}
+                          className={`aspect-square rounded-xl border-3 transition-all flex items-center justify-center ${
+                            isSelected ? 'border-white scale-110 shadow-lg' : 'border-transparent'
+                          }`}
+                          style={{ backgroundColor: preset.color }}
                         >
-                          {preset.name}
-                        </span>
+                          {isSelected && (
+                            <Check size={20} className={preset.name === 'White' || preset.name === 'Yellow' || preset.name === 'Cyan' ? 'text-black' : 'text-white'} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Color Schemes Grid */}
+                {!effect.singleColor && colorMode === 'schemes' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {COLOR_SCHEMES.map(scheme => {
+                      const isSelected = selectedScheme.name === scheme.name;
+                      return (
+                        <button
+                          key={scheme.name}
+                          onClick={() => setSelectedScheme(scheme)}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            isSelected
+                              ? 'border-[var(--theme-primary)] bg-[var(--theme-primary)]/10'
+                              : 'border-transparent bg-white/5'
+                          }`}
+                        >
+                          <div className="flex gap-1 mb-2 justify-center">
+                            {scheme.colors.slice(0, 5).map((color, i) => (
+                              <div
+                                key={i}
+                                className="w-5 h-5 rounded-full border border-white/20"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                            {scheme.colors.length > 5 && (
+                              <span className="text-white/40 text-xs self-center">+{scheme.colors.length - 5}</span>
+                            )}
+                          </div>
+                          <div className="text-white text-sm font-bold">{scheme.name}</div>
+                          <div className="text-white/40 text-xs">{scheme.description}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Advanced Settings */}
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between w-full p-4 rounded-xl bg-white/5 border border-white/10"
+            >
+              <div className="flex items-center gap-2">
+                <Settings size={18} className="text-white/50" />
+                <span className="text-white/70 text-sm font-bold">Fixture Settings</span>
+              </div>
+              <ChevronDown
+                size={18}
+                className={`text-white/50 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <div>
+                  <div className="text-white/50 text-xs mb-2">Fixtures per Universe</div>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 6, 8].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setFixturesPerUniverse(n)}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold ${
+                          fixturesPerUniverse === n
+                            ? 'bg-[var(--theme-primary)] text-black'
+                            : 'bg-white/10 text-white/60'
+                        }`}
+                      >
+                        {n}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              )}
-            </>
-          )}
-
-          {/* Advanced Settings */}
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center justify-between w-full p-3 rounded-xl bg-white/5 border border-white/10"
-          >
-            <div className="flex items-center gap-2">
-              <Settings size={16} className="text-white/50" />
-              <span className="text-white/70 text-sm font-bold">Fixture Settings</span>
-            </div>
-            <ChevronDown
-              size={16}
-              className={`text-white/50 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {showAdvanced && (
-            <div className="space-y-3 p-3 rounded-xl bg-white/5 border border-white/10">
-              <div>
-                <div className="text-white/50 text-xs mb-1">Fixtures per Universe</div>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 6, 8].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setFixturesPerUniverse(n)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-bold ${
-                        fixturesPerUniverse === n
-                          ? 'bg-[var(--theme-primary)] text-black'
-                          : 'bg-white/10 text-white/60'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
+                <div>
+                  <div className="text-white/50 text-xs mb-2">Channels per Fixture</div>
+                  <div className="flex gap-2">
+                    {[3, 4, 5, 6, 8].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setChannelsPerFixture(n)}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold ${
+                          channelsPerFixture === n
+                            ? 'bg-[var(--theme-primary)] text-black'
+                            : 'bg-white/10 text-white/60'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-white/50 text-xs mb-1">Channels per Fixture (RGBW)</div>
-                <div className="flex gap-2">
-                  {[3, 4, 5, 6, 8].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setChannelsPerFixture(n)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-bold ${
-                        channelsPerFixture === n
-                          ? 'bg-[var(--theme-primary)] text-black'
-                          : 'bg-white/10 text-white/60'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            )}
+          </div>
+        ) : (
+          /* Universe Selection */
+          <div className="space-y-4">
+            {/* Quick Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={selectAllUniverses}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                All
+              </button>
+              <button
+                onClick={selectOnlineOnly}
+                className="flex-1 py-2 px-3 rounded-xl bg-green-500/10 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-colors"
+              >
+                Online Only
+              </button>
+              <button
+                onClick={selectNone}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                None
+              </button>
             </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 p-4 border-t border-white/10 shrink-0">
+            {/* Universe Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {universeInfo.map(info => {
+                const isSelected = selectedUniverses.includes(info.universe);
+                return (
+                  <button
+                    key={info.universe}
+                    onClick={() => toggleUniverse(info.universe)}
+                    className={`p-4 rounded-2xl border-2 transition-all ${
+                      isSelected
+                        ? 'bg-[var(--theme-primary)]/10 border-[var(--theme-primary)]'
+                        : 'bg-white/5 border-transparent hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-bold text-white">U{info.universe}</span>
+                      <div className="flex items-center gap-1">
+                        {isSelected && <Check size={16} className="text-[var(--theme-primary)]" />}
+                        {info.isOnline ? (
+                          <Wifi size={14} className="text-green-400" />
+                        ) : (
+                          <WifiOff size={14} className="text-red-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs text-white/50">
+                        {info.onlineCount}/{info.totalCount} nodes online
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-white/10 bg-[#0d0d12] p-4 space-y-3">
+        {step === 'universe' && (
+          <div className="text-center text-xs">
+            {selectedUniverses.length === 0 ? (
+              <span className="text-red-400">Select at least one universe</span>
+            ) : (
+              <span className="text-white/50">
+                {selectedUniverses.length} universe{selectedUniverses.length !== 1 ? 's' : ''} selected
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-3">
           <button
-            onClick={onCancel}
-            className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold"
+            onClick={step === 'universe' ? handleBack : onCancel}
+            className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-sm"
           >
-            Cancel
+            {step === 'universe' ? 'Back' : 'Cancel'}
           </button>
           <button
-            onClick={handleConfirm}
-            className="flex-1 py-3 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center justify-center gap-2"
+            onClick={step === 'config' ? handleNext : handleConfirm}
+            disabled={step === 'universe' && selectedUniverses.length === 0}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+              step === 'universe' && selectedUniverses.length === 0
+                ? 'bg-white/20 text-white/40 cursor-not-allowed'
+                : 'bg-[var(--theme-primary)] text-black'
+            }`}
           >
-            <Play size={16} /> Next
+            {step === 'config' ? (
+              <>
+                <Layers size={16} /> Select Universes
+              </>
+            ) : (
+              <>
+                <Play size={16} /> Start Effect
+              </>
+            )}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -453,9 +595,6 @@ export default function Effects() {
   const navigate = useNavigate();
   const [activeEffects, setActiveEffects] = useState([]);
   const [selectedEffect, setSelectedEffect] = useState(null);
-  const [pendingEffect, setPendingEffect] = useState(null);
-  const [effectConfig, setEffectConfig] = useState(null);
-  const [showTargetModal, setShowTargetModal] = useState(false);
 
   // Poll for running effects
   useEffect(() => {
@@ -490,30 +629,22 @@ export default function Effects() {
     setSelectedEffect(effect);
   };
 
-  // Handle config confirmed - show target modal
-  const handleConfigConfirm = (config) => {
-    setEffectConfig(config);
-    setPendingEffect(selectedEffect);
-    setSelectedEffect(null);
-    setShowTargetModal(true);
-  };
-
-  // Handle target confirmed - start the effect
-  const handleTargetConfirm = async (item, options) => {
-    const effect = pendingEffect;
+  // Handle config confirmed - start the effect
+  const handleConfigConfirm = async (config) => {
+    const effect = selectedEffect;
     if (!effect) return;
 
-    setShowTargetModal(false);
+    setSelectedEffect(null);
 
     // Build request body
     const body = {
-      universes: options.universes,
-      fixtures_per_universe: effectConfig.fixturesPerUniverse,
-      channels_per_fixture: effectConfig.channelsPerFixture,
+      universes: config.universes,
+      fixtures_per_universe: config.fixturesPerUniverse,
+      channels_per_fixture: config.channelsPerFixture,
     };
 
     // Apply speed multiplier to timing parameters
-    const speedMult = effectConfig.speedMultiplier || 1;
+    const speedMult = config.speedMultiplier || 1;
     if (effect.defaultParams) {
       Object.entries(effect.defaultParams).forEach(([key, value]) => {
         if (key.includes('ms') || key.includes('speed')) {
@@ -525,10 +656,10 @@ export default function Effects() {
     }
 
     // Add colors based on effect type
-    if (effectConfig.colors) {
-      body.colors = effectConfig.colors;
-    } else if (effectConfig.color) {
-      body.color = effectConfig.color;
+    if (config.colors) {
+      body.colors = config.colors;
+    } else if (config.color) {
+      body.color = config.color;
     }
 
     console.log('Starting effect:', effect.id, body);
@@ -549,31 +680,15 @@ export default function Effects() {
     } catch (e) {
       console.error('Failed to start effect:', e);
     }
-
-    setEffectConfig(null);
-    setPendingEffect(null);
   };
 
-  // Cancel modals
+  // Cancel modal
   const handleConfigCancel = () => setSelectedEffect(null);
-  const handleTargetCancel = () => {
-    setShowTargetModal(false);
-    setEffectConfig(null);
-    setPendingEffect(null);
-  };
 
   // Check if an effect is active
   const isEffectActive = (effectId) => {
     return activeEffects.some(id => id.includes(effectId));
   };
-
-  // Group effects by category
-  const categories = [
-    { id: 'pattern', name: 'Patterns' },
-    { id: 'chase', name: 'Chases' },
-    { id: 'intensity', name: 'Intensity' },
-    { id: 'ambient', name: 'Ambient' },
-  ];
 
   return (
     <div className="fullscreen-view">
@@ -615,25 +730,12 @@ export default function Effects() {
         </div>
       </div>
 
-      {/* Effect Config Modal */}
+      {/* Effect Config Modal (Fullscreen) */}
       {selectedEffect && (
         <EffectConfigModal
           effect={selectedEffect}
           onConfirm={handleConfigConfirm}
           onCancel={handleConfigCancel}
-        />
-      )}
-
-      {/* Apply Target Modal */}
-      {showTargetModal && pendingEffect && (
-        <ApplyTargetModal
-          mode="scene"
-          item={{
-            id: pendingEffect.id,
-            name: pendingEffect.name,
-          }}
-          onConfirm={handleTargetConfirm}
-          onCancel={handleTargetCancel}
         />
       )}
     </div>
