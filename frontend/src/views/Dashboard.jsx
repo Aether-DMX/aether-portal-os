@@ -562,7 +562,15 @@ export default function Dashboard() {
             {Object.keys(playback).length > 0 ? (
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'playing-pulse 1.5s ease-in-out infinite' }} />
-                {Object.values(playback)[0]?.id?.replace("scene_", "").replace("chase_", "").replace(/_/g, " ")}
+                {(() => {
+                  const item = Object.values(playback)[0];
+                  if (!item) return 'Unknown';
+                  // Handle effects with a 'name' field
+                  if (item.name) return item.name;
+                  // Handle scenes/chases with id
+                  if (item.id) return item.id.replace("scene_", "").replace("chase_", "").replace(/_/g, " ");
+                  return 'Unknown';
+                })()}
               </span>
             ) : (
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
