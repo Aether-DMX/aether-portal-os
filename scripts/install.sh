@@ -204,9 +204,18 @@ sleep 3
 echo "OLA started - configure universes at http://localhost:9090"
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 11: Copy Deploy Script
+# STEP 11: Apply Boot Polish (Seamless Boot Experience)
 # ═══════════════════════════════════════════════════════════════════════════
-echo -e "${GREEN}[Bonus] Setting up deploy script...${NC}"
+echo -e "${GREEN}[11/12] Applying boot polish...${NC}"
+
+# Run the boot polish script
+chmod +x "${AETHER_HOME}/aether-portal-os-git/scripts/boot-polish.sh"
+sudo "${AETHER_HOME}/aether-portal-os-git/scripts/boot-polish.sh"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 12: Copy Deploy Script
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${GREEN}[12/12] Setting up deploy script...${NC}"
 cp "${AETHER_HOME}/aether-portal-os-git/scripts/deploy.sh" "${AETHER_HOME}/deploy.sh"
 chmod +x "${AETHER_HOME}/deploy.sh"
 
