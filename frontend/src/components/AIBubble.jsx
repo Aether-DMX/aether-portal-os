@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Sparkles, X, ChevronRight, Loader } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Sparkles, X, ChevronRight, Loader, MessageCircle, Check, Layers } from 'lucide-react';
 import useAIAssistant from '../hooks/useAIAssistant';
 import useSceneStore from '../store/sceneStore';
 import useChaseStore from '../store/chaseStore';
+import useNodeStore from '../store/nodeStore';
+import ApplyTargetModal from './ApplyTargetModal';
 import axios from 'axios';
 
 const getAetherCore = () => `http://${window.location.hostname}:8891`;
@@ -85,20 +88,32 @@ const AI_TEMPLATES = {
 
 export default function AIBubble() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { currentSuggestion, dismissSuggestion } = useAIAssistant();
   const { fetchScenes, playScene } = useSceneStore();
+  const { nodes } = useNodeStore();
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState(null);
 
-  // Don't show on Dashboard (it has the flip card)
-  const isDashboard = location.pathname === '/';
+  // Don't show on Dashboard or Chat page
+  const hiddenPaths = ['/', '/chat'];
+  const isHidden = hiddenPaths.includes(location.pathname);
 
-  // Show bubble when suggestion arrives (unless on dashboard)
+  // Get all online universes from nodes
+  const getOnlineUniverses = () => {
+    const onlineNodes = nodes.filter(n => n.status === 'online' && n.is_paired);
+    const universes = [...new Set(onlineNodes.map(n => n.universe || 1))];
+    return universes.length > 0 ? universes.sort((a, b) => a - b) : [2, 3, 4, 5]; // Default if no nodes
+  };
+
+  // Show bubble when suggestion arrives (unless hidden)
   useEffect(() => {
-    if (currentSuggestion && !isDashboard) {
+    if (currentSuggestion && !isHidden) {
       setIsExiting(false);
       setIsVisible(true);
       setIsExpanded(false);
@@ -106,14 +121,14 @@ export default function AIBubble() {
       setIsVisible(false);
       setIsExpanded(false);
     }
-  }, [currentSuggestion, isDashboard]);
+  }, [currentSuggestion, isHidden]);
 
-  // Hide on dashboard
+  // Hide on certain pages
   useEffect(() => {
-    if (isDashboard && isVisible) {
+    if (isHidden && isVisible) {
       setIsVisible(false);
     }
-  }, [isDashboard]);
+  }, [isHidden]);
 
   const handleDismiss = (e) => {
     e?.stopPropagation();
@@ -131,7 +146,12 @@ export default function AIBubble() {
     }
   };
 
-  const createAndPlayScene = async (template) => {
+  const handleOpenChat = () => {
+    handleDismiss();
+    navigate('/chat');
+  };
+
+  const createAndPlayScene = async (template, universes) => {
     const sceneData = {
       scene_id: `scene_ai_${Date.now()}`,
       name: template.name,
@@ -142,11 +162,15 @@ export default function AIBubble() {
     };
     await axios.post(getAetherCore() + '/api/scenes', sceneData);
     await fetchScenes();
-    await playScene(sceneData.scene_id, 2000);
+    // Play to specified universes
+    await axios.post(getAetherCore() + `/api/scenes/${sceneData.scene_id}/play`, {
+      universes,
+      fade_ms: 2000
+    });
     return sceneData;
   };
 
-  const createAndPlayChase = async (template) => {
+  const createAndPlayChase = async (template, universes) => {
     const chaseData = {
       chase_id: `chase_ai_${Date.now()}`,
       name: template.name,
@@ -160,11 +184,14 @@ export default function AIBubble() {
       loop: true,
     };
     await axios.post(getAetherCore() + '/api/chases', chaseData);
-    await axios.post(getAetherCore() + '/api/chases/' + chaseData.chase_id + '/play', {});
+    await axios.post(getAetherCore() + '/api/chases/' + chaseData.chase_id + '/play', {
+      universes
+    });
     return chaseData;
   };
 
-  const handleApply = async () => {
+  // "Yes" - Apply to all online universes intelligently
+  const handleApplyAll = async () => {
     if (!currentSuggestion) return;
 
     const suggestionId = currentSuggestion.id;
@@ -173,10 +200,13 @@ export default function AIBubble() {
     if (template) {
       setIsApplying(true);
       try {
+        const universes = getOnlineUniverses();
+        console.log('AI applying to universes:', universes);
+
         if (template.type === 'chase') {
-          await createAndPlayChase(template);
+          await createAndPlayChase(template, universes);
         } else {
-          await createAndPlayScene(template);
+          await createAndPlayScene(template, universes);
         }
       } catch (e) {
         console.error('AI creation failed:', e);
@@ -187,169 +217,329 @@ export default function AIBubble() {
     handleDismiss();
   };
 
-  if (!isVisible || !currentSuggestion || isDashboard) return null;
+  // "No" - Show target modal for manual selection
+  const handleShowTargetModal = () => {
+    const suggestionId = currentSuggestion?.id;
+    const template = AI_TEMPLATES[suggestionId];
+    if (template) {
+      setPendingTemplate(template);
+      setShowTargetModal(true);
+    }
+  };
+
+  // Handle target modal confirm
+  const handleTargetConfirm = async (item, options) => {
+    setShowTargetModal(false);
+    if (!pendingTemplate) return;
+
+    setIsApplying(true);
+    try {
+      const universes = options.universes || getOnlineUniverses();
+
+      if (pendingTemplate.type === 'chase') {
+        await createAndPlayChase(pendingTemplate, universes);
+      } else {
+        await createAndPlayScene(pendingTemplate, universes);
+      }
+    } catch (e) {
+      console.error('AI creation failed:', e);
+    }
+    setIsApplying(false);
+    setPendingTemplate(null);
+    handleDismiss();
+  };
+
+  const handleTargetCancel = () => {
+    setShowTargetModal(false);
+    setPendingTemplate(null);
+  };
+
+  if (!isVisible || !currentSuggestion || isHidden) return null;
+
+  const suggestionId = currentSuggestion.id;
+  const template = AI_TEMPLATES[suggestionId];
+  const hasTemplate = !!template;
 
   return (
-    <div
-      className={`fixed bottom-20 right-4 z-50 transition-all duration-200 ${isExiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}
-    >
-      {/* Collapsed: Just a bubble */}
-      {!isExpanded ? (
-        <button
-          onClick={handleBubbleClick}
-          className="relative group"
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.15))',
-            border: '1px solid rgba(139,92,246,0.4)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            animation: 'pulse-glow 2s ease-in-out infinite',
-          }}
-        >
-          <Sparkles size={20} style={{ color: '#a78bfa' }} />
-
-          {/* Dismiss X on hover */}
+    <>
+      <div
+        className={`fixed bottom-20 right-4 z-50 transition-all duration-200 ${isExiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}
+      >
+        {/* Collapsed: Just a bubble */}
+        {!isExpanded ? (
           <button
-            onClick={handleDismiss}
-            className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={handleBubbleClick}
+            className="relative group"
             style={{
-              width: 18,
-              height: 18,
+              width: 48,
+              height: 48,
               borderRadius: '50%',
-              background: 'rgba(0,0,0,0.8)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.15))',
+              border: '1px solid rgba(139,92,246,0.4)',
+              backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
+              animation: 'pulse-glow 2s ease-in-out infinite',
             }}
           >
-            <X size={10} style={{ color: 'rgba(255,255,255,0.6)' }} />
-          </button>
+            <Sparkles size={20} style={{ color: '#a78bfa' }} />
 
-          {/* Notification dot */}
-          <span
-            className="absolute -top-0.5 -right-0.5"
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: 'var(--accent)',
-              border: '2px solid #0a0a0f',
-            }}
-          />
-        </button>
-      ) : (
-        /* Expanded: Full suggestion card */
-        <div
-          style={{
-            width: 280,
-            background: 'rgba(15, 15, 20, 0.95)',
-            border: '1px solid rgba(139,92,246,0.3)',
-            borderRadius: 16,
-            backdropFilter: 'blur(12px)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 12px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={14} style={{ color: '#a78bfa' }} />
-              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600 }}>
-                AI Suggestion
-              </span>
-            </div>
+            {/* Dismiss X on hover */}
             <button
               onClick={handleDismiss}
+              className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity"
               style={{
-                background: 'none',
-                border: 'none',
-                padding: 4,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                background: 'rgba(0,0,0,0.8)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'rgba(255,255,255,0.4)',
               }}
             >
-              <X size={14} />
+              <X size={10} style={{ color: 'rgba(255,255,255,0.6)' }} />
             </button>
-          </div>
 
-          {/* Content */}
-          <div style={{ padding: 12 }}>
-            <p style={{
-              color: 'rgba(255,255,255,0.8)',
-              fontSize: 13,
-              margin: '0 0 12px 0',
-              lineHeight: 1.4,
+            {/* Notification dot */}
+            <span
+              className="absolute -top-0.5 -right-0.5"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                border: '2px solid #0a0a0f',
+              }}
+            />
+          </button>
+        ) : (
+          /* Expanded: Full suggestion card */
+          <div
+            style={{
+              width: 300,
+              background: 'rgba(15, 15, 20, 0.95)',
+              border: '1px solid rgba(139,92,246,0.3)',
+              borderRadius: 16,
+              backdropFilter: 'blur(12px)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 12px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
             }}>
-              {currentSuggestion.message}
-            </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={14} style={{ color: '#a78bfa' }} />
+                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600 }}>
+                  AI Suggestion
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={handleOpenChat}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 4,
+                    cursor: 'pointer',
+                    color: 'rgba(255,255,255,0.4)',
+                  }}
+                  title="Open Chat"
+                >
+                  <MessageCircle size={14} />
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 4,
+                    cursor: 'pointer',
+                    color: 'rgba(255,255,255,0.4)',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={handleDismiss}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
+            {/* Content */}
+            <div style={{ padding: 12 }}>
+              <p style={{
+                color: 'rgba(255,255,255,0.8)',
+                fontSize: 13,
+                margin: '0 0 12px 0',
+                lineHeight: 1.4,
+              }}>
+                {currentSuggestion.message}
+              </p>
+
+              {hasTemplate && (
+                <div style={{
+                  padding: '8px 10px',
+                  background: 'rgba(139,92,246,0.1)',
                   borderRadius: 8,
-                  background: 'rgba(255,255,255,0.08)',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Dismiss
-              </button>
-              <button
-                onClick={handleApply}
-                disabled={isApplying}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: 'var(--accent)',
-                  border: 'none',
-                  color: '#000',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: isApplying ? 'wait' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                }}
-              >
-                {isApplying ? (
-                  <Loader size={14} className="animate-spin" />
-                ) : (
-                  <>Apply <ChevronRight size={14} /></>
-                )}
-              </button>
+                  marginBottom: 12,
+                  border: '1px solid rgba(139,92,246,0.2)',
+                }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 2 }}>
+                    {template.type === 'chase' ? 'Chase' : 'Scene'}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>
+                    {template.name}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              {hasTemplate ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Apply to everything */}
+                  <button
+                    onClick={handleApplyAll}
+                    disabled={isApplying}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      background: 'var(--accent)',
+                      border: 'none',
+                      color: '#000',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: isApplying ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    {isApplying ? (
+                      <Loader size={14} className="animate-spin" />
+                    ) : (
+                      <>
+                        <Check size={14} /> Yes, Apply to Everything
+                      </>
+                    )}
+                  </button>
+
+                  {/* Choose specific universes */}
+                  <button
+                    onClick={handleShowTargetModal}
+                    disabled={isApplying}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.7)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Layers size={14} /> No, Choose Universes
+                  </button>
+
+                  {/* Dismiss */}
+                  <button
+                    onClick={handleDismiss}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : (
+                /* No template - just show dismiss and navigate */
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handleDismiss}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(255,255,255,0.08)',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                  {currentSuggestion.action?.to && (
+                    <button
+                      onClick={() => {
+                        navigate(currentSuggestion.action.to);
+                        handleDismiss();
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        background: 'var(--accent)',
+                        border: 'none',
+                        color: '#000',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      View <ChevronRight size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <style>{`
-        @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.4); }
-          50% { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
-        }
-      `}</style>
-    </div>
+        <style>{`
+          @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
+          }
+        `}</style>
+      </div>
+
+      {/* Apply Target Modal */}
+      {showTargetModal && pendingTemplate && (
+        <ApplyTargetModal
+          mode={pendingTemplate.type === 'chase' ? 'chase' : 'scene'}
+          item={{
+            id: `ai_${pendingTemplate.name}`,
+            name: pendingTemplate.name,
+          }}
+          onConfirm={handleTargetConfirm}
+          onCancel={handleTargetCancel}
+        />
+      )}
+    </>
   );
 }
