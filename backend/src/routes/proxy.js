@@ -44,6 +44,10 @@ router.post('/effects/christmas', proxyTo('/api/effects/christmas', 'POST'));
 router.post('/effects/twinkle', proxyTo('/api/effects/twinkle', 'POST'));
 router.post('/effects/smooth', proxyTo('/api/effects/smooth', 'POST'));
 router.post('/effects/wave', proxyTo('/api/effects/wave', 'POST'));
+router.post('/effects/strobe', proxyTo('/api/effects/strobe', 'POST'));
+router.post('/effects/pulse', proxyTo('/api/effects/pulse', 'POST'));
+router.post('/effects/fade', proxyTo('/api/effects/fade', 'POST'));
+router.post('/effects/fire', proxyTo('/api/effects/fire', 'POST'));
 router.post('/effects/stop', proxyTo('/api/effects/stop', 'POST'));
 
 // ═══════════════════════════════════════════════════════════════════
