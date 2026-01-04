@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sliders } from 'lucide-react';
+import { Sliders, Sparkles } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 // Import custom icons
 import scenesIcon from '../assets/icons/Scenes_Icon.png';
@@ -13,7 +13,7 @@ const dockItems = [
   { id: 'faders', icon: Sliders, label: 'Faders', path: '/faders' },
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
-  { id: 'fixtures', emoji: '🎚️', label: 'Fixtures', path: '/fixtures' },
+  { id: 'effects', icon: Sparkles, label: 'Effects', path: '/effects' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
