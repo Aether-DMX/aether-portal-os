@@ -636,6 +636,20 @@ export default function Effects() {
 
     setSelectedEffect(null);
 
+    // Stop any running effects first to ensure new colors take effect
+    if (activeEffects.length > 0) {
+      try {
+        await fetch(`${AETHER_CORE_URL}/api/effects/stop`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        setActiveEffects([]);
+      } catch (e) {
+        console.error('Failed to stop previous effects:', e);
+      }
+    }
+
     // Build request body
     const body = {
       universes: config.universes,
