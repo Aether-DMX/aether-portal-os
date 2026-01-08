@@ -375,30 +375,28 @@ export default function Looks() {
       {/* Content */}
       <div className="view-content">
         {currentItems.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
-            {activeTab === 'looks' ? (
-              <>
-                <Eye size={40} className="text-white/20 mb-2" />
-                <p className="text-white/40 text-sm mb-3">No looks yet</p>
-                <p className="text-white/30 text-xs mb-4">
-                  Looks are static lighting states with optional modifiers
-                </p>
-              </>
-            ) : (
-              <>
-                <Zap size={40} className="text-white/20 mb-2" />
-                <p className="text-white/40 text-sm mb-3">No sequences yet</p>
-                <p className="text-white/30 text-xs mb-4">
-                  Sequences are timed step patterns with BPM control
-                </p>
-              </>
-            )}
+          <div className="h-full flex flex-col items-center justify-center text-center py-12">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+              {activeTab === 'looks' ? (
+                <Eye size={32} className="text-white/30" />
+              ) : (
+                <Zap size={32} className="text-white/30" />
+              )}
+            </div>
+            <p className="text-white/50 text-sm mb-1">
+              No {activeTab === 'looks' ? 'looks' : 'sequences'} yet
+            </p>
+            <p className="text-white/30 text-xs mb-4 max-w-[200px]">
+              {activeTab === 'looks'
+                ? 'Looks are static lighting states with optional modifiers'
+                : 'Sequences are timed step patterns with BPM control'}
+            </p>
             <button
               onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
               onClick={handleCreate}
-              className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1"
+              className="px-5 py-3 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-2 text-sm"
             >
-              <Plus size={16} /> Create {activeTab === 'looks' ? 'Look' : 'Sequence'}
+              <Plus size={18} /> Create {activeTab === 'looks' ? 'Look' : 'Sequence'}
             </button>
           </div>
         ) : (
@@ -428,23 +426,23 @@ export default function Looks() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/10">
                 <button
                   onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                   disabled={currentPage === 0}
-                  className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
+                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeft size={20} />
                 </button>
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i)}
-                      className={`w-11 h-11 rounded-xl text-base font-bold ${
+                      className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
                         currentPage === i
-                          ? 'bg-[var(--theme-primary)] text-black'
-                          : 'bg-white/10 text-white/60'
+                          ? 'bg-[var(--theme-primary)] text-black scale-105'
+                          : 'bg-white/10 text-white/60 hover:bg-white/15'
                       }`}
                     >
                       {i + 1}
@@ -454,9 +452,9 @@ export default function Looks() {
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                   disabled={currentPage >= totalPages - 1}
-                  className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
+                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
                 >
-                  <ChevronRight size={22} />
+                  <ChevronRight size={20} />
                 </button>
               </div>
             )}

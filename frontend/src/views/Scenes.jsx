@@ -483,69 +483,73 @@ export default function Scenes() {
 
       {/* Scene Grid */}
       <div className="view-content">
-      {scenes.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <Sparkles size={40} className="text-white/20 mb-2" />
-          <p className="text-white/40 text-sm mb-3">No scenes yet</p>
-          <button
-            onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
-            onClick={handleCreate}
-            className="px-4 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1"
-          >
-            <Plus size={16} /> Create Scene
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="control-grid">
-            {paginatedScenes.map(scene => (
-              <SceneCard
-                key={scene.scene_id || scene.id}
-                scene={scene}
-                isActive={isScenePlaying(scene.scene_id || scene.id)}
-                onPlay={(s) => setPlayModalScene(s)}
-                onStop={stopScene}
-                onLongPress={(s) => setContextMenu(s)}
-              />
-            ))}
+        {scenes.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center py-12">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+              <Sparkles size={32} className="text-white/30" />
+            </div>
+            <p className="text-white/50 text-sm mb-1">No scenes yet</p>
+            <p className="text-white/30 text-xs mb-4">Create your first lighting scene</p>
+            <button
+              onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
+              onClick={handleCreate}
+              className="px-5 py-3 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-2 text-sm"
+            >
+              <Plus size={18} /> Create Scene
+            </button>
           </div>
-          
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-white/10">
-              <button
-                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                disabled={currentPage === 0}
-                className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
-              >
-                <ChevronLeft size={22} />
-              </button>
-              <div className="flex gap-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i)}
-                    className={`w-11 h-11 rounded-xl text-base font-bold ${
-                      currentPage === i ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                disabled={currentPage >= totalPages - 1}
-                className="p-3 rounded-xl bg-white/10 text-white disabled:opacity-30"
-              >
-                <ChevronRight size={22} />
-              </button>
+        ) : (
+          <>
+            <div className="control-grid">
+              {paginatedScenes.map(scene => (
+                <SceneCard
+                  key={scene.scene_id || scene.id}
+                  scene={scene}
+                  isActive={isScenePlaying(scene.scene_id || scene.id)}
+                  onPlay={(s) => setPlayModalScene(s)}
+                  onStop={stopScene}
+                  onLongPress={(s) => setContextMenu(s)}
+                />
+              ))}
             </div>
-          )}
-        </>
-      )}
 
-            </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                  disabled={currentPage === 0}
+                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
+                        currentPage === i
+                          ? 'bg-[var(--theme-primary)] text-black scale-105'
+                          : 'bg-white/10 text-white/60 hover:bg-white/15'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Scene Editor Modal */}
       {isCreating && (

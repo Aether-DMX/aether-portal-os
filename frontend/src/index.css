@@ -1766,16 +1766,32 @@ input[type="range"]::-webkit-slider-runnable-track { height: 8px; background: rg
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--glass-border);
   background: var(--glass);
   flex-shrink: 0;
+  min-height: 56px;
 }
 
 .fullscreen-view .view-content {
   flex: 1;
-  overflow: auto;
-  padding: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 16px 20px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fade hint at bottom when content is scrollable */
+.fullscreen-view .view-content::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, var(--bg-primary), transparent);
+  pointer-events: none;
+  margin-top: -20px;
 }
 
 /* === FIXED SIZE BUTTONS === */
@@ -1812,43 +1828,69 @@ input[type="range"]::-webkit-slider-runnable-track { height: 8px; background: rg
 /* === CONTROL CARD === */
 .control-card {
   background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
-  padding: 10px;
+  padding: 12px;
   cursor: pointer;
   user-select: none;
   transition: all 0.15s;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  max-height: 48px;
+  gap: 10px;
+  min-height: 56px;
+  height: auto;
 }
-.control-card:active { transform: scale(0.97); }
+.control-card:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+.control-card:active {
+  transform: scale(0.97);
+  background: rgba(255,255,255,0.1);
+}
 .control-card.active {
-  background: rgba(var(--theme-primary-rgb), 0.15);
-  box-shadow: 0 0 0 2px var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.12);
+  border-color: rgba(var(--theme-primary-rgb), 0.4);
+  box-shadow: 0 0 0 1px var(--theme-primary);
 }
 
 .control-card .card-icon {
-  width: 32px; height: 32px; min-width: 32px;
+  width: 36px; height: 36px; min-width: 36px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.6);
   flex-shrink: 0;
 }
 .control-card.active .card-icon {
   background: var(--theme-primary);
   color: black;
 }
-.control-card .card-info { flex: 1; min-width: 0; overflow: hidden; }
+.control-card .card-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
 .control-card .card-title {
-  font-weight: 700; color: white; font-size: 14px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 600;
+  color: white;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .control-card .card-meta {
-  font-size: 10px; color: rgba(255,255,255,0.4);
-  display: flex; align-items: center; gap: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
 }
 
 /* === PLAYING INDICATOR === */
@@ -1862,8 +1904,24 @@ input[type="range"]::-webkit-slider-runnable-track { height: 8px; background: rg
 .control-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  grid-auto-rows: 48px;
+  gap: 10px;
+  grid-auto-rows: minmax(56px, auto);
+  align-content: start;
+  padding-bottom: 8px;
+}
+
+/* Responsive grid columns for smaller screens */
+@media (max-width: 600px) {
+  .control-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Larger screens get 4 columns */
+@media (min-width: 900px) {
+  .control-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* === BACK BUTTON FIX === */
