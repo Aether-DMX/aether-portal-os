@@ -165,11 +165,135 @@ When using tools:
         context: {},
         lastActivity: Date.now(),
         createdAt: Date.now(),
+        // Conversation memory for follow-up edits
+        memory: {
+          lastCreatedScene: null,    // { id, name, channels }
+          lastCreatedChase: null,    // { id, name, steps, bpm }
+          lastPlayedScene: null,     // { id, name }
+          lastPlayedChase: null,     // { id, name }
+          recentActions: [],         // Last 10 actions for context
+        },
       });
     }
     const session = this.sessions.get(sessionId);
     session.lastActivity = Date.now();
     return session;
+  }
+
+  /**
+   * Update session memory after an action
+   */
+  updateSessionMemory(sessionId, actionType, data) {
+    const session = this.getSession(sessionId);
+    const memory = session.memory;
+
+    switch (actionType) {
+      case 'create_scene':
+        memory.lastCreatedScene = {
+          id: data.scene_id || data.id,
+          name: data.name,
+          channels: data.channels,
+          timestamp: Date.now(),
+        };
+        break;
+      case 'create_chase':
+        memory.lastCreatedChase = {
+          id: data.chase_id || data.id,
+          name: data.name,
+          steps: data.steps,
+          bpm: data.bpm,
+          timestamp: Date.now(),
+        };
+        break;
+      case 'play_scene':
+        memory.lastPlayedScene = {
+          id: data.scene_id || data.id,
+          name: data.name,
+          timestamp: Date.now(),
+        };
+        break;
+      case 'play_chase':
+        memory.lastPlayedChase = {
+          id: data.chase_id || data.id,
+          name: data.name,
+          timestamp: Date.now(),
+        };
+        break;
+    }
+
+    // Track recent actions (keep last 10)
+    memory.recentActions.push({
+      action: actionType,
+      data: { id: data.id || data.scene_id || data.chase_id, name: data.name },
+      timestamp: Date.now(),
+    });
+    if (memory.recentActions.length > 10) {
+      memory.recentActions = memory.recentActions.slice(-10);
+    }
+  }
+
+  /**
+   * Get session memory for context injection
+   */
+  getSessionMemory(sessionId) {
+    const session = this.getSession(sessionId);
+    const memory = session.memory;
+    const summary = [];
+
+    if (memory.lastCreatedScene) {
+      const ago = Math.round((Date.now() - memory.lastCreatedScene.timestamp) / 1000 / 60);
+      summary.push(`Last created scene: "${memory.lastCreatedScene.name}" (${ago}min ago)`);
+    }
+    if (memory.lastCreatedChase) {
+      const ago = Math.round((Date.now() - memory.lastCreatedChase.timestamp) / 1000 / 60);
+      summary.push(`Last created chase: "${memory.lastCreatedChase.name}" (${ago}min ago)`);
+    }
+    if (memory.lastPlayedScene) {
+      summary.push(`Last played scene: "${memory.lastPlayedScene.name}"`);
+    }
+    if (memory.lastPlayedChase) {
+      summary.push(`Last played chase: "${memory.lastPlayedChase.name}"`);
+    }
+
+    return {
+      ...memory,
+      summary: summary.join('. '),
+    };
+  }
+
+  /**
+   * Update memory based on tool execution results
+   */
+  updateMemoryFromToolResult(sessionId, toolName, input, result) {
+    // Map tool calls to memory update actions
+    if (toolName === 'scene') {
+      if (input.action === 'create' && result.scene_id) {
+        this.updateSessionMemory(sessionId, 'create_scene', {
+          scene_id: result.scene_id,
+          name: input.name,
+          channels: input.channels,
+        });
+      } else if (input.action === 'play' && input.scene_id) {
+        this.updateSessionMemory(sessionId, 'play_scene', {
+          scene_id: input.scene_id,
+          name: result.message || input.scene_id,
+        });
+      }
+    } else if (toolName === 'chase') {
+      if (input.action === 'create' && result.chase_id) {
+        this.updateSessionMemory(sessionId, 'create_chase', {
+          chase_id: result.chase_id,
+          name: input.name,
+          steps: input.steps,
+          bpm: input.bpm,
+        });
+      } else if (input.action === 'play' && input.chase_id) {
+        this.updateSessionMemory(sessionId, 'play_chase', {
+          chase_id: input.chase_id,
+          name: result.message || input.chase_id,
+        });
+      }
+    }
   }
 
   clearSession(sessionId) {
@@ -180,13 +304,17 @@ When using tools:
 
   /**
    * Get current system context for injection into prompts
+   * Includes fixtures, scenes, chases, nodes, and playback state
    */
   async getContext() {
     try {
-      const [playback, nodes, health] = await Promise.all([
+      const [playback, nodes, health, fixtures, scenes, chases] = await Promise.all([
         this.fetchJSON('/api/playback/status').catch(() => ({})),
         this.fetchJSON('/api/nodes').catch(() => []),
         this.fetchJSON('/api/health').catch(() => ({})),
+        this.fetchJSON('/api/fixtures').catch(() => []),
+        this.fetchJSON('/api/scenes').catch(() => []),
+        this.fetchJSON('/api/chases').catch(() => []),
       ]);
 
       const now = new Date();
@@ -203,6 +331,51 @@ When using tools:
       const onlineNodes = pairedNodes.filter(n => n.status === 'online');
       const offlineNodes = pairedNodes.filter(n => n.status !== 'online');
 
+      // Parse fixture data for channel mapping
+      const fixtureMap = Array.isArray(fixtures) ? fixtures.map(f => ({
+        name: f.name,
+        type: f.type || f.fixture_type,
+        universe: f.universe || 1,
+        startChannel: f.startAddress || f.start_address || f.channel_start,
+        endChannel: f.endAddress || f.end_address || f.channel_end,
+        channelLayout: f.channelLayout || f.channel_layout || this.inferChannelLayout(f),
+      })) : [];
+
+      // Summarize scenes (with channel info for recent/relevant ones)
+      const sceneSummary = Array.isArray(scenes) ? scenes.slice(0, 20).map(s => {
+        const channels = typeof s.channels === 'string' ? JSON.parse(s.channels || '{}') : (s.channels || {});
+        return {
+          id: s.scene_id || s.id,
+          name: s.name,
+          channelCount: Object.keys(channels).length,
+          color: s.color,
+          // Include channel preview for quick reference
+          preview: this.getChannelPreview(channels),
+        };
+      }) : [];
+
+      // Summarize chases
+      const chaseSummary = Array.isArray(chases) ? chases.slice(0, 20).map(c => {
+        const steps = typeof c.steps === 'string' ? JSON.parse(c.steps || '[]') : (c.steps || []);
+        return {
+          id: c.chase_id || c.id,
+          name: c.name,
+          bpm: c.bpm || 120,
+          stepCount: steps.length,
+          loop: c.loop !== false,
+        };
+      }) : [];
+
+      // Build node detail with channel ranges
+      const nodeDetails = pairedNodes.map(n => ({
+        id: n.node_id,
+        name: n.name,
+        status: n.status,
+        universe: n.universe,
+        channels: n.channel_start && n.channel_end ? `${n.channel_start}-${n.channel_end}` : 'all',
+        type: n.type || 'wifi',
+      }));
+
       return {
         playback: {
           state: Object.keys(playback).length > 0 ? 'playing' : 'idle',
@@ -212,7 +385,20 @@ When using tools:
           online: onlineNodes.length,
           offline: offlineNodes.length,
           total: pairedNodes.length,
+          details: nodeDetails,
           warnings: offlineNodes.map(n => `${n.name || n.node_id} offline`),
+        },
+        fixtures: {
+          count: fixtureMap.length,
+          items: fixtureMap,
+        },
+        scenes: {
+          count: scenes.length,
+          items: sceneSummary,
+        },
+        chases: {
+          count: chases.length,
+          items: chaseSummary,
         },
         time: {
           timeOfDay,
@@ -228,12 +414,64 @@ When using tools:
       logger.error('Failed to get context:', error);
       return {
         playback: { state: 'unknown' },
-        nodes: { online: 0, offline: 0, total: 0, warnings: [] },
+        nodes: { online: 0, offline: 0, total: 0, details: [], warnings: [] },
+        fixtures: { count: 0, items: [] },
+        scenes: { count: 0, items: [] },
+        chases: { count: 0, items: [] },
         time: { timeOfDay: 'unknown', hour: new Date().getHours() },
         system: { healthy: false },
         aiMode: this.isOnline ? 'online' : 'offline',
       };
     }
+  }
+
+  /**
+   * Infer channel layout from fixture type
+   */
+  inferChannelLayout(fixture) {
+    const type = (fixture.type || fixture.fixture_type || '').toLowerCase();
+    const channelCount = (fixture.endAddress || fixture.end_address || fixture.channel_end || 0) -
+                        (fixture.startAddress || fixture.start_address || fixture.channel_start || 0) + 1;
+
+    // Common fixture profiles
+    if (type.includes('rgb') || type.includes('par')) {
+      if (channelCount >= 7) return ['dimmer', 'red', 'green', 'blue', 'white', 'strobe', 'mode'];
+      if (channelCount >= 4) return ['red', 'green', 'blue', 'dimmer'];
+      if (channelCount >= 3) return ['red', 'green', 'blue'];
+    }
+    if (type.includes('moving') || type.includes('wash')) {
+      return ['pan', 'pan_fine', 'tilt', 'tilt_fine', 'dimmer', 'red', 'green', 'blue', 'white', 'strobe'];
+    }
+    if (type.includes('dimmer')) {
+      return Array(channelCount).fill('dimmer');
+    }
+    // Default: assume RGBW
+    if (channelCount >= 4) return ['red', 'green', 'blue', 'white'];
+    if (channelCount >= 3) return ['red', 'green', 'blue'];
+    return ['dimmer'];
+  }
+
+  /**
+   * Get a brief preview of channel values (for context)
+   */
+  getChannelPreview(channels) {
+    if (!channels || Object.keys(channels).length === 0) return null;
+
+    // Extract RGB if present
+    const entries = Object.entries(channels);
+    const r = channels['1:1'] ?? channels['1'] ?? channels[1];
+    const g = channels['1:2'] ?? channels['2'] ?? channels[2];
+    const b = channels['1:3'] ?? channels['3'] ?? channels[3];
+
+    if (r !== undefined && g !== undefined && b !== undefined) {
+      return { type: 'rgb', r, g, b };
+    }
+
+    // Return first few channels
+    return {
+      type: 'channels',
+      sample: entries.slice(0, 4).map(([k, v]) => `${k}:${v}`).join(', ')
+    };
   }
 
   async fetchJSON(path) {
@@ -505,7 +743,7 @@ When using tools:
 
   async chatWithClaude(session, context, sessionId) {
     const tools = this.toolBridge.getToolDefinitions();
-    const contextPrompt = this.buildContextPrompt(context);
+    const contextPrompt = this.buildContextPrompt(context, sessionId);
 
     const response = await this.anthropic.messages.create({
       model: this.model,
@@ -540,6 +778,12 @@ When using tools:
 
           const result = await this.toolBridge.execute(content.name, content.input);
           this.logAction(content.name, content.input, result, sessionId);
+
+          // Update session memory for relevant actions
+          if (result.success !== false) {
+            this.updateMemoryFromToolResult(sessionId, content.name, content.input, result);
+          }
+
           toolResults.push({
             type: 'tool_result',
             tool_use_id: content.id,
@@ -590,7 +834,7 @@ When using tools:
 
   async streamWithClaude(session, context, onChunk, sessionId) {
     const tools = this.toolBridge.getToolDefinitions();
-    const contextPrompt = this.buildContextPrompt(context);
+    const contextPrompt = this.buildContextPrompt(context, sessionId);
 
     await this._processStreamWithTools(
       session,
@@ -705,6 +949,12 @@ When using tools:
         try {
           const result = await this.toolBridge.execute(toolUse.name, toolUse.input);
           this.logAction(toolUse.name, toolUse.input, result, sessionId);
+
+          // Update session memory for relevant actions
+          if (result.success !== false) {
+            this.updateMemoryFromToolResult(sessionId, toolUse.name, toolUse.input, result);
+          }
+
           toolResults.push({
             type: 'tool_result',
             tool_use_id: toolUse.id,
@@ -746,25 +996,91 @@ When using tools:
     };
   }
 
-  buildContextPrompt(context) {
-    const lines = ['CURRENT SYSTEM STATE:'];
+  buildContextPrompt(context, sessionId = null) {
+    const lines = ['## CURRENT SYSTEM STATE'];
 
+    // Playback status
     if (context.playback.state === 'playing') {
       const active = Object.values(context.playback.active)[0];
       if (active) {
-        lines.push(`- Now playing: ${active.id || 'unknown'}`);
+        lines.push(`**Now playing:** ${active.id || 'unknown'}`);
       }
     } else {
-      lines.push('- Nothing currently playing');
+      lines.push('**Playback:** idle (nothing playing)');
     }
 
-    lines.push(`- Nodes: ${context.nodes.online}/${context.nodes.total} online`);
+    // Time and system
+    lines.push(`**Time:** ${context.time.timeOfDay} (${context.time.dayOfWeek}, ${context.time.hour}:00)`);
+    lines.push(`**System:** ${context.system.healthy ? 'healthy' : 'issues detected'}`);
+
+    // Nodes with details
+    lines.push(`\n## NODES (${context.nodes.online}/${context.nodes.total} online)`);
+    if (context.nodes.details && context.nodes.details.length > 0) {
+      context.nodes.details.forEach(n => {
+        const status = n.status === 'online' ? '✓' : '✗';
+        lines.push(`- ${status} ${n.name}: Universe ${n.universe}, channels ${n.channels}`);
+      });
+    }
     if (context.nodes.warnings.length > 0) {
-      lines.push(`- Warnings: ${context.nodes.warnings.join(', ')}`);
+      lines.push(`**Warnings:** ${context.nodes.warnings.join(', ')}`);
     }
 
-    lines.push(`- Time: ${context.time.timeOfDay} (${context.time.dayOfWeek}, ${context.time.hour}:00)`);
-    lines.push(`- System: ${context.system.healthy ? 'healthy' : 'issues detected'}`);
+    // Fixtures
+    if (context.fixtures && context.fixtures.count > 0) {
+      lines.push(`\n## FIXTURES (${context.fixtures.count} patched)`);
+      context.fixtures.items.forEach(f => {
+        const layout = Array.isArray(f.channelLayout) ? f.channelLayout.join(', ') : 'unknown';
+        lines.push(`- **${f.name}** (${f.type}): Universe ${f.universe}, channels ${f.startChannel}-${f.endChannel} [${layout}]`);
+      });
+    } else {
+      lines.push('\n## FIXTURES: None patched yet (guide user to add fixtures for smarter control)');
+    }
+
+    // Scenes summary
+    if (context.scenes && context.scenes.count > 0) {
+      lines.push(`\n## SCENES (${context.scenes.count} saved)`);
+      context.scenes.items.slice(0, 10).forEach(s => {
+        let preview = '';
+        if (s.preview) {
+          if (s.preview.type === 'rgb') {
+            preview = ` [RGB: ${s.preview.r}, ${s.preview.g}, ${s.preview.b}]`;
+          } else if (s.preview.sample) {
+            preview = ` [${s.preview.sample}]`;
+          }
+        }
+        lines.push(`- "${s.name}" (${s.channelCount} ch)${preview}`);
+      });
+      if (context.scenes.count > 10) {
+        lines.push(`  ...and ${context.scenes.count - 10} more`);
+      }
+    } else {
+      lines.push('\n## SCENES: None created yet');
+    }
+
+    // Chases summary
+    if (context.chases && context.chases.count > 0) {
+      lines.push(`\n## CHASES (${context.chases.count} saved)`);
+      context.chases.items.slice(0, 10).forEach(c => {
+        lines.push(`- "${c.name}" (${c.stepCount} steps, ${c.bpm} BPM, ${c.loop ? 'loop' : 'once'})`);
+      });
+      if (context.chases.count > 10) {
+        lines.push(`  ...and ${context.chases.count - 10} more`);
+      }
+    } else {
+      lines.push('\n## CHASES: None created yet');
+    }
+
+    // Session memory (if available)
+    if (sessionId) {
+      const memory = this.getSessionMemory(sessionId);
+      if (memory.summary) {
+        lines.push(`\n## CONVERSATION MEMORY`);
+        lines.push(memory.summary);
+      }
+      if (memory.recentActions && memory.recentActions.length > 0) {
+        lines.push(`Recent actions: ${memory.recentActions.slice(-5).map(a => a.action).join(', ')}`);
+      }
+    }
 
     return lines.join('\n');
   }
