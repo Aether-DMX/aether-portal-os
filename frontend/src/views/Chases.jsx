@@ -23,12 +23,39 @@ const COLOR_PRESETS = [
   { name: 'Off', channels: { '1:1': 0, '1:2': 0, '1:3': 0 }, color: '#333333' },
 ];
 
+// Helper to get colors from chase steps
+function getChaseColors(chase) {
+  const steps = chase.steps || [];
+  if (steps.length === 0) return null;
+
+  // Get colors from first few steps
+  const colors = steps.slice(0, 4).map(step => {
+    // Step might have a color property or channels
+    if (step.color) return step.color;
+    const ch = step.channels || {};
+    const r = ch['1:1'] ?? ch['1'] ?? ch[1] ?? 0;
+    const g = ch['1:2'] ?? ch['2'] ?? ch[2] ?? 0;
+    const b = ch['1:3'] ?? ch['3'] ?? ch[3] ?? 0;
+    if (r + g + b < 30) return null;
+    return `rgb(${r}, ${g}, ${b})`;
+  }).filter(Boolean);
+
+  if (colors.length === 0) return null;
+  if (colors.length === 1) return { gradient: colors[0], primary: colors[0] };
+
+  // Create gradient from step colors
+  const gradient = `linear-gradient(90deg, ${colors.join(', ')})`;
+  return { gradient, primary: colors[0] };
+}
+
 // Chase Card - Tap to Play, Long Press for Menu (matches SceneCard structure)
 function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   const stepCount = chase.steps?.length || 0;
   const bpm = chase.bpm || 120;
+  const chaseColors = getChaseColors(chase);
+
   const handleStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -43,6 +70,7 @@ function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
     if (!didLongPress.current) { onPlay(chase); }
   };
   const handleCancel = () => clearTimeout(pressTimer.current);
+
   return (
     <div
       onTouchStart={handleStart}
@@ -51,10 +79,23 @@ function ChaseCard({ chase, isActive, onPlay, onStop, onLongPress }) {
       onMouseDown={handleStart}
       onMouseUp={handleEnd}
       onMouseLeave={handleCancel}
-      style={{ touchAction: 'manipulation' }}
-      className={`control-card ${isActive ? 'active playing' : ''}`}
+      style={{
+        touchAction: 'manipulation',
+        '--card-color': chaseColors?.primary || 'var(--theme-primary)',
+      }}
+      className={`control-card ${isActive ? 'active playing' : ''} ${chaseColors ? 'has-color' : ''}`}
     >
-      <div className="card-icon">
+      {/* Multi-color gradient bar for chase steps */}
+      {chaseColors && (
+        <div
+          className="card-color-bar"
+          style={{ background: chaseColors.gradient }}
+        />
+      )}
+      <div className="card-icon" style={chaseColors ? {
+        background: `linear-gradient(145deg, ${chaseColors.primary}33, ${chaseColors.primary}15)`,
+        color: chaseColors.primary
+      } : undefined}>
         {isActive ? <Square size={18} /> : <Play size={20} className="ml-0.5" />}
       </div>
       <div className="card-info">

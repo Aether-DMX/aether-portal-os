@@ -93,10 +93,29 @@ const PRESETS = [
   { name: 'Red', icon: '🔥', cmd: 'red' },
 ];
 
+// Helper to get RGB from scene channels (assumes RGB on channels 1,2,3)
+function getSceneColor(scene) {
+  // First check if scene has a stored color
+  if (scene.color) return scene.color;
+
+  // Otherwise derive from channels
+  const ch = scene.channels || {};
+  const r = ch['1:1'] ?? ch['1'] ?? ch[1] ?? 0;
+  const g = ch['1:2'] ?? ch['2'] ?? ch[2] ?? 0;
+  const b = ch['1:3'] ?? ch['3'] ?? ch[3] ?? 0;
+
+  // If all zeros or very dim, return a default
+  if (r + g + b < 30) return null;
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 // Scene Card - Tap to Play (always opens modal), Long Press for Menu
 function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
+  const sceneColor = getSceneColor(scene);
+
   const handleStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -111,6 +130,7 @@ function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
     if (!didLongPress.current) { onPlay(scene); }
   };
   const handleCancel = () => clearTimeout(pressTimer.current);
+
   return (
     <div
       onTouchStart={handleStart}
@@ -119,10 +139,23 @@ function SceneCard({ scene, isActive, onPlay, onStop, onLongPress }) {
       onMouseDown={handleStart}
       onMouseUp={handleEnd}
       onMouseLeave={handleCancel}
-      style={{ touchAction: 'manipulation' }}
-      className={`control-card ${isActive ? 'active playing' : ''}`}
+      style={{
+        touchAction: 'manipulation',
+        '--card-color': sceneColor || 'var(--theme-primary)',
+      }}
+      className={`control-card ${isActive ? 'active playing' : ''} ${sceneColor ? 'has-color' : ''}`}
     >
-      <div className="card-icon">
+      {/* Color accent bar */}
+      {sceneColor && (
+        <div
+          className="card-color-bar"
+          style={{ background: sceneColor }}
+        />
+      )}
+      <div className="card-icon" style={sceneColor ? {
+        background: `linear-gradient(145deg, ${sceneColor}33, ${sceneColor}15)`,
+        color: sceneColor
+      } : undefined}>
         {isActive ? <Check size={20} /> : <Play size={20} className="ml-0.5" />}
       </div>
       <div className="card-info">
