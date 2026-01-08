@@ -1,10 +1,17 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import Keyboard from 'react-simple-keyboard';
 import 'react-simple-keyboard/build/css/index.css';
 import { X } from 'lucide-react';
 
-export default function TouchKeyboard({ onClose, onInputChange, inputName = 'default' }) {
+export default function TouchKeyboard({ onClose, onInputChange, inputName = 'default', initialValue = '' }) {
   const keyboard = useRef();
+
+  // Set initial value when keyboard mounts
+  useEffect(() => {
+    if (keyboard.current && initialValue) {
+      keyboard.current.setInput(initialValue);
+    }
+  }, [initialValue]);
 
   const handleChange = (input) => {
     if (onInputChange) {
@@ -20,8 +27,8 @@ export default function TouchKeyboard({ onClose, onInputChange, inputName = 'def
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[70] p-2">
-      <div className="glass-panel rounded-xl border p-2" 
-        style={{ 
+      <div className="glass-panel rounded-xl border p-2"
+        style={{
           borderColor: 'var(--border-color)',
           boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.8)',
           background: 'rgba(0, 0, 0, 0.95)',
@@ -43,13 +50,14 @@ export default function TouchKeyboard({ onClose, onInputChange, inputName = 'def
             <X size={14} />
           </button>
         </div>
-        
+
         <Keyboard
           keyboardRef={(r) => (keyboard.current = r)}
           layoutName="default"
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           theme="hg-theme-default aether-keyboard"
+          inputName={inputName}
           display={{
             '{bksp}': '⌫',
             '{enter}': '↵',

@@ -8,6 +8,7 @@ import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import FaderModal from '../components/FaderModal';
 import ApplyTargetModal from '../components/ApplyTargetModal';
+import TouchInput from '../components/TouchInput';
 
 // Color presets for quick step creation
 const COLOR_PRESETS = [
@@ -441,11 +442,11 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
           padding: '12px',
           marginBottom: '12px',
         }}>
-          <input
-            type="text"
+          <TouchInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Chase name..."
+            inputName="chase-name"
             style={{
               width: '100%',
               background: 'transparent',
@@ -476,12 +477,11 @@ function ChaseCreatorContent({ chase, onClose, onSave, scenes }) {
             border: '1px solid rgba(255,255,255,0.1)',
           }}>
             <MessageSquare size={16} style={{ color: 'var(--theme-primary)' }} />
-            <input
-              type="text"
+            <TouchInput
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAiCommand()}
               placeholder="'faster' 'rainbow' '120 bpm'..."
+              inputName="chase-ai"
               style={{
                 flex: 1,
                 background: 'transparent',

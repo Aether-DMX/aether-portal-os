@@ -1,24 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TouchKeyboard from './TouchKeyboard';
 
-export default function TouchInput({ 
-  value, 
-  onChange, 
-  placeholder, 
+export default function TouchInput({
+  value = '',
+  onChange,
+  placeholder,
   type = 'text',
   className = '',
   style = {},
-  ...props 
+  inputName = 'default',
+  ...props
 }) {
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [localValue, setLocalValue] = useState(value || '');
 
   const handleFocus = () => {
     setShowKeyboard(true);
   };
 
   const handleInputChange = (input) => {
-    setLocalValue(input);
     if (onChange) {
       onChange({ target: { value: input } });
     }
@@ -32,16 +31,15 @@ export default function TouchInput({
     <>
       <input
         type={type}
-        value={localValue}
+        value={value}
         onFocus={handleFocus}
         onChange={(e) => {
-          setLocalValue(e.target.value);
           if (onChange) onChange(e);
         }}
         placeholder={placeholder}
         className={className}
         style={style}
-        readOnly={showKeyboard}
+        readOnly
         {...props}
       />
 
@@ -49,6 +47,8 @@ export default function TouchInput({
         <TouchKeyboard
           onClose={handleClose}
           onInputChange={handleInputChange}
+          inputName={inputName}
+          initialValue={value}
         />
       )}
     </>

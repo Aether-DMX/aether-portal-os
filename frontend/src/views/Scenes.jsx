@@ -8,6 +8,7 @@ import usePlaybackStore from '../store/playbackStore';
 import FaderModal from '../components/FaderModal';
 import ApplyTargetModal from '../components/ApplyTargetModal';
 import SceneEditor from '../components/common/SceneEditor';
+import TouchInput from '../components/TouchInput';
 
 // AI command processing
 const processAICommand = (prompt, currentChannels = {}) => {
@@ -313,11 +314,11 @@ function SceneCreatorModal({ scene, isOpen, onClose, onSave }) {
       <div className="screen-content" style={{ padding: '12px' }}>
         {/* Name Input */}
         <div className="glass-card p-3 mb-3">
-          <input
-            type="text"
+          <TouchInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Scene name..."
+            inputName="scene-name"
             className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold placeholder:text-white/30 outline-none focus:border-[var(--theme-primary)]"
           />
         </div>
@@ -327,12 +328,11 @@ function SceneCreatorModal({ scene, isOpen, onClose, onSave }) {
           <div className="flex gap-2 mb-2">
             <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
               {aiLoading ? <Loader size={16} className="text-[var(--theme-primary)] animate-spin" /> : <MessageSquare size={16} className="text-[var(--theme-primary)]" />}
-              <input
-                type="text"
+              <TouchInput
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAiCommand()}
                 placeholder="'warm' 'party' '50%'..."
+                inputName="scene-ai"
                 className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 outline-none"
               />
             </div>
