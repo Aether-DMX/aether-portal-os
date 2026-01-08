@@ -38,6 +38,32 @@ const MODE_CONFIG = {
     showGroups: true,
     showFixtures: true,
   },
+  look: {
+    icon: Play,
+    iconColor: 'text-cyan-400',
+    title: (item) => item?.name || 'Look',
+    subtitle: (item) => {
+      const modCount = item?.modifiers?.length || 0;
+      const chCount = Object.keys(item?.channels || {}).length;
+      return modCount > 0 ? `${chCount} channels • ${modCount} modifiers` : `${chCount} channels`;
+    },
+    primaryColor: 'cyan',
+    primaryLabel: 'Play Look',
+    showFadeOptions: true,
+    showGroups: true,
+    showFixtures: true,
+  },
+  sequence: {
+    icon: Music,
+    iconColor: 'text-purple-400',
+    title: (item) => item?.name || 'Sequence',
+    subtitle: (item) => `${item?.bpm || 120} BPM • ${item?.steps?.length || 0} steps`,
+    primaryColor: 'purple',
+    primaryLabel: 'Play Sequence',
+    showFadeOptions: false,
+    showGroups: false,
+    showFixtures: false, // Sequences apply to whole universes
+  },
   chase: {
     icon: Music,
     iconColor: 'text-purple-400',

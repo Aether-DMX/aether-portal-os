@@ -17,6 +17,7 @@ import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
 // import Groups from './views/Groups'; // Deprecated
 import Chases from './views/Chases';
+import Looks from './views/Looks';
 import Effects from './views/Effects';
 import Shows from './views/Shows';
 // import PatchFixtures from './views/PatchFixtures'; // Deprecated
@@ -32,6 +33,7 @@ import useDMXStore from './store/dmxStore';
 import useUIStore from './store/uiStore';
 import useSceneStore from './store/sceneStore';
 import useChaseStore from './store/chaseStore';
+import useLookStore from './store/lookStore';
 import useNodeStore from './store/nodeStore';
 import useBackgroundStore from './store/backgroundStore';
 import useAuthStore from './store/authStore';
@@ -70,6 +72,7 @@ function AppContent({ onLock }) {
           <Route path="/scenes" element={<Scenes />} />
           {/* <Route path="/groups" element={<Groups />} /> */}
           <Route path="/chases" element={<Chases />} />
+          <Route path="/looks" element={<Looks />} />
           <Route path="/effects" element={<Effects />} />
           <Route path="/shows" element={<Shows />} />
           {/* <Route path="/patch-fixtures" /> Deprecated */}
@@ -106,6 +109,7 @@ function App() {
   const { accentColor } = useUIStore();
   const { initializeSampleData: initScenes } = useSceneStore();
   const { initializeSampleData: initChases } = useChaseStore();
+  const { initialize: initLooks } = useLookStore();
   const { fetchNodes } = useNodeStore();
   const { setupComplete, updateContext } = useAIContext();
 
@@ -157,6 +161,7 @@ function App() {
       console.log('🚀 Initializing AETHER...');
       initScenes();
       initChases();
+      initLooks();
       fetchNodes();
       useFixtureStore.getState().fetchFixtures();
 
