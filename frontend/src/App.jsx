@@ -18,6 +18,7 @@ import Scenes from './views/Scenes';
 // import Groups from './views/Groups'; // Deprecated
 import Chases from './views/Chases';
 import Looks from './views/Looks';
+import CueStacks from './views/CueStacks';
 import Effects from './views/Effects';
 import Shows from './views/Shows';
 // import PatchFixtures from './views/PatchFixtures'; // Deprecated
@@ -73,6 +74,7 @@ function AppContent({ onLock }) {
           {/* <Route path="/groups" element={<Groups />} /> */}
           <Route path="/chases" element={<Chases />} />
           <Route path="/looks" element={<Looks />} />
+          <Route path="/cue-stacks" element={<CueStacks />} />
           <Route path="/effects" element={<Effects />} />
           <Route path="/shows" element={<Shows />} />
           {/* <Route path="/patch-fixtures" /> Deprecated */}
