@@ -1,6 +1,39 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// API base URL - use relative for same-origin, or configure for cross-origin
+const API_BASE = '/api';
+
+// Sync setup status with server (Pi stores the canonical state)
+const syncSetupFromServer = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/settings/setup-complete`);
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (err) {
+    console.warn('Could not sync setup from server:', err.message);
+  }
+  return null;
+};
+
+const syncSetupToServer = async (setupData) => {
+  try {
+    const res = await fetch(`${API_BASE}/settings/setup-complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(setupData),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Could not sync setup to server:', err.message);
+  }
+  return null;
+};
+
 const HOLIDAYS = {
   '01-01': { name: "New Year's Day", mood: 'celebration', colors: ['#FFD700', '#FFFFFF'] },
   '02-14': { name: "Valentine's Day", mood: 'romantic', colors: ['#FF1493', '#FF69B4'] },
@@ -30,9 +63,28 @@ const useAIContext = create(persist((set, get) => ({
   dismissedSuggestions: [],
   dismissedUntil: {}, // Track when suggestions can reappear { suggestionId: timestamp }
   
-  setSetupComplete: (complete) => set({ setupComplete: complete }),
+  setSetupComplete: async (complete) => {
+    set({ setupComplete: complete });
+    // Sync to server so all browsers share the same state
+    const { setupMode, userProfile } = get();
+    await syncSetupToServer({ complete, mode: setupMode, userProfile });
+  },
   setSetupMode: (mode) => set({ setupMode: mode }),
   setUserProfile: (profile) => set({ userProfile: { ...get().userProfile, ...profile } }),
+
+  // Initialize from server (call on app startup)
+  initFromServer: async () => {
+    const serverSetup = await syncSetupFromServer();
+    if (serverSetup) {
+      set({
+        setupComplete: serverSetup.complete || false,
+        setupMode: serverSetup.mode || null,
+        userProfile: { ...get().userProfile, ...(serverSetup.userProfile || {}) },
+      });
+      return serverSetup.complete;
+    }
+    return get().setupComplete;
+  },
   
   recordAction: (action) => {
     const { patterns } = get();

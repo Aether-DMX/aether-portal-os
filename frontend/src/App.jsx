@@ -111,7 +111,7 @@ function App() {
   const { initializeSampleData: initChases } = useChaseStore();
   const { initialize: initLooks } = useLookStore();
   const { fetchNodes } = useNodeStore();
-  const { setupComplete, updateContext } = useAIContext();
+  const { setupComplete, updateContext, initFromServer } = useAIContext();
 
   const [screensaverActive, setScreensaverActive] = useState(false);
   const [lockTime, setLockTime] = useState(0);
@@ -120,6 +120,7 @@ function App() {
   const [showSplash, setShowSplash] = useState(false); // Disabled - boot straight to dashboard
   const [backendReady, setBackendReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [setupSynced, setSetupSynced] = useState(false);
   const SCREENSAVER_TIMEOUT = 5 * 60 * 1000;
 
   useEffect(() => {
@@ -130,12 +131,19 @@ function App() {
     setShowSplash(false);
   };
 
-  // Check onboarding on backend ready (since splash is disabled)
+  // Sync setup state from server when backend is ready
   useEffect(() => {
-    if (backendReady && !setupComplete) {
-      setShowOnboarding(true);
+    if (backendReady && !setupSynced) {
+      initFromServer().then((isComplete) => {
+        console.log('[BOOT] Setup synced from server, complete:', isComplete);
+        setSetupSynced(true);
+        // Show onboarding only if server says setup is not complete
+        if (!isComplete) {
+          setShowOnboarding(true);
+        }
+      });
     }
-  }, [backendReady, setupComplete]);
+  }, [backendReady, setupSynced, initFromServer]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
