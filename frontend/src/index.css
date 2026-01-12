@@ -1448,21 +1448,16 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* REMOVED: This media query was breaking the 800x480 kiosk layout
+   The Pi screen is exactly 800x480, so max-height: 480px matched
+   and incorrectly set flex-direction: column on .launcher-main
 @media (min-width: 650px) and (max-height: 480px) {
   .launcher-main {
     flex-direction: column;
     flex-wrap: wrap;
   }
-  .quick-scenes {
-    flex: 1 1 48%;
-  }
-  .master-row {
-    flex: 1 1 48%;
-  }
-  .zones-grid {
-    flex: 1 1 100%;
-  }
 }
+*/
 
 /* Fix ChatModal layout */
 .chat-modal {
