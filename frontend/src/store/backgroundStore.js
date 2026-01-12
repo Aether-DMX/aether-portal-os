@@ -4,8 +4,8 @@ import { persist } from 'zustand/middleware';
 const useBackgroundStore = create(
   persist(
     (set, get) => ({
-      // State
-      enabled: true,
+      // State - disabled by default for Pi performance
+      enabled: false,
       preset: 'default',
       speed: 'normal',
       bubbleCount: 25,
