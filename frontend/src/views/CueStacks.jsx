@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Play, Square, Trash2, Edit3, ChevronLeft, ChevronRight,
-  Layers, SkipBack, SkipForward, List, Check, Clock
+  Layers, SkipBack, SkipForward, List, Check, Clock, ChevronDown, ChevronUp
 } from 'lucide-react';
 import useCueStackStore from '../store/cueStackStore';
 import useLookStore from '../store/lookStore';
+import { useDesktop } from '../components/desktop/DesktopShell';
 
 // ============================================================
 // Cue Stack Card Component - Adapts to desktop/kiosk
@@ -553,6 +554,23 @@ export default function CueStacks() {
     );
   }
 
+  // Desktop view - Professional cue list interface
+  if (isDesktop) {
+    return (
+      <DesktopCueStacksView
+        cueStacks={cueStacks}
+        loading={loading}
+        activeStack={activeStack}
+        looks={looks}
+        onSelectStack={handleSelectStack}
+        onEditStack={handleLongPress}
+        onDeleteStack={handleDeleteStack}
+        onCreateNew={handleCreateNew}
+      />
+    );
+  }
+
+  // Kiosk view (original)
   return (
     <div className={`pb-24 space-y-4 ${isDesktop ? 'p-6' : 'p-4'}`}>
       {/* Header - Responsive */}
@@ -634,6 +652,432 @@ export default function CueStacks() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Desktop CueStacks View - Professional cue list interface
+// ============================================================
+function DesktopCueStacksView({
+  cueStacks,
+  loading,
+  activeStack,
+  looks,
+  onSelectStack,
+  onEditStack,
+  onDeleteStack,
+  onCreateNew,
+}) {
+  const desktopContext = useDesktop();
+  const { setHoveredItem, setSelectedItem, selectedItem } = desktopContext || {};
+  const [expandedStack, setExpandedStack] = useState(null);
+
+  const getLookName = (lookId) => {
+    const look = looks.find(l => l.look_id === lookId);
+    return look?.name || 'Untitled';
+  };
+
+  return (
+    <div className="desktop-cuestacks">
+      {/* Header */}
+      <div className="cuestacks-header">
+        <div className="header-left">
+          <h1 className="page-title">Cue Stacks</h1>
+          <span className="page-count">{cueStacks.length} stacks</span>
+        </div>
+        <div className="header-right">
+          <button className="create-btn" onClick={onCreateNew}>
+            <Plus size={18} />
+            <span>New Stack</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Cue Stack Table */}
+      <div className="cuestacks-content">
+        {loading ? (
+          <div className="loading-state">Loading cue stacks...</div>
+        ) : cueStacks.length === 0 ? (
+          <div className="empty-state">
+            <Layers size={48} className="empty-icon" />
+            <h3>No cue stacks yet</h3>
+            <p>Create theatrical cue sequences with Go/Back controls</p>
+            <button className="create-btn" onClick={onCreateNew}>
+              <Plus size={18} />
+              <span>Create Cue Stack</span>
+            </button>
+          </div>
+        ) : (
+          <div className="stacks-list">
+            {cueStacks.map((stack) => {
+              const isExpanded = expandedStack === stack.stack_id;
+              const isActive = activeStack === stack.stack_id;
+              const cueCount = stack.cues?.length || 0;
+
+              return (
+                <div key={stack.stack_id} className="stack-item">
+                  {/* Stack Header */}
+                  <div
+                    className={`stack-header ${isActive ? 'active' : ''}`}
+                    onClick={() => setExpandedStack(isExpanded ? null : stack.stack_id)}
+                    onMouseEnter={() => setHoveredItem?.(stack)}
+                    onMouseLeave={() => setHoveredItem?.(null)}
+                  >
+                    <button className="expand-btn">
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                    <div className={`stack-icon ${isActive ? 'active' : ''}`}>
+                      <Layers size={20} />
+                    </div>
+                    <div className="stack-info">
+                      <span className="stack-name">{stack.name}</span>
+                      <span className="stack-meta">{cueCount} cue{cueCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="stack-actions">
+                      <button
+                        className="action-btn go"
+                        onClick={(e) => { e.stopPropagation(); onSelectStack(stack); }}
+                        title="Run cue stack"
+                      >
+                        <Play size={16} />
+                        <span>GO</span>
+                      </button>
+                      <button
+                        className="action-btn"
+                        onClick={(e) => { e.stopPropagation(); onEditStack(stack); }}
+                        title="Edit stack"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        className="action-btn delete"
+                        onClick={(e) => { e.stopPropagation(); onDeleteStack(stack.stack_id); }}
+                        title="Delete stack"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cue List (expanded) */}
+                  {isExpanded && (
+                    <div className="cue-list">
+                      <table className="cue-table">
+                        <thead>
+                          <tr>
+                            <th className="cue-num">#</th>
+                            <th className="cue-name">Name</th>
+                            <th className="cue-look">Look</th>
+                            <th className="cue-fade">Fade</th>
+                            <th className="cue-wait">Wait</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stack.cues?.map((cue, index) => (
+                            <tr key={cue.cue_id} className="cue-row">
+                              <td className="cue-num">{cue.cue_number}</td>
+                              <td className="cue-name">{cue.name || '-'}</td>
+                              <td className="cue-look">{cue.look_id ? getLookName(cue.look_id) : '-'}</td>
+                              <td className="cue-fade">{(cue.fade_time_ms / 1000).toFixed(1)}s</td>
+                              <td className="cue-wait">
+                                {cue.wait_time_ms > 0 ? (
+                                  <span className="auto-follow">{(cue.wait_time_ms / 1000).toFixed(1)}s</span>
+                                ) : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                          {(!stack.cues || stack.cues.length === 0) && (
+                            <tr>
+                              <td colSpan={5} className="empty-cues">No cues in this stack</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .desktop-cuestacks {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 24px;
+        }
+
+        .cuestacks-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .header-left {
+          display: flex;
+          align-items: baseline;
+          gap: 12px;
+        }
+
+        .page-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: white;
+          margin: 0;
+        }
+
+        .page-count {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .create-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          background: var(--theme-primary, #00ffaa);
+          color: #000;
+          border: none;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .create-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .cuestacks-content {
+          flex: 1;
+          overflow: auto;
+        }
+
+        .loading-state,
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 400px;
+          text-align: center;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .empty-icon {
+          margin-bottom: 16px;
+          opacity: 0.3;
+        }
+
+        .empty-state h3 {
+          font-size: 18px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.6);
+          margin: 0 0 8px;
+        }
+
+        .empty-state p {
+          font-size: 14px;
+          margin: 0 0 24px;
+        }
+
+        .stacks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .stack-item {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .stack-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .stack-header:hover {
+          background: rgba(255, 255, 255, 0.03);
+        }
+
+        .stack-header.active {
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.05);
+          border-left: 3px solid var(--theme-primary, #00ffaa);
+        }
+
+        .expand-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: rgba(255, 255, 255, 0.5);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .expand-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .stack-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(255, 255, 255, 0.5);
+          flex-shrink: 0;
+        }
+
+        .stack-icon.active {
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.2);
+          color: var(--theme-primary, #00ffaa);
+        }
+
+        .stack-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .stack-name {
+          display: block;
+          font-size: 15px;
+          font-weight: 600;
+          color: white;
+        }
+
+        .stack-meta {
+          display: block;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.4);
+          margin-top: 2px;
+        }
+
+        .stack-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .action-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 12px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .action-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .action-btn.go {
+          background: var(--theme-primary, #00ffaa);
+          color: #000;
+        }
+
+        .action-btn.go:hover {
+          filter: brightness(1.1);
+        }
+
+        .action-btn.delete:hover {
+          background: rgba(239, 68, 68, 0.2);
+          color: #ef4444;
+        }
+
+        /* Cue Table */
+        .cue-list {
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          background: rgba(0, 0, 0, 0.2);
+        }
+
+        .cue-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+        }
+
+        .cue-table th {
+          text-align: left;
+          padding: 10px 12px;
+          color: rgba(255, 255, 255, 0.4);
+          font-weight: 500;
+          text-transform: uppercase;
+          font-size: 10px;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .cue-table td {
+          padding: 10px 12px;
+          color: rgba(255, 255, 255, 0.7);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .cue-row:hover td {
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .cue-num {
+          width: 60px;
+          font-weight: 600;
+          color: white !important;
+        }
+
+        .cue-name {
+          min-width: 150px;
+        }
+
+        .cue-look {
+          min-width: 120px;
+          color: var(--theme-primary, #00ffaa) !important;
+        }
+
+        .cue-fade,
+        .cue-wait {
+          width: 80px;
+          text-align: center;
+        }
+
+        .auto-follow {
+          color: #eab308;
+        }
+
+        .empty-cues {
+          text-align: center;
+          color: rgba(255, 255, 255, 0.3);
+          font-style: italic;
+        }
+      `}</style>
     </div>
   );
 }

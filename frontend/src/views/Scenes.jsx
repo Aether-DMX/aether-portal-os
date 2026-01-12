@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Play, Trash2, Edit3, X, Sparkles, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Play, Trash2, Edit3, X, Sparkles, ChevronLeft, ChevronRight, Check, Copy, Star } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import usePlaybackStore from '../store/playbackStore';
 import ApplyTargetModal from '../components/ApplyTargetModal';
 import SceneEditor from '../components/common/SceneEditor';
+import ContextMenu, { sceneContextMenu } from '../components/desktop/ContextMenu';
+import { useDesktop } from '../components/desktop/DesktopShell';
 
 // Helper to get RGB from scene channels (assumes RGB on channels 1,2,3)
 function getSceneColor(scene) {
@@ -119,8 +121,18 @@ export default function Scenes() {
   const [currentPage, setCurrentPage] = useState(0);
   const [playModalScene, setPlayModalScene] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
-  
-  const SCENES_PER_PAGE = 15;
+  const [desktopContextMenu, setDesktopContextMenu] = useState(null);
+
+  // Responsive: detect desktop vs kiosk
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 800);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const isDesktop = windowWidth >= 1024;
+
+  const SCENES_PER_PAGE = isDesktop ? 50 : 15;
   const totalPages = Math.ceil(scenes.length / SCENES_PER_PAGE);
   const paginatedScenes = scenes.slice(currentPage * SCENES_PER_PAGE, (currentPage + 1) * SCENES_PER_PAGE);
 
@@ -177,6 +189,58 @@ export default function Scenes() {
     }
   };
 
+  // Handle right-click context menu for desktop
+  const handleContextMenu = (e, scene) => {
+    e.preventDefault();
+    setDesktopContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      scene,
+    });
+  };
+
+  // Handle duplicate scene
+  const handleDuplicate = async (scene) => {
+    const newScene = {
+      ...scene,
+      name: `${scene.name} (copy)`,
+      scene_id: undefined,
+      id: undefined,
+    };
+    await createScene(newScene);
+    fetchScenes();
+  };
+
+  // Desktop view
+  if (isDesktop) {
+    return (
+      <DesktopScenesView
+        scenes={scenes}
+        paginatedScenes={paginatedScenes}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setCurrentPage={setCurrentPage}
+        isScenePlaying={isScenePlaying}
+        handleCreate={handleCreate}
+        handleEdit={handleEdit}
+        handleDelete={handleDelete}
+        handleDuplicate={handleDuplicate}
+        setPlayModalScene={setPlayModalScene}
+        handleContextMenu={handleContextMenu}
+        desktopContextMenu={desktopContextMenu}
+        setDesktopContextMenu={setDesktopContextMenu}
+        isCreating={isCreating}
+        setIsCreating={setIsCreating}
+        editingScene={editingScene}
+        setEditingScene={setEditingScene}
+        handleSave={handleSave}
+        playModalScene={playModalScene}
+        handlePlayWithOptions={handlePlayWithOptions}
+      />
+    );
+  }
+
+  // Kiosk view (original)
   return (
     <div className="fullscreen-view">
       <div className="view-header">
@@ -308,3 +372,458 @@ export default function Scenes() {
 }
 
 export const ScenesHeaderExtension = () => null;
+
+// Desktop Scenes View
+function DesktopScenesView({
+  scenes,
+  paginatedScenes,
+  currentPage,
+  totalPages,
+  setCurrentPage,
+  isScenePlaying,
+  handleCreate,
+  handleEdit,
+  handleDelete,
+  handleDuplicate,
+  setPlayModalScene,
+  handleContextMenu,
+  desktopContextMenu,
+  setDesktopContextMenu,
+  isCreating,
+  setIsCreating,
+  editingScene,
+  setEditingScene,
+  handleSave,
+  playModalScene,
+  handlePlayWithOptions,
+}) {
+  const desktopContext = useDesktop();
+  const { setHoveredItem, setSelectedItem, selectedItem } = desktopContext || {};
+  const { playScene, stopScene } = useSceneStore();
+
+  const handleSceneHover = (scene) => {
+    if (setHoveredItem) setHoveredItem(scene);
+  };
+
+  const handleSceneLeave = () => {
+    if (setHoveredItem) setHoveredItem(null);
+  };
+
+  const handleSceneSelect = (scene) => {
+    if (setSelectedItem) setSelectedItem(scene);
+  };
+
+  const handleSceneDoubleClick = (scene) => {
+    // Double-click = play immediately with default settings
+    playScene(scene.scene_id || scene.id, 1000);
+  };
+
+  return (
+    <div className="desktop-scenes">
+      {/* Header */}
+      <div className="scenes-header">
+        <div className="header-left">
+          <h1 className="page-title">Scenes</h1>
+          <span className="page-count">{scenes.length} scenes</span>
+        </div>
+        <div className="header-right">
+          <button className="create-btn" onClick={handleCreate}>
+            <Plus size={18} />
+            <span>New Scene</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Scene Grid */}
+      <div className="scenes-content">
+        {scenes.length === 0 ? (
+          <div className="empty-state">
+            <Sparkles size={48} className="empty-icon" />
+            <h3>No scenes yet</h3>
+            <p>Create your first lighting scene to get started</p>
+            <button className="create-btn" onClick={handleCreate}>
+              <Plus size={18} />
+              <span>Create Scene</span>
+            </button>
+          </div>
+        ) : (
+          <div className="scenes-grid">
+            {paginatedScenes.map((scene) => {
+              const sceneId = scene.scene_id || scene.id;
+              const isPlaying = isScenePlaying(sceneId);
+              const isSelected = selectedItem?.scene_id === sceneId || selectedItem?.id === sceneId;
+              const sceneColor = getSceneColor(scene);
+
+              return (
+                <div
+                  key={sceneId}
+                  className={`scene-card ${isPlaying ? 'playing' : ''} ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleSceneSelect(scene)}
+                  onDoubleClick={() => handleSceneDoubleClick(scene)}
+                  onContextMenu={(e) => handleContextMenu(e, scene)}
+                  onMouseEnter={() => handleSceneHover(scene)}
+                  onMouseLeave={handleSceneLeave}
+                >
+                  {/* Color preview */}
+                  <div
+                    className="scene-color-preview"
+                    style={{ background: sceneColor || 'linear-gradient(135deg, var(--accent-dim), rgba(255,255,255,0.05))' }}
+                  >
+                    {isPlaying && (
+                      <div className="playing-indicator">
+                        <span className="pulse-ring" />
+                        <Play size={24} fill="currentColor" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Scene info */}
+                  <div className="scene-info">
+                    <span className="scene-name">{scene.name}</span>
+                    <span className="scene-meta">{Object.keys(scene.channels || {}).length} channels</span>
+                  </div>
+
+                  {/* Quick actions (visible on hover) */}
+                  <div className="scene-actions">
+                    <button
+                      className="action-btn play"
+                      onClick={(e) => { e.stopPropagation(); setPlayModalScene(scene); }}
+                      title="Play scene"
+                    >
+                      <Play size={16} />
+                    </button>
+                    <button
+                      className="action-btn"
+                      onClick={(e) => { e.stopPropagation(); handleEdit(scene); }}
+                      title="Edit scene"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              className="page-btn"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="page-info">
+              Page {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage >= totalPages - 1}
+              className="page-btn"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Right-click Context Menu */}
+      {desktopContextMenu && (
+        <ContextMenu
+          x={desktopContextMenu.x}
+          y={desktopContextMenu.y}
+          items={sceneContextMenu(desktopContextMenu.scene, {
+            onPlay: (s) => setPlayModalScene(s),
+            onEdit: handleEdit,
+            onDuplicate: handleDuplicate,
+            onDelete: handleDelete,
+            onAddToQuick: () => {}, // TODO: implement
+          })}
+          onClose={() => setDesktopContextMenu(null)}
+        />
+      )}
+
+      {/* Scene Editor Modal */}
+      {isCreating && (
+        <SceneEditor
+          scene={editingScene}
+          onClose={() => { setIsCreating(false); setEditingScene(null); }}
+          onSave={(sceneData, isTest) => {
+            if (isTest) {
+              const { setChannels } = useDMXStore.getState();
+              setChannels(sceneData.universe || 1, sceneData.channels, sceneData.fade_ms || 0);
+            } else {
+              handleSave(sceneData);
+            }
+          }}
+        />
+      )}
+
+      {/* Play Scene Modal */}
+      {playModalScene && (
+        <ApplyTargetModal
+          mode="scene"
+          item={playModalScene}
+          onConfirm={handlePlayWithOptions}
+          onCancel={() => setPlayModalScene(null)}
+        />
+      )}
+
+      <style>{`
+        .desktop-scenes {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 24px;
+        }
+
+        .scenes-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .header-left {
+          display: flex;
+          align-items: baseline;
+          gap: 12px;
+        }
+
+        .page-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: white;
+          margin: 0;
+        }
+
+        .page-count {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .create-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          background: var(--theme-primary, #00ffaa);
+          color: #000;
+          border: none;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .create-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .scenes-content {
+          flex: 1;
+          overflow: auto;
+        }
+
+        .scenes-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 16px;
+        }
+
+        @media (min-width: 1400px) {
+          .scenes-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          }
+        }
+
+        .scene-card {
+          position: relative;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 14px;
+          overflow: hidden;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .scene-card:hover {
+          background: rgba(255, 255, 255, 0.04);
+          border-color: rgba(255, 255, 255, 0.1);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .scene-card.selected {
+          border-color: var(--theme-primary, #00ffaa);
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.05);
+        }
+
+        .scene-card.playing {
+          border-color: var(--theme-primary, #00ffaa);
+        }
+
+        .scene-color-preview {
+          height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+        }
+
+        .playing-indicator {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+          position: relative;
+        }
+
+        .pulse-ring {
+          position: absolute;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: 2px solid var(--theme-primary, #00ffaa);
+          animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+          0% { transform: scale(0.8); opacity: 1; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .scene-info {
+          padding: 12px 14px;
+        }
+
+        .scene-name {
+          display: block;
+          font-size: 14px;
+          font-weight: 600;
+          color: white;
+          margin-bottom: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .scene-meta {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .scene-actions {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          display: flex;
+          gap: 6px;
+          opacity: 0;
+          transition: opacity 0.15s;
+        }
+
+        .scene-card:hover .scene-actions {
+          opacity: 1;
+        }
+
+        .action-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.8);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .action-btn:hover {
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+        }
+
+        .action-btn.play:hover {
+          background: var(--theme-primary, #00ffaa);
+          color: #000;
+        }
+
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 400px;
+          text-align: center;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .empty-icon {
+          margin-bottom: 16px;
+          opacity: 0.3;
+        }
+
+        .empty-state h3 {
+          font-size: 18px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.6);
+          margin: 0 0 8px;
+        }
+
+        .empty-state p {
+          font-size: 14px;
+          margin: 0 0 24px;
+        }
+
+        .pagination {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .page-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .page-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        .page-info {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+      `}</style>
+    </div>
+  );
+}

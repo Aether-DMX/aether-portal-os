@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Settings, X, Check, Plus, ArrowLeft, Play, Pause, SkipBack, SkipForward, Square } from 'lucide-react';
+import { Settings, X, Check, Plus, ArrowLeft, Play, Pause, SkipBack, SkipForward, Square, Radio, Activity, Cpu, Image, Zap, Clock } from 'lucide-react';
 import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import usePlaybackStore from '../store/playbackStore';
+import useChaseStore from '../store/chaseStore';
 import FadeProgressBar from '../components/common/FadeProgressBar';
+import { useDesktop } from '../components/desktop/DesktopShell';
 
 // Custom node icons
 import NodeIcon from '../assets/icons/Node_Icon.png';
@@ -535,143 +537,312 @@ export default function Dashboard() {
     );
   }
 
-  // DESKTOP MODE - Side-by-side layout optimized for larger screens
+  // DESKTOP MODE - Professional command center layout
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: 24,
-        padding: 24,
-        height: '100%',
-        background: '#0a0a0f',
-      }}
-    >
-      {/* Left - Zones Grid */}
-      <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: windowWidth >= 1440 ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
-                gap: 16,
-              }}
-            >
-              {sortedNodes.map((node) => (
-                <SortableZone
-                  key={node.node_id || node.id}
-                  node={node}
-                  brightness={zoneBrightnesses[node.node_id || node.id] || 0}
-                  getNodeIcon={getNodeIcon}
-                  onClick={() => handleZoneClick(node)}
-                />
+    <DesktopDashboard
+      sortedNodes={sortedNodes}
+      zoneBrightnesses={zoneBrightnesses}
+      getNodeIcon={getNodeIcon}
+      handleZoneClick={handleZoneClick}
+      handleDragEnd={handleDragEnd}
+      sensors={sensors}
+      navigate={navigate}
+      scenes={scenes}
+      quickScenes={quickScenes}
+      quickSceneIds={quickSceneIds}
+      currentScene={currentScene}
+      handleSceneClick={handleSceneClick}
+      setShowSceneEditor={setShowSceneEditor}
+      showSceneEditor={showSceneEditor}
+      saveQuickScenes={saveQuickScenes}
+      masterValue={masterValue}
+      masterTrackRef={masterTrackRef}
+      handleMasterStart={handleMasterStart}
+      playback={playback}
+      stopAll={stopAll}
+      windowWidth={windowWidth}
+    />
+  );
+}
+
+// Desktop Dashboard - Professional command center
+function DesktopDashboard({
+  sortedNodes,
+  zoneBrightnesses,
+  getNodeIcon,
+  handleZoneClick,
+  handleDragEnd,
+  sensors,
+  navigate,
+  scenes,
+  quickScenes,
+  quickSceneIds,
+  currentScene,
+  handleSceneClick,
+  setShowSceneEditor,
+  showSceneEditor,
+  saveQuickScenes,
+  masterValue,
+  masterTrackRef,
+  handleMasterStart,
+  playback,
+  stopAll,
+  windowWidth,
+}) {
+  // Access desktop context for inspector integration
+  const desktopContext = useDesktop();
+  const { setHoveredItem, setSelectedItem } = desktopContext || {};
+
+  const { chases } = useChaseStore();
+  const { nodes } = useNodeStore();
+
+  const onlineNodes = nodes.filter(n => n.status === 'online').length;
+  const totalNodes = nodes.length;
+
+  // Handle node hover for inspector
+  const handleNodeHover = (node) => {
+    if (setHoveredItem) setHoveredItem(node);
+  };
+
+  const handleNodeLeave = () => {
+    if (setHoveredItem) setHoveredItem(null);
+  };
+
+  // Handle scene hover for inspector
+  const handleSceneHover = (scene) => {
+    if (setHoveredItem) setHoveredItem(scene);
+  };
+
+  const handleSceneLeave = () => {
+    if (setHoveredItem) setHoveredItem(null);
+  };
+
+  return (
+    <div className="desktop-dashboard">
+      {/* Main Content Area - 2 column layout */}
+      <div className="dashboard-grid">
+        {/* Left Column - Nodes & Recent */}
+        <div className="dashboard-left-col">
+          {/* PULSE Nodes Section */}
+          <section className="dashboard-section">
+            <div className="section-header">
+              <div className="section-title-row">
+                <Radio size={16} className="section-icon" />
+                <h2 className="section-title">PULSE Nodes</h2>
+              </div>
+              <span className="section-badge">
+                {onlineNodes}/{totalNodes} online
+              </span>
+            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
+                <div className="nodes-grid">
+                  {sortedNodes.map((node) => (
+                    <DesktopNodeCard
+                      key={node.node_id || node.id}
+                      node={node}
+                      brightness={zoneBrightnesses[node.node_id || node.id] || 0}
+                      getNodeIcon={getNodeIcon}
+                      onClick={() => handleZoneClick(node)}
+                      onMouseEnter={() => handleNodeHover(node)}
+                      onMouseLeave={handleNodeLeave}
+                    />
+                  ))}
+                  {sortedNodes.length === 0 && (
+                    <div className="empty-state" onClick={() => navigate('/nodes')}>
+                      <Radio size={32} className="empty-icon" />
+                      <span>No nodes paired</span>
+                      <span className="empty-hint">Click to add nodes</span>
+                    </div>
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </section>
+
+          {/* Recent Scenes */}
+          <section className="dashboard-section">
+            <div className="section-header">
+              <div className="section-title-row">
+                <Image size={16} className="section-icon" />
+                <h2 className="section-title">Recent Scenes</h2>
+              </div>
+              <button className="section-action" onClick={() => navigate('/scenes')}>
+                View All
+              </button>
+            </div>
+            <div className="scenes-grid">
+              {scenes.slice(0, 8).map((scene) => (
+                <button
+                  key={scene.scene_id || scene.id}
+                  className={`scene-card ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
+                  onClick={() => handleSceneClick(scene)}
+                  onMouseEnter={() => handleSceneHover(scene)}
+                  onMouseLeave={handleSceneLeave}
+                >
+                  <div className="scene-color" style={{ background: getSceneColor(scene) || 'var(--accent-dim)' }} />
+                  <span className="scene-card-name">{scene.name}</span>
+                  {currentScene?.scene_id === (scene.scene_id || scene.id) && (
+                    <span className="scene-playing-dot" />
+                  )}
+                </button>
               ))}
-              {sortedNodes.length === 0 && (
-                <div onClick={() => navigate('/nodes')}
-                  style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
-                  No zones configured. Click to add nodes.
+              {scenes.length === 0 && (
+                <div className="empty-state small" onClick={() => navigate('/scenes')}>
+                  <span>No scenes yet</span>
                 </div>
               )}
             </div>
-          </SortableContext>
-        </DndContext>
-      </div>
+          </section>
 
-      {/* Right - Controls Panel */}
-      <div
-        style={{
-          width: windowWidth >= 1440 ? 420 : 360,
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        {/* Master Slider */}
-        <div className="master-row">
-          <span className="master-label">MASTER</span>
-          <div ref={masterTrackRef} className="master-track" style={{ width: "80%" }} 
-            onMouseDown={handleMasterStart} onTouchStart={handleMasterStart}>
-            <div className="master-fill" style={{ width: `${masterValue}%` }}>
-              <span className="master-value">{masterValue}%</span>
+          {/* Recent Chases */}
+          <section className="dashboard-section">
+            <div className="section-header">
+              <div className="section-title-row">
+                <Zap size={16} className="section-icon" />
+                <h2 className="section-title">Recent Chases</h2>
+              </div>
+              <button className="section-action" onClick={() => navigate('/chases')}>
+                View All
+              </button>
             </div>
-          </div>
-        </div>
-
-        {/* Quick Scenes */}
-        <div className="quick-scenes">
-          <div className="widget-header">
-            <span className="widget-title">Quick Scenes</span>
-            <button onClick={() => setShowSceneEditor(true)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
-              <Settings size={14} className="text-white/60" />
-            </button>
-          </div>
-          <div className="scenes-row">
-            {quickScenes.length > 0 ? (
-              quickScenes.map((scene, idx) => (
-                <button key={scene.scene_id || scene.id || idx}
-                  className={`scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
-                  onClick={() => handleSceneClick(scene)}>
-                  <span className="scene-name">{scene.name}</span>
+            <div className="chases-grid">
+              {chases.slice(0, 4).map((chase) => (
+                <button
+                  key={chase.chase_id || chase.id}
+                  className="chase-card"
+                  onClick={() => {
+                    useChaseStore.getState().startChase(chase.chase_id || chase.id);
+                  }}
+                  onMouseEnter={() => setHoveredItem?.(chase)}
+                  onMouseLeave={() => setHoveredItem?.(null)}
+                >
+                  <Zap size={16} className="chase-icon" />
+                  <span className="chase-card-name">{chase.name}</span>
+                  <span className="chase-steps">{chase.steps?.length || 0} steps</span>
                 </button>
-              ))
-            ) : (
-              <button className="scene-btn" onClick={() => setShowSceneEditor(true)}>
-                <span className="scene-icon"><Plus size={20} /></span>
-                <span className="scene-name">Add Scenes</span>
-              </button>
-            )}
-            {quickScenes.length > 0 && quickScenes.length < 4 && (
-              <button className="scene-btn opacity-50" onClick={() => setShowSceneEditor(true)}>
-                <span className="scene-icon"><Plus size={20} /></span>
-                <span className="scene-name">Add</span>
-              </button>
-            )}
-          </div>
+              ))}
+              {chases.length === 0 && (
+                <div className="empty-state small" onClick={() => navigate('/chases')}>
+                  <span>No chases yet</span>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
-        {/* Fade Progress Bar - shows during transitions */}
-        <FadeProgressBar isDesktop={true} />
 
-        {/* Now Playing */}
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 16,
-          padding: 16
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, position: 'absolute', left: 0 }}>Now Playing</span>
-            {Object.keys(playback).length > 0 ? (
-              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--accent)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', animation: 'playing-pulse 1.5s ease-in-out infinite' }} />
-                {(() => {
-                  const item = Object.values(playback)[0];
-                  if (!item) return 'Unknown';
-                  if (item.name) return item.name;
-                  if (item.id) return item.id.replace("scene_", "").replace("chase_", "").replace(/_/g, " ");
-                  return 'Unknown';
-                })()}
-              </span>
-            ) : (
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
-            <button onClick={() => navigate('/scenes')} className="hover:bg-white/20 transition-colors" style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <SkipBack size={18} />
-            </button>
-            <button onClick={() => { if (Object.keys(playback).length > 0) { stopAll(); } else { navigate('/scenes'); } }} className="hover:brightness-110 transition-all" style={{ width: 44, height: 44, borderRadius: 10, background: Object.keys(playback).length > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', border: 'none', color: Object.keys(playback).length > 0 ? '#000' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {Object.keys(playback).length > 0 ? <Pause size={18} /> : <Play size={18} />}
-            </button>
-            <button onClick={() => stopAll()} className="hover:bg-red-500/30 transition-colors" style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(239,68,68,0.2)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Square size={18} />
-            </button>
-            <button onClick={() => navigate('/chases')} className="hover:bg-white/20 transition-colors" style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <SkipForward size={18} />
-            </button>
-          </div>
+        {/* Right Column - Quick Access & Status */}
+        <div className="dashboard-right-col">
+          {/* Quick Scenes Widget */}
+          <section className="dashboard-widget">
+            <div className="widget-header">
+              <span className="widget-title">Quick Scenes</span>
+              <button onClick={() => setShowSceneEditor(true)} className="widget-settings">
+                <Settings size={14} />
+              </button>
+            </div>
+            <div className="quick-scenes-grid">
+              {quickScenes.length > 0 ? (
+                quickScenes.map((scene, idx) => (
+                  <button
+                    key={scene.scene_id || scene.id || idx}
+                    className={`quick-scene-btn ${currentScene?.scene_id === (scene.scene_id || scene.id) ? 'active' : ''}`}
+                    onClick={() => handleSceneClick(scene)}
+                    onMouseEnter={() => handleSceneHover(scene)}
+                    onMouseLeave={handleSceneLeave}
+                  >
+                    <span className="quick-scene-name">{scene.name}</span>
+                  </button>
+                ))
+              ) : (
+                <button className="quick-scene-btn add" onClick={() => setShowSceneEditor(true)}>
+                  <Plus size={18} />
+                  <span>Add Scenes</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* Fade Progress */}
+          <FadeProgressBar isDesktop={true} />
+
+          {/* Playback Widget */}
+          <section className="dashboard-widget playback-widget">
+            <div className="playback-header">
+              <span className="widget-title">Now Playing</span>
+              {Object.keys(playback).length > 0 && (
+                <span className="playback-active">
+                  <span className="pulse-dot" />
+                  Active
+                </span>
+              )}
+            </div>
+            <div className="playback-info">
+              {Object.keys(playback).length > 0 ? (
+                <span className="playback-name">
+                  {(() => {
+                    const item = Object.values(playback)[0];
+                    if (!item) return 'Unknown';
+                    if (item.name) return item.name;
+                    if (item.id) return item.id.replace("scene_", "").replace("chase_", "").replace(/_/g, " ");
+                    return 'Unknown';
+                  })()}
+                </span>
+              ) : (
+                <span className="playback-idle">Nothing playing</span>
+              )}
+            </div>
+            <div className="playback-controls">
+              <button onClick={() => navigate('/scenes')} className="playback-btn">
+                <SkipBack size={18} />
+              </button>
+              <button
+                onClick={() => { if (Object.keys(playback).length > 0) { stopAll(); } else { navigate('/scenes'); } }}
+                className={`playback-btn main ${Object.keys(playback).length > 0 ? 'active' : ''}`}
+              >
+                {Object.keys(playback).length > 0 ? <Pause size={20} /> : <Play size={20} />}
+              </button>
+              <button onClick={() => stopAll()} className="playback-btn stop">
+                <Square size={18} />
+              </button>
+              <button onClick={() => navigate('/chases')} className="playback-btn">
+                <SkipForward size={18} />
+              </button>
+            </div>
+          </section>
+
+          {/* System Status Widget */}
+          <section className="dashboard-widget status-widget">
+            <div className="widget-header">
+              <span className="widget-title">System Status</span>
+            </div>
+            <div className="status-rows">
+              <div className="status-row">
+                <Radio size={14} className="status-icon" />
+                <span className="status-label">Nodes</span>
+                <span className={`status-value ${onlineNodes < totalNodes ? 'warning' : 'good'}`}>
+                  {onlineNodes}/{totalNodes}
+                </span>
+              </div>
+              <div className="status-row">
+                <Activity size={14} className="status-icon" />
+                <span className="status-label">DMX Output</span>
+                <span className="status-value good">
+                  {Object.keys(playback).length > 0 ? '44Hz' : 'Idle'}
+                </span>
+              </div>
+              <div className="status-row">
+                <Image size={14} className="status-icon" />
+                <span className="status-label">Scenes</span>
+                <span className="status-value">{scenes.length}</span>
+              </div>
+              <div className="status-row">
+                <Zap size={14} className="status-icon" />
+                <span className="status-label">Chases</span>
+                <span className="status-value">{chases.length}</span>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -684,6 +855,586 @@ export default function Dashboard() {
           onClose={() => setShowSceneEditor(false)}
         />
       )}
+
+      <style>{`
+        .desktop-dashboard {
+          height: 100%;
+          padding: 24px;
+          overflow: auto;
+        }
+
+        .dashboard-grid {
+          display: grid;
+          grid-template-columns: 1fr 340px;
+          gap: 24px;
+          height: 100%;
+        }
+
+        @media (min-width: 1600px) {
+          .dashboard-grid {
+            grid-template-columns: 1fr 400px;
+          }
+        }
+
+        .dashboard-left-col {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          min-width: 0;
+        }
+
+        .dashboard-right-col {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .dashboard-section {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 16px;
+          padding: 20px;
+        }
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+
+        .section-title-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .section-icon {
+          color: var(--theme-primary, #00ffaa);
+          opacity: 0.8;
+        }
+
+        .section-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: white;
+          margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .section-badge {
+          font-size: 11px;
+          padding: 4px 10px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .section-action {
+          font-size: 12px;
+          color: var(--theme-primary, #00ffaa);
+          background: none;
+          border: none;
+          cursor: pointer;
+          opacity: 0.8;
+          transition: opacity 0.15s;
+        }
+
+        .section-action:hover {
+          opacity: 1;
+        }
+
+        .nodes-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+        }
+
+        .scenes-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 10px;
+        }
+
+        .chases-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+
+        .scene-card {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .scene-card:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .scene-card.active {
+          border-color: var(--theme-primary, #00ffaa);
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.1);
+        }
+
+        .scene-color {
+          width: 100%;
+          height: 40px;
+          border-radius: 8px;
+        }
+
+        .scene-card-name {
+          font-size: 12px;
+          font-weight: 500;
+          color: white;
+          text-align: center;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          width: 100%;
+        }
+
+        .scene-playing-dot {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--theme-primary, #00ffaa);
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .chase-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .chase-card:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .chase-icon {
+          color: #22c55e;
+          flex-shrink: 0;
+        }
+
+        .chase-card-name {
+          flex: 1;
+          font-size: 13px;
+          font-weight: 500;
+          color: white;
+          text-align: left;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .chase-steps {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .empty-state {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 40px;
+          color: rgba(255, 255, 255, 0.3);
+          cursor: pointer;
+          border-radius: 12px;
+          border: 2px dashed rgba(255, 255, 255, 0.1);
+          transition: all 0.15s;
+        }
+
+        .empty-state:hover {
+          border-color: rgba(255, 255, 255, 0.2);
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .empty-state.small {
+          padding: 20px;
+        }
+
+        .empty-icon {
+          opacity: 0.5;
+        }
+
+        .empty-hint {
+          font-size: 12px;
+          opacity: 0.6;
+        }
+
+        /* Right column widgets */
+        .dashboard-widget {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 14px;
+          padding: 16px;
+        }
+
+        .widget-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+
+        .widget-title {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .widget-settings {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .widget-settings:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .quick-scenes-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+        }
+
+        .quick-scene-btn {
+          padding: 14px 12px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 10px;
+          color: white;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: center;
+        }
+
+        .quick-scene-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .quick-scene-btn.active {
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.15);
+          border-color: var(--theme-primary, #00ffaa);
+        }
+
+        .quick-scene-btn.add {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          color: rgba(255, 255, 255, 0.4);
+          border-style: dashed;
+        }
+
+        .quick-scene-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        /* Playback widget */
+        .playback-widget {
+          background: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.03);
+          border-color: rgba(var(--theme-primary-rgb, 0, 255, 170), 0.1);
+        }
+
+        .playback-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .playback-active {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--theme-primary, #00ffaa);
+          font-weight: 500;
+        }
+
+        .pulse-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--theme-primary, #00ffaa);
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        .playback-info {
+          text-align: center;
+          margin-bottom: 16px;
+        }
+
+        .playback-name {
+          font-size: 18px;
+          font-weight: 600;
+          color: var(--theme-primary, #00ffaa);
+          text-transform: capitalize;
+        }
+
+        .playback-idle {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.3);
+        }
+
+        .playback-controls {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .playback-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+          border: none;
+          color: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .playback-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: white;
+        }
+
+        .playback-btn.main {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+        }
+
+        .playback-btn.main.active {
+          background: var(--theme-primary, #00ffaa);
+          color: #000;
+        }
+
+        .playback-btn.stop {
+          color: #ef4444;
+        }
+
+        .playback-btn.stop:hover {
+          background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Status widget */
+        .status-widget {
+          margin-top: auto;
+        }
+
+        .status-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .status-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .status-icon {
+          color: rgba(255, 255, 255, 0.4);
+          width: 14px;
+          flex-shrink: 0;
+        }
+
+        .status-label {
+          flex: 1;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .status-value {
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .status-value.good {
+          color: #22c55e;
+        }
+
+        .status-value.warning {
+          color: #eab308;
+        }
+      `}</style>
     </div>
   );
+}
+
+// Desktop Node Card with hover support
+function DesktopNodeCard({ node, brightness, getNodeIcon, onClick, onMouseEnter, onMouseLeave }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: node.node_id || node.id });
+
+  const isOnline = node.status === 'online';
+  const statusColor = isOnline ? '#22c55e' : '#eab308';
+
+  const getDisplayName = () => {
+    if (node.is_builtin || node.type === 'hardwired') return 'WIRED';
+    if (node.node_id && node.node_id.includes('-')) {
+      const suffix = node.node_id.split('-').pop();
+      if (suffix && suffix.length <= 5) return suffix.toUpperCase();
+    }
+    if (node.mac && node.mac !== 'UART') {
+      return node.mac.slice(-5).replace(':', '').toUpperCase();
+    }
+    return 'NODE';
+  };
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="desktop-node-card"
+    >
+      <div className="node-status-border" style={{ background: `linear-gradient(135deg, ${statusColor}, ${statusColor}66)` }}>
+        <div className="node-inner">
+          <span className="node-type-label">PULSE</span>
+          <img
+            src={getNodeIcon(node.type)}
+            alt=""
+            className="node-icon-img"
+          />
+          <span className="node-name">{getDisplayName()}</span>
+          <span className="node-universe">U{node.universe || 1}</span>
+        </div>
+      </div>
+
+      <style>{`
+        .desktop-node-card {
+          cursor: pointer;
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .desktop-node-card:hover {
+          transform: translateY(-3px);
+        }
+
+        .node-status-border {
+          padding: 2px;
+          border-radius: 14px;
+        }
+
+        .node-inner {
+          background: rgba(20, 20, 30, 0.95);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .node-type-label {
+          font-size: 9px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+        }
+
+        .node-icon-img {
+          width: 36px;
+          height: 36px;
+          filter: brightness(0) invert(1);
+          opacity: 0.85;
+          margin: 4px 0;
+        }
+
+        .node-name {
+          font-size: 12px;
+          font-weight: 600;
+          color: white;
+        }
+
+        .node-universe {
+          font-size: 10px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// Helper function for scene colors
+function getSceneColor(scene) {
+  const ch = scene.channels || {};
+  const r = ch['1:1'] ?? ch['1'] ?? ch[1] ?? 0;
+  const g = ch['1:2'] ?? ch['2'] ?? ch[2] ?? 0;
+  const b = ch['1:3'] ?? ch['3'] ?? ch[3] ?? 0;
+  if (r + g + b < 30) return null;
+  return `rgb(${r}, ${g}, ${b})`;
 }
