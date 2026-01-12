@@ -8,6 +8,45 @@ const AETHER_CORE_URL = process.env.AETHER_CORE_URL || 'http://localhost:8891';
 export default class ToolBridge {
   constructor() {
     console.log('ToolBridge initialized with AETHER Core at:', AETHER_CORE_URL);
+    this._cachedOnlineUniverses = null;
+    this._cacheTimestamp = 0;
+    this._cacheLifetimeMs = 10000; // Refresh every 10 seconds
+  }
+
+  /**
+   * Get list of online universes from node status
+   * Caches result for performance
+   */
+  async getOnlineUniverses() {
+    const now = Date.now();
+    if (this._cachedOnlineUniverses && (now - this._cacheTimestamp) < this._cacheLifetimeMs) {
+      return this._cachedOnlineUniverses;
+    }
+
+    try {
+      const nodes = await this.apiCall('GET', '/api/nodes');
+      const onlineUniverses = nodes
+        .filter(n => n.status === 'online')
+        .map(n => n.universe)
+        .filter(u => u !== undefined && u !== null)
+        .sort((a, b) => a - b);
+
+      this._cachedOnlineUniverses = onlineUniverses.length > 0 ? onlineUniverses : [1];
+      this._cacheTimestamp = now;
+      console.log('ToolBridge: Online universes:', this._cachedOnlineUniverses);
+      return this._cachedOnlineUniverses;
+    } catch (error) {
+      console.error('ToolBridge: Failed to get online universes:', error);
+      return this._cachedOnlineUniverses || [1];
+    }
+  }
+
+  /**
+   * Get the first available online universe (for single-universe operations)
+   */
+  async getDefaultUniverse() {
+    const universes = await this.getOnlineUniverses();
+    return universes[0] || 1;
   }
 
   /**
@@ -280,33 +319,57 @@ export default class ToolBridge {
 
   // ===== DMX CONTROL =====
   async executeDMX(args) {
-    const { action, universe = 1, channels, fade_ms = 0 } = args;
+    const { action, universe, channels, fade_ms = 0 } = args;
+
+    // Smart universe selection: if not specified, use ALL online universes
+    // This makes the AI smart - it automatically targets working hardware
+    let targetUniverses;
+    if (universe !== undefined && universe !== null) {
+      targetUniverses = [universe];
+    } else {
+      targetUniverses = await this.getOnlineUniverses();
+      console.log(`ToolBridge: No universe specified, auto-targeting online universes: ${targetUniverses}`);
+    }
 
     switch (action) {
       case 'set_channels':
         if (!channels || Object.keys(channels).length === 0) {
           return { success: false, error: 'No channels specified' };
         }
-        const setRes = await this.apiCall('POST', '/api/dmx/set', {
-          universe,
-          channels,
-          fade_ms
-        });
+        // Send to all target universes
+        const setResults = await Promise.all(
+          targetUniverses.map(u =>
+            this.apiCall('POST', '/api/dmx/set', { universe: u, channels, fade_ms })
+              .catch(err => ({ error: err.message, universe: u }))
+          )
+        );
+        const setSuccessCount = setResults.filter(r => !r.error).length;
         return {
-          success: true,
-          message: `Set ${Object.keys(channels).length} channels on universe ${universe}`,
-          channels_set: channels
+          success: setSuccessCount > 0,
+          message: `Set ${Object.keys(channels).length} channels on ${setSuccessCount}/${targetUniverses.length} universe(s): ${targetUniverses.join(', ')}`,
+          channels_set: channels,
+          universes: targetUniverses
         };
 
       case 'blackout':
-        await this.apiCall('POST', '/api/dmx/blackout', { universe, fade_ms });
+        // Send blackout to all target universes
+        const blackoutResults = await Promise.all(
+          targetUniverses.map(u =>
+            this.apiCall('POST', '/api/dmx/blackout', { universe: u, fade_ms })
+              .catch(err => ({ error: err.message, universe: u }))
+          )
+        );
+        const blackoutSuccessCount = blackoutResults.filter(r => !r.error).length;
         return {
-          success: true,
-          message: `Blackout on universe ${universe}${fade_ms ? ` with ${fade_ms}ms fade` : ''}`
+          success: blackoutSuccessCount > 0,
+          message: `Blackout on ${blackoutSuccessCount} universe(s): ${targetUniverses.join(', ')}${fade_ms ? ` with ${fade_ms}ms fade` : ''}`,
+          universes: targetUniverses
         };
 
       case 'get_state':
-        const state = await this.apiCall('GET', `/api/dmx/state/${universe}`);
+        // For get_state, use first target universe
+        const stateUniverse = targetUniverses[0];
+        const state = await this.apiCall('GET', `/api/dmx/state/${stateUniverse}`);
         // Summarize non-zero channels
         const nonZero = {};
         if (state.channels) {
@@ -316,7 +379,7 @@ export default class ToolBridge {
         }
         return {
           success: true,
-          universe,
+          universe: stateUniverse,
           active_channels: Object.keys(nonZero).length,
           channels: nonZero
         };
@@ -328,7 +391,10 @@ export default class ToolBridge {
 
   // ===== SCENE MANAGEMENT =====
   async executeScene(args) {
-    const { action, scene_id, name, description, universe = 1, channels, fade_ms = 500, color } = args;
+    // Smart default: use first online universe if not specified
+    const defaultUniverse = args.universe !== undefined ? args.universe : await this.getDefaultUniverse();
+    const { action, scene_id, name, description, channels, fade_ms = 500, color } = args;
+    const universe = defaultUniverse;
 
     switch (action) {
       case 'list':
@@ -390,7 +456,10 @@ export default class ToolBridge {
 
   // ===== CHASE MANAGEMENT =====
   async executeChase(args) {
-    const { action, chase_id, name, description, universe = 1, bpm = 120, loop = true, steps, color } = args;
+    // Smart default: use first online universe if not specified
+    const defaultUniverse = args.universe !== undefined ? args.universe : await this.getDefaultUniverse();
+    const { action, chase_id, name, description, bpm = 120, loop = true, steps, color } = args;
+    const universe = defaultUniverse;
 
     switch (action) {
       case 'list':
@@ -512,7 +581,9 @@ export default class ToolBridge {
 
   // ===== PLAYBACK =====
   async executePlayback(args) {
-    const { action, universe = 1 } = args;
+    // Smart default: use first online universe if not specified
+    const universe = args.universe !== undefined ? args.universe : await this.getDefaultUniverse();
+    const { action } = args;
 
     switch (action) {
       case 'status':
@@ -535,7 +606,9 @@ export default class ToolBridge {
 
   // ===== SYSTEM =====
   async executeSystem(args) {
-    const { action, universe = 1 } = args;
+    // Smart default: use first online universe if not specified
+    const universe = args.universe !== undefined ? args.universe : await this.getDefaultUniverse();
+    const { action } = args;
 
     switch (action) {
       case 'health':
