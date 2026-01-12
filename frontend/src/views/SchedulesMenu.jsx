@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Timer } from 'lucide-react';
+import { Calendar, Timer, Layers, Film } from 'lucide-react';
 
 export default function SchedulesMenu() {
   const navigate = useNavigate();
 
   const menuItems = [
+    { name: 'Cue Stacks', icon: Layers, path: '/cue-stacks', description: 'Theatrical cueing' },
+    { name: 'Shows', icon: Film, path: '/shows', description: 'Automated sequences' },
     { name: 'Schedules', icon: Calendar, path: '/schedules', description: 'Time-based automation' },
     { name: 'Timers', icon: Timer, path: '/timers', description: 'Countdown events' },
   ];
@@ -14,7 +16,7 @@ export default function SchedulesMenu() {
     <div className="fixed inset-0 bg-gradient-primary pt-[60px] pb-3 px-4">
       <div className="h-[calc(100vh-66px)] flex flex-col items-center justify-center gap-[clamp(24px,6vh,48px)]">
         <h1 className="text-[clamp(1.5rem,5vw,2.5rem)] font-bold text-white text-center" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-          Schedules & Timers
+          Show Control
         </h1>
 
         <div className="flex flex-wrap justify-center gap-[clamp(12px,3vw,24px)]">
