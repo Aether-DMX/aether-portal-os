@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Send, X, Maximize2, Sparkles, Loader } from 'lucide-react';
 import useChat from '../hooks/useChat';
 import useChatStore from '../store/chatStore';
 import TouchKeyboard from './TouchKeyboard';
+import useVoiceInput from '../hooks/useVoiceInput';
+import VoiceMicButton from './VoiceMicButton';
 
 export default function ChatDock() {
   const navigate = useNavigate();
@@ -23,6 +25,32 @@ export default function ChatDock() {
   const inputRef = useRef(null);
 
   const lastMessage = getLastAIMessage();
+
+  // Voice input handling
+  const handleVoiceTranscript = useCallback((text) => {
+    setInputValue((prev) => (prev + ' ' + text).trim());
+  }, [setInputValue]);
+
+  const {
+    isListening,
+    isSupported: voiceSupported,
+    error: voiceError,
+    interimTranscript,
+    toggleListening,
+  } = useVoiceInput({
+    onTranscript: handleVoiceTranscript,
+  });
+
+  // Auto-send when voice recording stops and we have content
+  useEffect(() => {
+    if (!isListening && inputValue.trim() && !isStreaming && !isMinimized) {
+      const timer = setTimeout(() => {
+        sendMessage(inputValue);
+        setShowKeyboard(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isListening]);
 
   // Don't render if not docked
   if (!isDocked) return null;
@@ -240,19 +268,29 @@ export default function ChatDock() {
             <input
               ref={inputRef}
               type="text"
-              value={inputValue}
+              value={isListening ? (inputValue + ' ' + interimTranscript).trim() : inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onFocus={() => setShowKeyboard(true)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask something..."
+              placeholder={isListening ? 'Listening...' : 'Ask something...'}
+              readOnly={isListening}
               style={{
                 flex: 1,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: '#fff',
+                color: isListening ? 'var(--accent)' : '#fff',
                 fontSize: 13,
               }}
+            />
+            {/* Voice input button */}
+            <VoiceMicButton
+              isListening={isListening}
+              isSupported={voiceSupported}
+              disabled={isStreaming}
+              error={voiceError}
+              onClick={toggleListening}
+              size={32}
             />
             {isStreaming ? (
               <button

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, X, Loader, Trash2, Minimize2, Sparkles, Wifi, WifiOff } from 'lucide-react';
 import useChat from '../hooks/useChat';
@@ -6,6 +6,8 @@ import useNodeStore from '../store/nodeStore';
 import usePlaybackStore from '../store/playbackStore';
 import useChatStore from '../store/chatStore';
 import TouchKeyboard from '../components/TouchKeyboard';
+import useVoiceInput from '../hooks/useVoiceInput';
+import VoiceMicButton from '../components/VoiceMicButton';
 
 // Message bubble component
 function MessageBubble({ message }) {
@@ -199,6 +201,33 @@ export default function ChatPage() {
 
   const { greeting } = getContextSummary();
 
+  // Voice input handling
+  const handleVoiceTranscript = useCallback((text) => {
+    setInputValue((prev) => (prev + ' ' + text).trim());
+  }, [setInputValue]);
+
+  const {
+    isListening,
+    isSupported: voiceSupported,
+    error: voiceError,
+    interimTranscript,
+    toggleListening,
+  } = useVoiceInput({
+    onTranscript: handleVoiceTranscript,
+  });
+
+  // Auto-send when voice recording stops and we have content
+  useEffect(() => {
+    if (!isListening && inputValue.trim() && !isStreaming) {
+      // Small delay to let the final transcript settle
+      const timer = setTimeout(() => {
+        sendMessage(inputValue);
+        setShowKeyboard(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isListening]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -386,19 +415,29 @@ export default function ChatPage() {
           <input
             ref={inputRef}
             type="text"
-            value={inputValue}
+            value={isListening ? (inputValue + ' ' + interimTranscript).trim() : inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={handleInputFocus}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask AETHER AI..."
+            placeholder={isListening ? 'Listening...' : 'Ask AETHER AI...'}
+            readOnly={isListening}
             style={{
               flex: 1,
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#fff',
+              color: isListening ? 'var(--accent)' : '#fff',
               fontSize: 14,
             }}
+          />
+          {/* Voice input button */}
+          <VoiceMicButton
+            isListening={isListening}
+            isSupported={voiceSupported}
+            disabled={isStreaming}
+            error={voiceError}
+            onClick={toggleListening}
+            size={40}
           />
           {isStreaming ? (
             <button
