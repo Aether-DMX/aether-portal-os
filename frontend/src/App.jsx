@@ -4,6 +4,7 @@ import { KeyboardProvider } from './context/KeyboardContext';
 import Header from './components/Header';
 import Dock from './components/Dock';
 import ChatDock from './components/ChatDock';
+import DesktopShell from './components/desktop/DesktopShell';
 import Dashboard from './views/Dashboard';
 import ChatPage from './views/ChatPage';
 import LiveDMXMenu from './views/LiveDMXMenu';
@@ -49,8 +50,57 @@ import AIBubble from './components/AIBubble';
 import { MobileLayout, MobileLive, MobileScenes, MobileChases, MobileFixtures, MobileSchedules, MobileNodes, MobileMore } from './mobile';
 import useAIContext from './hooks/useAIContext';
 
-function AppContent({ onLock }) {
-  console.log('[BOOT] AppContent rendering');
+// Routes shared between desktop and kiosk modes
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/chat" element={<ChatPage />} />
+      <Route path="/live-dmx" element={<LiveDMXMenu />} />
+      <Route path="/console" element={<Console />} />
+      <Route path="/dmx-effects" element={<DMXEffectsMenu />} />
+      <Route path="/my-effects" element={<MyEffects />} />
+      <Route path="/fixtures" element={<Fixtures />} />
+      <Route path="/schedules-menu" element={<SchedulesMenu />} />
+      <Route path="/faders" element={<Faders />} />
+      <Route path="/view-live" element={<ViewLive />} />
+      <Route path="/scenes" element={<Scenes />} />
+      <Route path="/chases" element={<Chases />} />
+      <Route path="/looks" element={<Looks />} />
+      <Route path="/cue-stacks" element={<CueStacks />} />
+      <Route path="/effects" element={<Effects />} />
+      <Route path="/shows" element={<Shows />} />
+      <Route path="/schedules" element={<Schedules />} />
+      <Route path="/timers" element={<Timers />} />
+      <Route path="/midi-pad" element={<MidiPad />} />
+      <Route path="/nodes" element={<NodeManagement />} />
+      <Route path="/more" element={<MoreMenu />} />
+      <Route path="/zone/:nodeId" element={<ZoneDetail />} />
+      <Route path="/mobile" element={<MobileLayout><MobileLive /></MobileLayout>} />
+      <Route path="/mobile/scenes" element={<MobileLayout><MobileScenes /></MobileLayout>} />
+      <Route path="/mobile/chases" element={<MobileLayout><MobileChases /></MobileLayout>} />
+      <Route path="/mobile/fixtures" element={<MobileLayout><MobileFixtures /></MobileLayout>} />
+      <Route path="/mobile/more" element={<MobileLayout><MobileMore /></MobileLayout>} />
+      <Route path="/mobile/schedules" element={<MobileLayout><MobileSchedules /></MobileLayout>} />
+      <Route path="/mobile/nodes" element={<MobileLayout><MobileNodes /></MobileLayout>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+// Desktop layout - professional DMX control surface
+function DesktopContent() {
+  console.log('[BOOT] DesktopContent rendering');
+  return (
+    <DesktopShell>
+      <AppRoutes />
+    </DesktopShell>
+  );
+}
+
+// Kiosk layout - original touch-optimized interface
+function KioskContent({ onLock }) {
+  console.log('[BOOT] KioskContent rendering');
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden relative" style={{ background: '#000' }}>
       <div className="ambient-glow" />
@@ -59,41 +109,7 @@ function AppContent({ onLock }) {
       <Header onLock={onLock} />
 
       <main className="flex-1 relative z-10 overflow-hidden">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/live-dmx" element={<LiveDMXMenu />} />
-          <Route path="/console" element={<Console />} />
-          <Route path="/dmx-effects" element={<DMXEffectsMenu />} />
-          <Route path="/my-effects" element={<MyEffects />} />
-          <Route path="/fixtures" element={<Fixtures />} />
-          <Route path="/schedules-menu" element={<SchedulesMenu />} />
-          <Route path="/faders" element={<Faders />} />
-          <Route path="/view-live" element={<ViewLive />} />
-          <Route path="/scenes" element={<Scenes />} />
-          {/* <Route path="/groups" element={<Groups />} /> */}
-          <Route path="/chases" element={<Chases />} />
-          <Route path="/looks" element={<Looks />} />
-          <Route path="/cue-stacks" element={<CueStacks />} />
-          <Route path="/effects" element={<Effects />} />
-          <Route path="/shows" element={<Shows />} />
-          {/* <Route path="/patch-fixtures" /> Deprecated */}
-          {/* <Route path="/group-fixtures" /> Deprecated */}
-          <Route path="/schedules" element={<Schedules />} />
-          <Route path="/timers" element={<Timers />} />
-          <Route path="/midi-pad" element={<MidiPad />} />
-          <Route path="/nodes" element={<NodeManagement />} />
-          <Route path="/more" element={<MoreMenu />} />
-          <Route path="/zone/:nodeId" element={<ZoneDetail />} />
-          <Route path="/mobile" element={<MobileLayout><MobileLive /></MobileLayout>} />
-          <Route path="/mobile/scenes" element={<MobileLayout><MobileScenes /></MobileLayout>} />
-          <Route path="/mobile/chases" element={<MobileLayout><MobileChases /></MobileLayout>} />
-          <Route path="/mobile/fixtures" element={<MobileLayout><MobileFixtures /></MobileLayout>} />
-          <Route path="/mobile/more" element={<MobileLayout><MobileMore /></MobileLayout>} />
-          <Route path="/mobile/schedules" element={<MobileLayout><MobileSchedules /></MobileLayout>} />
-          <Route path="/mobile/nodes" element={<MobileLayout><MobileNodes /></MobileLayout>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </main>
 
       <Dock />
@@ -103,6 +119,30 @@ function AppContent({ onLock }) {
       <AIBubble />
     </div>
   );
+}
+
+function AppContent({ onLock }) {
+  // Detect desktop vs kiosk mode
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 800
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Desktop mode: >= 1024px width
+  const isDesktop = windowWidth >= 1024;
+
+  console.log('[BOOT] AppContent rendering, isDesktop:', isDesktop, 'width:', windowWidth);
+
+  if (isDesktop) {
+    return <DesktopContent />;
+  }
+
+  return <KioskContent onLock={onLock} />;
 }
 
 function App() {
