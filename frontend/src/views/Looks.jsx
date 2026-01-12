@@ -10,9 +10,9 @@ import LookSequenceEditor from '../components/common/LookSequenceEditor';
 import ApplyTargetModal from '../components/ApplyTargetModal';
 
 // ============================================================
-// Look Card Component
+// Look Card Component - Adapts to desktop/kiosk
 // ============================================================
-function LookCard({ look, isActive, onPlay, onLongPress }) {
+function LookCard({ look, isActive, onPlay, onLongPress, isDesktop = false }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   const modifierCount = look.modifiers?.length || 0;
@@ -39,6 +39,48 @@ function LookCard({ look, isActive, onPlay, onLongPress }) {
 
   const handleCancel = () => clearTimeout(pressTimer.current);
 
+  if (isDesktop) {
+    return (
+      <div
+        onMouseDown={handleStart}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleCancel}
+        className={`group p-4 rounded-xl border transition-all cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
+          isActive
+            ? 'border-[var(--theme-primary)]/50 bg-[var(--theme-primary)]/10'
+            : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+        }`}
+        style={{ minHeight: '90px' }}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+            isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/70'
+          }`}>
+            {isActive ? <Check size={24} /> : <Eye size={24} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-semibold text-sm truncate group-hover:text-white/90">
+              {look.name}
+            </div>
+            <div className="text-white/50 text-xs mt-1 flex items-center gap-2">
+              <span>{channelCount} channels</span>
+              {modifierCount > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    {modifierCount} modifier{modifierCount !== 1 ? 's' : ''}
+                    <Activity size={12} />
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Kiosk mode
   return (
     <div
       onTouchStart={handleStart}
@@ -71,9 +113,9 @@ function LookCard({ look, isActive, onPlay, onLongPress }) {
 }
 
 // ============================================================
-// Sequence Card Component
+// Sequence Card Component - Adapts to desktop/kiosk
 // ============================================================
-function SequenceCard({ sequence, isActive, onPlay, onLongPress }) {
+function SequenceCard({ sequence, isActive, onPlay, onLongPress, isDesktop = false }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   const stepCount = sequence.steps?.length || 0;
@@ -100,6 +142,44 @@ function SequenceCard({ sequence, isActive, onPlay, onLongPress }) {
 
   const handleCancel = () => clearTimeout(pressTimer.current);
 
+  if (isDesktop) {
+    return (
+      <div
+        onMouseDown={handleStart}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleCancel}
+        className={`group p-4 rounded-xl border transition-all cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
+          isActive
+            ? 'border-[var(--theme-primary)]/50 bg-[var(--theme-primary)]/10'
+            : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+        }`}
+        style={{ minHeight: '90px' }}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+            isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/70'
+          }`}>
+            {isActive ? <Square size={22} /> : <Zap size={24} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-semibold text-sm truncate group-hover:text-white/90">
+              {sequence.name}
+            </div>
+            <div className="text-white/50 text-xs mt-1 flex items-center gap-2">
+              <span>{stepCount} steps</span>
+              <span>•</span>
+              <span className="font-mono">{bpm} BPM</span>
+              {sequence.loop_mode !== 'one_shot' && (
+                <Repeat size={12} className="text-[var(--theme-primary)]" />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Kiosk mode
   return (
     <div
       onTouchStart={handleStart}
@@ -201,7 +281,27 @@ export default function Looks() {
   const [contextMenu, setContextMenu] = useState(null);
   const [contextMenuType, setContextMenuType] = useState(null);
 
-  const ITEMS_PER_PAGE = 15;
+  // Responsive: track window width
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 800);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isDesktop = windowWidth >= 1024;
+
+  // Dynamic grid config based on screen width
+  const getGridConfig = () => {
+    if (windowWidth >= 1920) return { cols: 6, items: 24 };
+    if (windowWidth >= 1440) return { cols: 5, items: 20 };
+    if (windowWidth >= 1024) return { cols: 4, items: 16 };
+    if (windowWidth >= 768)  return { cols: 3, items: 12 };
+    return { cols: 3, items: 9 }; // Kiosk default
+  };
+
+  const { cols: COLS, items: ITEMS_PER_PAGE } = getGridConfig();
 
   // Get current items based on tab
   const currentItems = activeTab === 'looks' ? looks : sequences;
@@ -324,15 +424,20 @@ export default function Looks() {
 
   return (
     <div className="fullscreen-view">
-      {/* Header */}
-      <div className="view-header">
-        <div className="flex items-center gap-2">
-          <button className="back-btn" onClick={() => navigate(-1)}>
-            <ArrowLeft size={20} />
+      {/* Header - Adapts to desktop/kiosk */}
+      <div className={`view-header ${isDesktop ? 'px-6 py-4' : ''}`}>
+        <div className="flex items-center gap-3">
+          <button
+            className={`back-btn ${isDesktop ? 'p-2.5 hover:bg-white/15' : ''}`}
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft size={isDesktop ? 22 : 20} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-white">Looks & Sequences</h1>
-            <p className="text-[10px] text-white/50">
+            <h1 className={`font-bold text-white ${isDesktop ? 'text-xl' : 'text-lg'}`}>
+              Looks & Sequences
+            </h1>
+            <p className={`text-white/50 ${isDesktop ? 'text-xs' : 'text-[10px]'}`}>
               {looks.length} looks • {sequences.length} sequences
             </p>
           </div>
@@ -340,34 +445,43 @@ export default function Looks() {
         <button
           onTouchEnd={(e) => { e.preventDefault(); handleCreate(); }}
           onClick={handleCreate}
-          className="px-3 py-2 rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1 text-sm"
+          className={`rounded-xl bg-[var(--theme-primary)] text-black font-bold flex items-center gap-2 transition-all ${
+            isDesktop ? 'px-5 py-3 text-sm hover:brightness-110' : 'px-3 py-2 gap-1 text-sm'
+          }`}
         >
-          <Plus size={16} /> New
+          <Plus size={isDesktop ? 18 : 16} />
+          {isDesktop ? `New ${activeTab === 'looks' ? 'Look' : 'Sequence'}` : 'New'}
         </button>
       </div>
 
       {/* Tab Navigation */}
-      <div className="px-3 py-2 border-b border-white/10">
-        <div className="flex gap-1">
+      <div className={`border-b border-white/10 ${isDesktop ? 'px-6 py-3' : 'px-3 py-2'}`}>
+        <div className={`flex ${isDesktop ? 'gap-2 max-w-md' : 'gap-1'}`}>
           <button
             onClick={() => setActiveTab('looks')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            className={`flex-1 rounded-lg font-medium transition-colors ${
+              isDesktop ? 'px-6 py-3 text-sm' : 'px-4 py-2 text-sm'
+            } ${
               activeTab === 'looks'
                 ? 'bg-[var(--theme-primary)] text-black'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
             }`}
           >
-            <Eye size={14} className="inline mr-1" /> Looks ({looks.length})
+            <Eye size={isDesktop ? 16 : 14} className="inline mr-2" />
+            Looks ({looks.length})
           </button>
           <button
             onClick={() => setActiveTab('sequences')}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            className={`flex-1 rounded-lg font-medium transition-colors ${
+              isDesktop ? 'px-6 py-3 text-sm' : 'px-4 py-2 text-sm'
+            } ${
               activeTab === 'sequences'
                 ? 'bg-[var(--theme-primary)] text-black'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
             }`}
           >
-            <Zap size={14} className="inline mr-1" /> Sequences ({sequences.length})
+            <Zap size={isDesktop ? 16 : 14} className="inline mr-2" />
+            Sequences ({sequences.length})
           </button>
         </div>
       </div>
@@ -401,8 +515,16 @@ export default function Looks() {
           </div>
         ) : (
           <>
-            {/* Grid */}
-            <div className="control-grid">
+            {/* Grid - Dynamic columns based on screen width */}
+            <div
+              className={isDesktop ? '' : 'control-grid'}
+              style={isDesktop ? {
+                display: 'grid',
+                gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+                gap: '16px',
+                padding: '16px',
+              } : undefined}
+            >
               {activeTab === 'looks'
                 ? paginatedItems.map((look) => (
                     <LookCard
@@ -411,6 +533,7 @@ export default function Looks() {
                       isActive={isLookPlaying(look.look_id || look.id)}
                       onPlay={handlePlayLook}
                       onLongPress={(l) => handleLongPress(l, 'Look')}
+                      isDesktop={isDesktop}
                     />
                   ))
                 : paginatedItems.map((sequence) => (
@@ -420,26 +543,33 @@ export default function Looks() {
                       isActive={isSequencePlaying(sequence.sequence_id || sequence.id)}
                       onPlay={handlePlaySequence}
                       onLongPress={(s) => handleLongPress(s, 'Sequence')}
+                      isDesktop={isDesktop}
                     />
                   ))}
             </div>
 
-            {/* Pagination */}
+            {/* Pagination - Enhanced for desktop */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/10">
+              <div className={`flex items-center justify-center gap-3 mt-4 pt-4 border-t border-white/10 ${
+                isDesktop ? 'pb-4' : ''
+              }`}>
                 <button
                   onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                   disabled={currentPage === 0}
-                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
+                  className={`rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center transition-all ${
+                    isDesktop ? 'w-12 h-12 hover:bg-white/15' : 'w-11 h-11'
+                  }`}
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={isDesktop ? 22 : 20} />
                 </button>
-                <div className="flex gap-2">
+                <div className={`flex ${isDesktop ? 'gap-3' : 'gap-2'}`}>
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i)}
-                      className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
+                      className={`rounded-xl text-sm font-bold transition-all ${
+                        isDesktop ? 'w-11 h-11' : 'w-10 h-10'
+                      } ${
                         currentPage === i
                           ? 'bg-[var(--theme-primary)] text-black scale-105'
                           : 'bg-white/10 text-white/60 hover:bg-white/15'
@@ -452,9 +582,11 @@ export default function Looks() {
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                   disabled={currentPage >= totalPages - 1}
-                  className="w-11 h-11 rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center"
+                  className={`rounded-xl bg-white/10 text-white disabled:opacity-30 flex items-center justify-center transition-all ${
+                    isDesktop ? 'w-12 h-12 hover:bg-white/15' : 'w-11 h-11'
+                  }`}
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={isDesktop ? 22 : 20} />
                 </button>
               </div>
             )}

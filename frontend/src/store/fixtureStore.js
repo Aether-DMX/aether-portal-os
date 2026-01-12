@@ -39,7 +39,8 @@ const useFixtureStore = create((set, get) => ({
                        (fixture.endAddress ? fixture.endAddress - fixture.startAddress + 1 : 1),
         channel_map: fixture.channelMap || fixture.channel_map,
         color: fixture.color || '#8b5cf6',
-        notes: fixture.notes
+        notes: fixture.notes,
+        rdm_uid: fixture.rdm_uid
       });
       await get().fetchFixtures();
       return res.data;

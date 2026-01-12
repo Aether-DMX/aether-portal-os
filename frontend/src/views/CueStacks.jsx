@@ -8,9 +8,9 @@ import useCueStackStore from '../store/cueStackStore';
 import useLookStore from '../store/lookStore';
 
 // ============================================================
-// Cue Stack Card Component
+// Cue Stack Card Component - Adapts to desktop/kiosk
 // ============================================================
-function CueStackCard({ stack, isActive, onSelect, onLongPress }) {
+function CueStackCard({ stack, isActive, onSelect, onLongPress, isDesktop = false }) {
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   const cueCount = stack.cues?.length || 0;
@@ -36,6 +36,45 @@ function CueStackCard({ stack, isActive, onSelect, onLongPress }) {
 
   const handleCancel = () => clearTimeout(pressTimer.current);
 
+  if (isDesktop) {
+    return (
+      <div
+        onMouseDown={handleStart}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleCancel}
+        className={`group p-4 rounded-xl border transition-all cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
+          isActive
+            ? 'border-[var(--theme-primary)]/50 bg-[var(--theme-primary)]/10'
+            : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+        }`}
+        style={{ minHeight: '90px' }}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+            isActive ? 'bg-[var(--theme-primary)] text-black' : 'bg-white/10 text-white/70'
+          }`}>
+            {isActive ? <Check size={24} /> : <Layers size={24} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-semibold text-sm truncate group-hover:text-white/90">
+              {stack.name}
+            </div>
+            <div className="text-white/50 text-xs mt-1 flex items-center gap-2">
+              <span>{cueCount} cue{cueCount !== 1 ? 's' : ''}</span>
+              {stack.color && (
+                <>
+                  <span>•</span>
+                  <span className="capitalize">{stack.color}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Kiosk mode
   return (
     <div
       onTouchStart={handleStart}
@@ -438,6 +477,25 @@ export default function CueStacks() {
   const [editingStack, setEditingStack] = useState(null);
   const [showPlayer, setShowPlayer] = useState(false);
 
+  // Responsive: track window width
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 800);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isDesktop = windowWidth >= 1024;
+
+  // Dynamic grid config based on screen width
+  const getGridCols = () => {
+    if (windowWidth >= 1920) return 5;
+    if (windowWidth >= 1440) return 4;
+    if (windowWidth >= 1024) return 3;
+    return 2; // Kiosk/tablet default
+  };
+
   useEffect(() => {
     fetchCueStacks();
     fetchLooks();
@@ -496,40 +554,74 @@ export default function CueStacks() {
   }
 
   return (
-    <div className="p-4 pb-24 space-y-4">
-      {/* Header */}
+    <div className={`pb-24 space-y-4 ${isDesktop ? 'p-6' : 'p-4'}`}>
+      {/* Header - Responsive */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="glass-button flex items-center gap-2"
+          className={`glass-button flex items-center gap-2 ${isDesktop ? 'px-4 py-2.5 hover:bg-white/15' : ''}`}
         >
-          <ArrowLeft size={18} />
-          Back
+          <ArrowLeft size={isDesktop ? 20 : 18} />
+          {isDesktop ? 'Back' : ''}
         </button>
-        <h1 className="text-xl font-semibold text-white">Cue Stacks</h1>
+        <div className="text-center">
+          <h1 className={`font-semibold text-white ${isDesktop ? 'text-2xl' : 'text-xl'}`}>
+            Cue Stacks
+          </h1>
+          {isDesktop && (
+            <p className="text-white/50 text-xs mt-1">
+              {cueStacks.length} stack{cueStacks.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
         <button
           onClick={handleCreateNew}
-          className="glass-button bg-[var(--accent)]"
+          className={`glass-button bg-[var(--accent)] flex items-center gap-2 ${
+            isDesktop ? 'px-5 py-2.5 hover:brightness-110' : ''
+          }`}
         >
-          <Plus size={18} />
-          New
+          <Plus size={isDesktop ? 20 : 18} />
+          {isDesktop ? 'New Stack' : 'New'}
         </button>
       </div>
 
-      {/* Description */}
-      <p className="text-white/60 text-sm">
+      {/* Description - Responsive */}
+      <p className={`text-white/60 ${isDesktop ? 'text-sm max-w-xl' : 'text-sm'}`}>
         Cue stacks for manual theatrical cueing with Go/Back controls.
+        {isDesktop && ' Long-press a stack to edit.'}
       </p>
 
-      {/* Stack List */}
+      {/* Stack List - Dynamic Grid */}
       {loading ? (
-        <div className="text-center text-white/50 py-8">Loading...</div>
+        <div className={`text-center text-white/50 ${isDesktop ? 'py-16' : 'py-8'}`}>
+          Loading...
+        </div>
       ) : cueStacks.length === 0 ? (
-        <div className="text-center text-white/50 py-8">
-          No cue stacks yet. Create one to get started.
+        <div className={`text-center ${isDesktop ? 'py-16' : 'py-8'}`}>
+          <div className={`mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-4 ${
+            isDesktop ? 'w-20 h-20' : 'w-16 h-16'
+          }`}>
+            <Layers size={isDesktop ? 40 : 32} className="text-white/30" />
+          </div>
+          <p className="text-white/50 text-sm mb-1">No cue stacks yet</p>
+          <p className="text-white/30 text-xs mb-4">Create one to get started</p>
+          <button
+            onClick={handleCreateNew}
+            className={`inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] text-white font-semibold ${
+              isDesktop ? 'px-6 py-3 text-sm' : 'px-4 py-2 text-sm'
+            }`}
+          >
+            <Plus size={18} /> Create Cue Stack
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${getGridCols()}, 1fr)`,
+            gap: isDesktop ? '16px' : '12px',
+          }}
+        >
           {cueStacks.map((stack) => (
             <CueStackCard
               key={stack.stack_id}
@@ -537,6 +629,7 @@ export default function CueStacks() {
               isActive={activeStack === stack.stack_id}
               onSelect={handleSelectStack}
               onLongPress={handleLongPress}
+              isDesktop={isDesktop}
             />
           ))}
         </div>

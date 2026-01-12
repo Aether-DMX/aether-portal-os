@@ -9,6 +9,7 @@ import useNodeStore from '../store/nodeStore';
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import usePlaybackStore from '../store/playbackStore';
+import FadeProgressBar from '../components/common/FadeProgressBar';
 
 // Custom node icons
 import NodeIcon from '../assets/icons/Node_Icon.png';
@@ -216,6 +217,17 @@ export default function Dashboard() {
   const masterTrackRef = useRef(null);
   const isDragging = useRef(false);
 
+  // Responsive: track window width
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 800);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isDesktop = windowWidth >= 1024;
+
   // Sensors for drag and drop (with delay to allow clicks)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -395,12 +407,38 @@ export default function Dashboard() {
   }, [configuredNodes, universes]);
 
   return (
-    <div className="launcher-main" style={{ display: "flex", flexDirection: "row" }}>
+    <div
+      className="launcher-main"
+      style={{
+        display: "flex",
+        flexDirection: isDesktop ? "row" : "column",
+        gap: isDesktop ? 24 : 12,
+        padding: isDesktop ? 24 : 12,
+        overflow: isDesktop ? 'hidden' : 'auto',
+        height: '100%',
+      }}
+    >
       {/* Left - Zones */}
-      <div className="dashboard-left" style={{ flex: 1, minWidth: 0 }}>
+      <div
+        className="dashboard-left"
+        style={{
+          flex: isDesktop ? 1 : 'none',
+          minWidth: 0,
+          overflow: isDesktop ? 'auto' : 'visible',
+        }}
+      >
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sortedNodes.map(n => n.node_id || n.id)} strategy={rectSortingStrategy}>
-            <div className="zones-grid">
+            <div
+              className="zones-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isDesktop
+                  ? windowWidth >= 1440 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)'
+                  : 'repeat(auto-fill, minmax(80px, 1fr))',
+                gap: isDesktop ? 16 : 8,
+              }}
+            >
               {sortedNodes.map((node) => (
                 <SortableZone
                   key={node.node_id || node.id}
@@ -411,7 +449,7 @@ export default function Dashboard() {
                 />
               ))}
               {sortedNodes.length === 0 && (
-                <div className="zone-icon" onClick={() => navigate('/nodes')} 
+                <div className="zone-icon" onClick={() => navigate('/nodes')}
                   style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
                   <span className="zone-name">No zones configured. Tap to add nodes.</span>
                 </div>
@@ -422,7 +460,17 @@ export default function Dashboard() {
       </div>
 
       {/* Right - Controls */}
-      <div className="dashboard-right" style={{ width: "50%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
+      <div
+        className="dashboard-right"
+        style={{
+          width: isDesktop ? windowWidth >= 1440 ? '400px' : '350px' : '100%',
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: isDesktop ? 12 : 8,
+          minHeight: 0
+        }}
+      >
         {/* Master Slider */}
         <div className="master-row">
           <span className="master-label">MASTER</span>
@@ -466,13 +514,21 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        {/* Fade Progress Bar - shows during transitions */}
+        <FadeProgressBar isDesktop={isDesktop} />
+
         {/* Now Playing */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, position: 'absolute', left: 0 }}>Now Playing</span>
+        <div style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: isDesktop ? 16 : 12,
+          padding: isDesktop ? 16 : 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: isDesktop ? 12 : 8 }}>
+            <span style={{ fontSize: isDesktop ? 11 : 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, position: 'absolute', left: 0 }}>Now Playing</span>
             {Object.keys(playback).length > 0 ? (
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'playing-pulse 1.5s ease-in-out infinite' }} />
+              <span style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: isDesktop ? 10 : 8, height: isDesktop ? 10 : 8, borderRadius: '50%', background: 'var(--accent)', animation: 'playing-pulse 1.5s ease-in-out infinite' }} />
                 {(() => {
                   const item = Object.values(playback)[0];
                   if (!item) return 'Unknown';
@@ -484,35 +540,87 @@ export default function Dashboard() {
                 })()}
               </span>
             ) : (
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
+              <span style={{ fontSize: isDesktop ? 13 : 12, color: 'rgba(255,255,255,0.3)' }}>Nothing playing</span>
             )}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
-            <button onClick={() => navigate('/scenes')} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <SkipBack size={16} />
+          <div style={{ display: 'flex', justifyContent: 'center', gap: isDesktop ? 12 : 8 }}>
+            <button
+              onClick={() => navigate('/scenes')}
+              className={isDesktop ? 'hover:bg-white/20 transition-colors' : ''}
+              style={{
+                width: isDesktop ? 44 : 36,
+                height: isDesktop ? 44 : 36,
+                borderRadius: isDesktop ? 10 : 8,
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <SkipBack size={isDesktop ? 18 : 16} />
             </button>
-            <button 
+            <button
               onClick={() => {
                 if (Object.keys(playback).length > 0) {
                   stopAll();
                 } else {
                   navigate('/scenes');
                 }
-              }} 
-              style={{ 
-                width: 36, height: 36, borderRadius: 8, 
-                background: Object.keys(playback).length > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
-                border: 'none', 
-                color: Object.keys(playback).length > 0 ? '#000' : '#fff', 
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' 
-              }}>
-              {Object.keys(playback).length > 0 ? <Pause size={16} /> : <Play size={16} />}
+              }}
+              className={isDesktop ? 'hover:brightness-110 transition-all' : ''}
+              style={{
+                width: isDesktop ? 44 : 36,
+                height: isDesktop ? 44 : 36,
+                borderRadius: isDesktop ? 10 : 8,
+                background: Object.keys(playback).length > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: Object.keys(playback).length > 0 ? '#000' : '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {Object.keys(playback).length > 0 ? <Pause size={isDesktop ? 18 : 16} /> : <Play size={isDesktop ? 18 : 16} />}
             </button>
-            <button onClick={() => stopAll()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(239,68,68,0.2)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Square size={16} />
+            <button
+              onClick={() => stopAll()}
+              className={isDesktop ? 'hover:bg-red-500/30 transition-colors' : ''}
+              style={{
+                width: isDesktop ? 44 : 36,
+                height: isDesktop ? 44 : 36,
+                borderRadius: isDesktop ? 10 : 8,
+                background: 'rgba(239,68,68,0.2)',
+                border: 'none',
+                color: '#ef4444',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Square size={isDesktop ? 18 : 16} />
             </button>
-            <button onClick={() => navigate('/chases')} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <SkipForward size={16} />
+            <button
+              onClick={() => navigate('/chases')}
+              className={isDesktop ? 'hover:bg-white/20 transition-colors' : ''}
+              style={{
+                width: isDesktop ? 44 : 36,
+                height: isDesktop ? 44 : 36,
+                borderRadius: isDesktop ? 10 : 8,
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <SkipForward size={isDesktop ? 18 : 16} />
             </button>
           </div>
         </div>

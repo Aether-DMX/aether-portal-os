@@ -2169,3 +2169,317 @@ input[type="range"]::-webkit-slider-runnable-track { height: 8px; background: rg
   min-height: 44px !important;
   font-size: 18px !important;
 }
+
+/* ============================================
+   RESPONSIVE DESKTOP/LAPTOP UI (Phase D)
+   Optimized for screens > 1024px
+   ============================================ */
+
+/* Desktop: Show scrollbars (not touch) */
+@media (min-width: 1024px) and (hover: hover) {
+  /* Re-enable scrollbars on desktop */
+  .overflow-y-auto::-webkit-scrollbar,
+  .overflow-auto::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    display: block;
+  }
+
+  /* Refined scrollbar for desktop */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(var(--theme-primary-rgb), 0.4);
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--theme-primary-rgb), 0.6);
+  }
+
+  /* Slightly smaller touch targets on desktop (hover available) */
+  button, .btn, .card-interactive {
+    min-height: 40px;
+  }
+
+  .btn-sm {
+    min-height: 32px;
+  }
+
+  /* Enable cursor */
+  * {
+    cursor: auto !important;
+  }
+
+  button, .btn, .card-interactive, a {
+    cursor: pointer !important;
+  }
+}
+
+/* === DESKTOP LAYOUT ADJUSTMENTS (>= 1024px) === */
+@media (min-width: 1024px) {
+  /* Larger header spacing */
+  .launcher-header {
+    padding: 12px 24px;
+  }
+
+  .header-status {
+    gap: 24px;
+  }
+
+  /* Dock: Horizontal with more items visible */
+  .dock-bar {
+    gap: 32px;
+    padding: 12px 40px;
+  }
+
+  .dock-icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .dock-label {
+    font-size: 13px;
+  }
+
+  /* Dashboard: Larger grid */
+  .zones-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+  }
+
+  .zone-img {
+    width: 72px;
+    height: 72px;
+  }
+
+  /* Control Grid: 4 columns on desktop */
+  .control-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  /* Settings grid: More columns */
+  .settings-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+  }
+
+  /* Menu cards: Larger */
+  .menu-card {
+    width: 180px;
+    height: 200px;
+    padding: 20px;
+  }
+
+  .menu-card-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .menu-card-title {
+    font-size: 16px;
+  }
+
+  /* Modals: Max width for desktop */
+  .fixed.inset-0.bg-black\/95 > div {
+    max-width: 800px;
+  }
+
+  /* Fullscreen views: Add padding on sides */
+  .fullscreen-view .view-content {
+    padding: 20px 32px 24px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .fullscreen-view .view-header {
+    padding: 12px 32px;
+  }
+
+  /* Quick scenes: 5 columns */
+  .scenes-row {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  /* AI Chips: Larger */
+  .ai-chip {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}
+
+/* === WIDE DESKTOP (>= 1440px) === */
+@media (min-width: 1440px) {
+  /* Even more columns */
+  .control-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .zones-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  /* Larger zone icons */
+  .zone-img {
+    width: 80px;
+    height: 80px;
+  }
+
+  /* Dashboard layout: More space */
+  .launcher-main {
+    padding: 16px 24px;
+    gap: 20px;
+  }
+
+  .dashboard-right {
+    width: 45%;
+  }
+}
+
+/* === ULTRA-WIDE (>= 1920px) === */
+@media (min-width: 1920px) {
+  .control-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .fullscreen-view .view-content {
+    max-width: 1600px;
+  }
+
+  .zones-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+/* === DESKTOP HOVER STATES === */
+@media (hover: hover) and (pointer: fine) {
+  /* Enhanced hover effects for mouse users */
+  .control-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .zone-img:hover {
+    transform: scale(1.08);
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.3);
+  }
+
+  .dock-icon:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.25);
+  }
+
+  .menu-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+  }
+
+  .scene-btn:hover {
+    border-color: rgba(var(--accent-rgb), 0.5);
+    background: var(--accent-dim);
+  }
+
+  .settings-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Button hover animations */
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 8px 24px rgba(var(--theme-primary-rgb), 0.4);
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* === FIXTURE GRID RESPONSIVE === */
+@media (min-width: 1024px) {
+  /* Fixtures page: Larger grid on desktop */
+  .fixtures-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .fixtures-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+/* === CUE STACK PLAYER RESPONSIVE === */
+@media (min-width: 1024px) {
+  .cue-stack-player {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .go-button, .back-button {
+    min-width: 120px;
+    min-height: 60px;
+    font-size: 18px;
+  }
+}
+
+/* === CHANNEL GRID RESPONSIVE === */
+@media (min-width: 1024px) {
+  .channel-grid {
+    /* Larger cells on desktop */
+  }
+
+  .channel-grid button {
+    min-width: 12px;
+    min-height: 12px;
+  }
+}
+
+/* === SIDEBAR LAYOUT FOR VERY WIDE SCREENS === */
+@media (min-width: 1600px) {
+  /* Could add persistent sidebar navigation here */
+  .desktop-sidebar {
+    display: block;
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--glass);
+    border-right: 1px solid var(--glass-border);
+  }
+
+  .desktop-main {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Mobile: Keep kiosk optimizations */
+@media (max-width: 1023px) {
+  /* Ensure touch-friendly on smaller screens */
+  button, .btn, .card-interactive {
+    min-height: 44px;
+  }
+}
+
+/* === PRINT STYLES (for documentation) === */
+@media print {
+  .dock, .header-lock, .ambient-glow {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}

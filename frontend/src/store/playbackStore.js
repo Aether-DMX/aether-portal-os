@@ -13,9 +13,11 @@ const getAetherCore = () => `http://${window.location.hostname}:8891`;
  * real-time updates via WebSocket.
  */
 const usePlaybackStore = create((set, get) => ({
-  // Current playback state per universe: { universe: { type: 'scene'|'chase', id: '...', started: '...' } }
+  // Current playback state per universe: { universe: { type: 'scene'|'chase', id: '...', started: '...', fade_ms: ... } }
   playback: {},
   loading: false,
+  // Active fade state: { universe, duration_ms, started, name, progress }
+  activeFade: null,
 
   // Initialize and sync with backend
   initialize: async () => {
@@ -107,10 +109,34 @@ const usePlaybackStore = create((set, get) => ({
     const { universe, playback: playbackData } = data;
     if (playbackData) {
       get().setPlayback(universe, playbackData);
+
+      // Track fade state if present
+      if (playbackData.fade_ms && playbackData.fade_ms > 0) {
+        set({
+          activeFade: {
+            universe,
+            duration_ms: playbackData.fade_ms,
+            started: playbackData.started || new Date().toISOString(),
+            name: playbackData.name || playbackData.id || 'Transition',
+            type: playbackData.type
+          }
+        });
+
+        // Clear fade state after duration + buffer
+        setTimeout(() => {
+          set({ activeFade: null });
+        }, playbackData.fade_ms + 500);
+      }
     } else {
       get().clearPlayback(universe);
     }
-  }
+  },
+
+  // Get active fade info
+  getActiveFade: () => get().activeFade,
+
+  // Clear fade state manually
+  clearFade: () => set({ activeFade: null })
 }));
 
 export default usePlaybackStore;

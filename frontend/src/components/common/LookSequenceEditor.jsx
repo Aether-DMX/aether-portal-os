@@ -4,11 +4,12 @@ import {
   ArrowLeft, Save, X, Plus, Trash2, ChevronUp, ChevronDown,
   Play, Square, Eye, EyeOff, Zap, Activity, Flame, Waves,
   Palette, Sparkles, Music, Repeat, Sliders, ChevronLeft,
-  ChevronRight, Copy, RotateCcw, AlertTriangle, Radio
+  ChevronRight, Copy, RotateCcw, AlertTriangle, Radio, History
 } from 'lucide-react';
 import useLookStore from '../../store/lookStore';
 import useDMXStore from '../../store/dmxStore';
 import FaderModal from '../FaderModal';
+import VersionHistoryModal from './VersionHistoryModal';
 
 // ============================================================
 // Color Presets (shared with chase creator)
@@ -369,6 +370,7 @@ function LookSequenceEditorContent({ item, mode, onClose, onSave }) {
   const [showFaders, setShowFaders] = useState(false);
   const [editingStepIndex, setEditingStepIndex] = useState(null);
   const [showAddModifier, setShowAddModifier] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [message, setMessage] = useState('');
 
   // Determine if this is a Look or Sequence based on steps
@@ -621,9 +623,21 @@ function LookSequenceEditorContent({ item, mode, onClose, onSave }) {
             {modifiers.length > 0 && ` • ${modifiers.length} modifiers`}
           </div>
         </div>
-        <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1">
-          <Save size={16} /> Save
-        </button>
+        <div className="flex items-center gap-2">
+          {/* History button - only for existing items */}
+          {(item?.look_id || item?.sequence_id) && (
+            <button
+              onClick={() => setShowVersionHistory(true)}
+              className="p-2 rounded-lg bg-white/10 text-white/70 hover:bg-white/15 hover:text-white transition-all"
+              title="Version History"
+            >
+              <History size={18} />
+            </button>
+          )}
+          <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-black font-bold flex items-center gap-1">
+            <Save size={16} /> Save
+          </button>
+        </div>
       </div>
 
       {/* Name Input */}
@@ -985,6 +999,18 @@ function LookSequenceEditorContent({ item, mode, onClose, onSave }) {
         onClose={() => setShowAddModifier(false)}
         onAdd={addModifier}
         schemas={modifierSchemas}
+      />
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        artifactId={item?.look_id || item?.sequence_id}
+        artifactType={item?.look_id ? 'look' : 'sequence'}
+        artifactName={name}
+        onReverted={() => {
+          setMessage('Reverted to previous version - close and reopen to see changes');
+        }}
       />
     </div>
   );
