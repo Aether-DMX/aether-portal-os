@@ -9,6 +9,17 @@ import TouchKeyboard from '../components/TouchKeyboard';
 import useVoiceInput from '../hooks/useVoiceInput';
 import VoiceMicButton from '../components/VoiceMicButton';
 
+// Detect if we're in desktop mode (DesktopShell provides its own header)
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isDesktop;
+};
+
 // Message bubble component
 function MessageBubble({ message }) {
   const isUser = message.role === 'user';
@@ -182,6 +193,7 @@ function QuickActions({ onAction, disabled }) {
 
 export default function ChatPage() {
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
   const {
     messages,
     inputValue,
@@ -267,84 +279,126 @@ export default function ChatPage() {
         background: 'transparent',
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Sparkles size={16} style={{ color: 'var(--accent)' }} />
-              AETHER AI
-            </h1>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
-              Your lighting assistant
-            </p>
+      {/* Header - only show in kiosk mode, desktop has its own shell header */}
+      {!isDesktop && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => navigate(-1)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={16} style={{ color: 'var(--accent)' }} />
+                AETHER AI
+              </h1>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                Your lighting assistant
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={clearMessages}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Clear chat"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              onClick={handleDock}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Minimize to dock"
+            >
+              <Minimize2 size={16} />
+            </button>
           </div>
         </div>
+      )}
 
-        <div style={{ display: 'flex', gap: 8 }}>
+      {/* Desktop header - compact version with title and actions */}
+      {isDesktop && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 20px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={20} style={{ color: 'var(--accent)' }} />
+            <h1 style={{ fontSize: 18, fontWeight: 600, color: '#fff', margin: 0 }}>
+              AETHER AI Assistant
+            </h1>
+          </div>
           <button
             onClick={clearMessages}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 6,
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer',
+              fontSize: 12,
             }}
             title="Clear chat"
           >
-            <Trash2 size={16} />
-          </button>
-          <button
-            onClick={handleDock}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            title="Minimize to dock"
-          >
-            <Minimize2 size={16} />
+            <Trash2 size={14} />
+            Clear
           </button>
         </div>
-      </div>
+      )}
 
       {/* Context ribbon */}
       <ContextRibbon />
