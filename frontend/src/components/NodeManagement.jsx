@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Wifi, Server, RefreshCw, Trash2, Check, X, ChevronDown, ChevronUp, AlertTriangle, Layers, Edit3, Cpu, Hash, Cable } from 'lucide-react';
+import RDMDeviceList from './rdm/RDMDeviceList';
 
 const getApiUrl = () => `http://${window.location.hostname}:8891`;
 
@@ -206,10 +207,14 @@ export default function NodeManagement() {
                         <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>FW:</span> <span style={{ color: 'white' }}>{node.firmware || 'N/A'}</span></div>
                       </div>
                       {!isBuiltIn && (
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                           <button onClick={() => handleUnpair(node.node_id)} style={{ flex: 1, padding: '6px 0', background: 'rgba(250,204,21,0.15)', border: '1px solid rgba(250,204,21,0.3)', borderRadius: 6, color: '#facc15', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Unpair</button>
                           <button onClick={() => handleDelete(node.node_id)} style={{ flex: 1, padding: '6px 0', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                         </div>
+                      )}
+                      {/* RDM Device Management - only for WiFi nodes (not built-in or gateway) */}
+                      {!isBuiltIn && node.type !== 'gateway' && isOnline && (
+                        <RDMDeviceList nodeId={node.node_id} isExpanded={true} />
                       )}
                     </div>
                   )}
