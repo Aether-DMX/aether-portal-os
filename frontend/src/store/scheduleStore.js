@@ -3,8 +3,14 @@ import { persist } from 'zustand/middleware';
 
 const useScheduleStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       schedules: [],
+
+      // No-op: schedules are automatically loaded from localStorage by zustand persist
+      fetchSchedules: () => {
+        // Data is already hydrated from localStorage
+        return get().schedules;
+      },
 
       createSchedule: (schedule) =>
         set((state) => ({
