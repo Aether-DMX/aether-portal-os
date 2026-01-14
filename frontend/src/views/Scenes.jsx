@@ -737,20 +737,22 @@ function DesktopScenesView({
           width: 32px;
           height: 32px;
           border-radius: 8px;
-          background: rgba(0, 0, 0, 0.6);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(8px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgba(255, 255, 255, 0.8);
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          color: rgba(0, 0, 0, 0.7);
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.15s;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .action-btn:hover {
-          background: rgba(0, 0, 0, 0.8);
-          color: white;
+          background: white;
+          color: #000;
+          transform: scale(1.05);
         }
 
         .action-btn.play:hover {
