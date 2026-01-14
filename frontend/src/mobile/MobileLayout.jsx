@@ -1,56 +1,60 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Layers, Repeat, Sliders, Settings } from 'lucide-react';
+import { Home, Layers, Repeat, Sliders, Settings, MoreHorizontal } from 'lucide-react';
 
 const navItems = [
-  { id: 'live', icon: Home, label: 'Live', path: '/mobile' },
-  { id: 'scenes', icon: Layers, label: 'Scenes', path: '/mobile/scenes' },
-  { id: 'chases', icon: Repeat, label: 'Chases', path: '/mobile/chases' },
-  { id: 'fixtures', icon: Sliders, label: 'Fixtures', path: '/mobile/fixtures' },
-  { id: 'more', icon: Settings, label: 'More', path: '/mobile/more' },
+  { id: 'live', icon: Home, label: 'Live', path: '/', altPaths: ['/mobile'] },
+  { id: 'scenes', icon: Layers, label: 'Scenes', path: '/scenes', altPaths: ['/mobile/scenes'] },
+  { id: 'chases', icon: Repeat, label: 'Chases', path: '/chases', altPaths: ['/mobile/chases'] },
+  { id: 'fixtures', icon: Sliders, label: 'Fixtures', path: '/fixtures', altPaths: ['/mobile/fixtures'] },
+  { id: 'more', icon: MoreHorizontal, label: 'More', path: '/more', altPaths: ['/mobile/more'] },
 ];
 
 export default function MobileLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if a nav item is active (matches path or alt paths)
+  const isActive = (item) => {
+    return item.path === location.pathname || item.altPaths?.includes(location.pathname);
+  };
+
   return (
-    <div style={{ 
-      height: '100vh', width: '100vw', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'fixed', top: 0, left: 0
-    }}>
-      {/* Header */}
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/aether_logo.png" alt="AETHER" style={{ width: 28, height: 28 }} />
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>AETHER</span>
+    <div className="mobile-layout">
+      {/* Header - with safe area for notch */}
+      <header className="mobile-header">
+        <div className="mobile-header-content">
+          <div className="mobile-logo">
+            <img src="/aether_logo.png" alt="AETHER" className="mobile-logo-img" />
+            <span className="mobile-logo-text">AETHER</span>
+          </div>
+          <span className="mobile-badge">MOBILE</span>
         </div>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>MOBILE</span>
-      </div>
+      </header>
 
       {/* Content - scrollable with touch */}
-      <div style={{ 
-        flex: 1, overflow: 'auto', padding: 12, 
-        WebkitOverflowScrolling: 'touch', 
-        touchAction: 'pan-y',
-        overscrollBehavior: 'contain'
-      }}>
+      <main className="mobile-content">
         {children}
-      </div>
+      </main>
 
-      {/* Bottom Nav */}
-      <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.5)', flexShrink: 0 }}>
+      {/* Bottom Nav - with safe area for home indicator */}
+      <nav className="mobile-nav">
         {navItems.map(item => {
-          const isActive = location.pathname === item.path;
+          const active = isActive(item);
           return (
-            <button key={item.id} onClick={() => navigate(item.path)}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, background: 'none', border: 'none', padding: '10px 4px' }}>
-              <item.icon size={20} color={isActive ? '#a855f7' : 'rgba(255,255,255,0.4)'} />
-              <span style={{ fontSize: 9, color: isActive ? '#a855f7' : 'rgba(255,255,255,0.4)' }}>{item.label}</span>
+            <button
+              key={item.id}
+              onClick={() => navigate(item.path)}
+              className={`mobile-nav-item ${active ? 'active' : ''}`}
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
+            >
+              <item.icon className="mobile-nav-icon" />
+              <span className="mobile-nav-label">{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 }

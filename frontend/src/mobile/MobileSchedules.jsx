@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Trash2, Clock } from 'lucide-react';
+import { Plus, X, Clock } from 'lucide-react';
 
 export default function MobileSchedules() {
   const [schedules, setSchedules] = useState([]);
@@ -23,38 +23,86 @@ export default function MobileSchedules() {
 
   if (creating) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>New Schedule</span>
-          <button onClick={() => setCreating(false)} style={{ background: 'none', border: 'none' }}><X size={20} color="#fff" /></button>
+      <div className="mobile-form">
+        <div className="mobile-form-header">
+          <span className="mobile-form-title">New Schedule</span>
+          <button onClick={() => setCreating(false)} className="mobile-form-close" aria-label="Close">
+            <X size={20} />
+          </button>
         </div>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" 
-          style={{ padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff' }} />
-        <input type="time" value={time} onChange={e => setTime(e.target.value)} 
-          style={{ padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff' }} />
-        <button onClick={handleCreate} style={{ padding: 10, borderRadius: 8, background: '#a855f7', border: 'none', color: '#fff' }}>Create</button>
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Schedule name"
+          autoFocus
+        />
+        <div className="mobile-form-row">
+          <span className="mobile-form-label">Time</span>
+          <input
+            type="time"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '12px 14px',
+              borderRadius: 10,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#fff',
+              fontSize: 16
+            }}
+          />
+        </div>
+        <button onClick={handleCreate} className="mobile-form-submit">
+          Create Schedule
+        </button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Schedules</span>
-        <button onClick={() => setCreating(true)} style={{ padding: '6px 12px', borderRadius: 6, background: '#a855f7', border: 'none', color: '#fff', fontSize: 11 }}>
+    <div className="mobile-schedules">
+      <div className="mobile-section-header">
+        <span className="mobile-section-title">Schedules</span>
+        <button onClick={() => setCreating(true)} className="mobile-add-btn">
           <Plus size={14} /> New
         </button>
       </div>
-      {schedules.length === 0 && <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textAlign: 'center', padding: 20 }}>No schedules yet</div>}
-      {schedules.map(s => (
-        <div key={s.id} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Clock size={16} color="#a855f7" />
-            <span style={{ fontSize: 13, color: '#fff' }}>{s.name}</span>
-          </div>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{s.time}</span>
+
+      {schedules.length === 0 ? (
+        <div className="mobile-empty">
+          <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '32px 16px' }}>
+            No schedules yet. Tap "New" to create one.
+          </p>
         </div>
-      ))}
+      ) : (
+        schedules.map(s => (
+          <div key={s.id} className="mobile-list-item">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Clock size={18} color="var(--accent, #a855f7)" />
+              <div>
+                <span className="mobile-list-item-name">{s.name}</span>
+                {s.action && (
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                    {s.action}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#fff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: 'rgba(255,255,255,0.1)'
+            }}>
+              {s.time}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Square, Sun, Moon } from 'lucide-react';
+import { Square, Moon } from 'lucide-react';
 import useSceneStore from '../store/sceneStore';
 import useChaseStore from '../store/chaseStore';
 import usePlaybackStore from '../store/playbackStore';
@@ -21,7 +21,13 @@ export default function MobileLive() {
 
   const handleMaster = async (v) => {
     setMaster(v);
-    try { await fetch(backendUrl + '/api/master', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: v }) }); } catch(e) {}
+    try {
+      await fetch(backendUrl + '/api/master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: v })
+      });
+    } catch(e) { /* ignore */ }
   };
 
   const cur = Object.values(playback)[0];
@@ -29,34 +35,49 @@ export default function MobileLive() {
   const qc = chases.slice(0, 4);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+    <div className="mobile-live">
       {/* Now Playing + Stop */}
-      <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>NOW PLAYING</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', textTransform: 'capitalize' }}>
+      <div className="mobile-now-playing">
+        <div className="mobile-now-playing-info">
+          <span className="mobile-now-playing-label">NOW PLAYING</span>
+          <span className="mobile-now-playing-title">
             {cur ? cur.id.replace('scene_','').replace('chase_','').replace(/_/g,' ') : 'Nothing'}
-          </div>
+          </span>
         </div>
-        <button onClick={stopAll} style={{ width: 38, height: 38, borderRadius: 19, background: 'rgba(239,68,68,0.2)', border: 'none' }}>
-          <Square size={16} color="#ef4444" />
+        <button onClick={stopAll} className="mobile-stop-btn" aria-label="Stop all">
+          <Square size={18} color="#ef4444" />
         </button>
       </div>
 
       {/* Master + Controls */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <input type="range" min="0" max="100" value={master} onChange={e => handleMaster(+e.target.value)} style={{ flex: 1, accentColor: '#a855f7' }} />
-        <span style={{ fontSize: 10, color: '#fff', width: 30 }}>{master}%</span>
-        <button onClick={() => handleMaster(0)} style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.1)', border: 'none' }}><Moon size={14} color="#fff" /></button>
-        <button onClick={blackoutAll} style={{ padding: '0 10px', height: 32, borderRadius: 6, background: 'rgba(239,68,68,0.2)', border: 'none', color: '#ef4444', fontSize: 9, fontWeight: 700 }}>OFF</button>
+      <div className="mobile-master-row">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={master}
+          onChange={e => handleMaster(+e.target.value)}
+          aria-label="Master fader"
+        />
+        <span className="mobile-master-value">{master}%</span>
+        <button onClick={() => handleMaster(0)} className="mobile-master-btn" aria-label="Dim to zero">
+          <Moon size={16} />
+        </button>
+        <button onClick={blackoutAll} className="mobile-blackout-btn">
+          OFF
+        </button>
       </div>
 
       {/* Scenes */}
-      <div>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>SCENES</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+      <div className="mobile-section">
+        <div className="section-title">SCENES</div>
+        <div className="grid-3">
           {qs.map(s => (
-            <button key={s.id} onClick={() => playScene(s.id, 1)} style={{ padding: 10, borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', fontSize: 10, textTransform: 'capitalize' }}>
+            <button
+              key={s.id}
+              onClick={() => playScene(s.id, 1)}
+              className="mobile-grid-item"
+            >
               {s.name.replace(/_/g, ' ')}
             </button>
           ))}
@@ -64,11 +85,15 @@ export default function MobileLive() {
       </div>
 
       {/* Chases */}
-      <div>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>CHASES</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+      <div className="mobile-section">
+        <div className="section-title">CHASES</div>
+        <div className="grid-2">
           {qc.map(c => (
-            <button key={c.id} onClick={() => playChase(c.id, 1)} style={{ padding: 10, borderRadius: 6, background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 10, textTransform: 'capitalize' }}>
+            <button
+              key={c.id}
+              onClick={() => playChase(c.id, 1)}
+              className="mobile-grid-item chase"
+            >
               {c.name.replace(/_/g, ' ')}
             </button>
           ))}

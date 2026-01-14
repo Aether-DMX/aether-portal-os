@@ -121,8 +121,34 @@ function KioskContent({ onLock }) {
   );
 }
 
+// Mobile layout - phone-optimized interface with bottom nav
+function MobileContent() {
+  console.log('[BOOT] MobileContent rendering');
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MobileLayout><MobileLive /></MobileLayout>} />
+        <Route path="/mobile" element={<MobileLayout><MobileLive /></MobileLayout>} />
+        <Route path="/mobile/scenes" element={<MobileLayout><MobileScenes /></MobileLayout>} />
+        <Route path="/mobile/chases" element={<MobileLayout><MobileChases /></MobileLayout>} />
+        <Route path="/mobile/fixtures" element={<MobileLayout><MobileFixtures /></MobileLayout>} />
+        <Route path="/mobile/more" element={<MobileLayout><MobileMore /></MobileLayout>} />
+        <Route path="/mobile/schedules" element={<MobileLayout><MobileSchedules /></MobileLayout>} />
+        <Route path="/mobile/nodes" element={<MobileLayout><MobileNodes /></MobileLayout>} />
+        <Route path="/scenes" element={<MobileLayout><MobileScenes /></MobileLayout>} />
+        <Route path="/chases" element={<MobileLayout><MobileChases /></MobileLayout>} />
+        <Route path="/fixtures" element={<MobileLayout><MobileFixtures /></MobileLayout>} />
+        <Route path="/schedules" element={<MobileLayout><MobileSchedules /></MobileLayout>} />
+        <Route path="/nodes" element={<MobileLayout><MobileNodes /></MobileLayout>} />
+        <Route path="/more" element={<MobileLayout><MobileMore /></MobileLayout>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
 function AppContent({ onLock }) {
-  // Detect desktop vs kiosk mode
+  // Detect device type: mobile phone vs kiosk vs desktop
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 800
   );
@@ -133,15 +159,30 @@ function AppContent({ onLock }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Detect if device is a mobile phone (not just small screen)
+  // Mobile phones: < 768px width OR touch device with portrait orientation
+  const isMobilePhone = windowWidth < 768 ||
+    (windowWidth < 1024 && window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth);
+
   // Desktop mode: >= 1024px width
   const isDesktop = windowWidth >= 1024;
 
-  console.log('[BOOT] AppContent rendering, isDesktop:', isDesktop, 'width:', windowWidth);
+  // Kiosk mode: 768-1023px (Pi touchscreen is 800x480)
+  const isKiosk = !isDesktop && !isMobilePhone;
 
+  console.log('[BOOT] AppContent rendering, isDesktop:', isDesktop, 'isMobilePhone:', isMobilePhone, 'isKiosk:', isKiosk, 'width:', windowWidth);
+
+  // Mobile phone gets dedicated mobile UI
+  if (isMobilePhone) {
+    return <MobileContent />;
+  }
+
+  // Desktop gets professional interface
   if (isDesktop) {
     return <DesktopContent />;
   }
 
+  // Kiosk (Pi screen) gets touch-optimized interface
   return <KioskContent onLock={onLock} />;
 }
 

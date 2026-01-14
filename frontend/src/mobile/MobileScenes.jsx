@@ -22,44 +22,80 @@ export default function MobileScenes() {
 
   if (creating) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>New Scene</span>
-          <button onClick={() => setCreating(false)} style={{ background: 'none', border: 'none' }}><X size={20} color="#fff" /></button>
+      <div className="mobile-form">
+        <div className="mobile-form-header">
+          <span className="mobile-form-title">New Scene</span>
+          <button onClick={() => setCreating(false)} className="mobile-form-close" aria-label="Close">
+            <X size={20} />
+          </button>
         </div>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Scene name" 
-          style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff' }} />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Color</span>
-          <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: 50, height: 32, border: 'none', borderRadius: 6 }} />
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Scene name"
+          autoFocus
+        />
+        <div className="mobile-form-row">
+          <span className="mobile-form-label">Color</span>
+          <input type="color" value={color} onChange={e => setColor(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Brightness</span>
-          <input type="range" min="0" max="100" value={brightness} onChange={e => setBrightness(+e.target.value)} style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: '#fff' }}>{brightness}%</span>
+        <div className="mobile-form-row">
+          <span className="mobile-form-label">Brightness</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={brightness}
+            onChange={e => setBrightness(+e.target.value)}
+          />
+          <span className="mobile-master-value">{brightness}%</span>
         </div>
-        <button onClick={handleCreate} style={{ padding: 12, borderRadius: 8, background: '#a855f7', border: 'none', color: '#fff', fontWeight: 600 }}>Create Scene</button>
+        <button onClick={handleCreate} className="mobile-form-submit">
+          Create Scene
+        </button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Scenes</span>
-        <button onClick={() => setCreating(true)} style={{ padding: '6px 12px', borderRadius: 6, background: '#a855f7', border: 'none', color: '#fff', fontSize: 11 }}>
+    <div className="mobile-scenes">
+      <div className="mobile-section-header">
+        <span className="mobile-section-title">Scenes</span>
+        <button onClick={() => setCreating(true)} className="mobile-add-btn">
           <Plus size={14} /> New
         </button>
       </div>
-      {scenes.map(s => (
-        <div key={s.id} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: '#fff', textTransform: 'capitalize' }}>{s.name.replace(/_/g,' ')}</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => playScene(s.id, 1)} style={{ width: 32, height: 32, borderRadius: 16, background: '#22c55e', border: 'none' }}><Play size={14} color="#fff" /></button>
-            <button onClick={() => { deleteScene(s.id); fetchScenes(); }} style={{ width: 32, height: 32, borderRadius: 16, background: 'rgba(239,68,68,0.2)', border: 'none' }}><Trash2 size={14} color="#ef4444" /></button>
-          </div>
+
+      {scenes.length === 0 ? (
+        <div className="mobile-empty">
+          <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '32px 16px' }}>
+            No scenes yet. Tap "New" to create one.
+          </p>
         </div>
-      ))}
+      ) : (
+        scenes.map(s => (
+          <div key={s.id} className="mobile-list-item">
+            <span className="mobile-list-item-name">{s.name.replace(/_/g,' ')}</span>
+            <div className="mobile-list-item-actions">
+              <button
+                onClick={() => playScene(s.id, 1)}
+                className="mobile-action-btn play"
+                aria-label={`Play ${s.name}`}
+              >
+                <Play size={16} color="#fff" />
+              </button>
+              <button
+                onClick={() => { deleteScene(s.id); fetchScenes(); }}
+                className="mobile-action-btn delete"
+                aria-label={`Delete ${s.name}`}
+              >
+                <Trash2 size={16} color="#ef4444" />
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
