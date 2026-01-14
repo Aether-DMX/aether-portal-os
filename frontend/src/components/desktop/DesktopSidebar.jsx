@@ -36,7 +36,7 @@ const navSections = [
   }
 ];
 
-export default function DesktopSidebar({ collapsed, onToggle }) {
+export default function DesktopSidebar({ collapsed, onToggle, width = 220 }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -45,7 +45,10 @@ export default function DesktopSidebar({ collapsed, onToggle }) {
   };
 
   return (
-    <aside className={`desktop-sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside
+      className={`desktop-sidebar ${collapsed ? 'collapsed' : ''}`}
+      style={{ width: collapsed ? 64 : width }}
+    >
       {/* Collapse toggle */}
       <button className="sidebar-toggle" onClick={onToggle}>
         {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -86,7 +89,6 @@ export default function DesktopSidebar({ collapsed, onToggle }) {
 
       <style>{`
         .desktop-sidebar {
-          width: 220px;
           background: rgba(15, 15, 25, 0.95);
           border-right: 1px solid rgba(255, 255, 255, 0.06);
           display: flex;
@@ -94,10 +96,7 @@ export default function DesktopSidebar({ collapsed, onToggle }) {
           transition: width 0.2s ease;
           position: relative;
           overflow: hidden;
-        }
-
-        .desktop-sidebar.collapsed {
-          width: 64px;
+          flex-shrink: 0;
         }
 
         .sidebar-toggle {
