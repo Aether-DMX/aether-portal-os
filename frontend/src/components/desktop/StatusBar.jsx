@@ -54,10 +54,12 @@ export default function StatusBar() {
   // Calculate playback statistics
   const playbackStats = useMemo(() => {
     const entries = Object.entries(playback);
-    const activeCount = entries.length;
+    // Filter out null/undefined playback entries
+    const validEntries = entries.filter(([, pb]) => pb && pb.type);
+    const activeCount = validEntries.length;
 
     // Get names of currently playing items
-    const playingItems = entries.map(([universe, pb]) => {
+    const playingItems = validEntries.map(([universe, pb]) => {
       if (pb.type === 'scene') {
         const scene = scenes.find(s => (s.scene_id || s.id) === pb.id);
         return scene?.name || pb.id;
