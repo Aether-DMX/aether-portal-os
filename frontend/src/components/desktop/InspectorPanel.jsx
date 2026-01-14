@@ -19,7 +19,8 @@ export default function InspectorPanel({ collapsed, onToggle, item, width = 300 
   const { chases, startChase, stopChase } = useChaseStore();
   const { nodes } = useNodeStore();
   const { blackoutAll, masterValue } = useDMXStore();
-  const { currentIntent } = useDesktop();
+  const desktopContext = useDesktop();
+  const currentIntent = desktopContext?.currentIntent || null;
 
   // Determine what to show in inspector based on context
   const inspectorContent = useMemo(() => {
@@ -92,7 +93,9 @@ function DefaultInspector({ nowPlaying, warnings, overrides }) {
   const { chases } = useChaseStore();
   const { blackoutAll, masterValue } = useDMXStore();
 
-  const hasPlayback = nowPlaying.length > 0;
+  // Filter out null/undefined playback entries
+  const validPlayback = nowPlaying.filter(([, pb]) => pb && pb.type);
+  const hasPlayback = validPlayback.length > 0;
 
   return (
     <div className="inspector-default">
@@ -100,7 +103,7 @@ function DefaultInspector({ nowPlaying, warnings, overrides }) {
       <InspectorSection title="Now Playing" icon={Activity}>
         {hasPlayback ? (
           <div className="now-playing-list">
-            {nowPlaying.map(([universe, pb]) => (
+            {validPlayback.map(([universe, pb]) => (
               <NowPlayingItem
                 key={universe}
                 universe={universe}
