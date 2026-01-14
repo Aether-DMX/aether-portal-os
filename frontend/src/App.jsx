@@ -152,25 +152,42 @@ function AppContent({ onLock }) {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 800
   );
+  const [windowHeight, setWindowHeight] = useState(
+    typeof window !== 'undefined' ? window.innerHeight : 600
+  );
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setWindowHeight(window.innerHeight);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Detect if device is a mobile phone (not just small screen)
-  // Mobile phones: < 768px width OR touch device with portrait orientation
-  const isMobilePhone = windowWidth < 768 ||
-    (windowWidth < 1024 && window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth);
+  // Detect touch capability
+  const isTouchDevice = typeof window !== 'undefined' && (
+    window.matchMedia('(pointer: coarse)').matches ||
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  );
 
-  // Desktop mode: >= 1024px width
-  const isDesktop = windowWidth >= 1024;
+  // Detect if device is a mobile phone
+  // Mobile phones: touch device AND (width < 768px OR portrait orientation with width < 1024px)
+  // The Pi kiosk is 800x480 (landscape, width > height), so it won't match portrait check
+  const isPortrait = windowHeight > windowWidth;
+  const isMobilePhone = isTouchDevice && (
+    windowWidth < 768 ||
+    (isPortrait && windowWidth < 1024)
+  );
 
-  // Kiosk mode: 768-1023px (Pi touchscreen is 800x480)
+  // Desktop mode: >= 1024px width AND not a touch device in portrait
+  const isDesktop = windowWidth >= 1024 && !isMobilePhone;
+
+  // Kiosk mode: touch device with landscape orientation (like Pi 800x480)
   const isKiosk = !isDesktop && !isMobilePhone;
 
-  console.log('[BOOT] AppContent rendering, isDesktop:', isDesktop, 'isMobilePhone:', isMobilePhone, 'isKiosk:', isKiosk, 'width:', windowWidth);
+  console.log('[BOOT] AppContent:', { isDesktop, isMobilePhone, isKiosk, windowWidth, windowHeight, isTouchDevice, isPortrait });
 
   // Mobile phone gets dedicated mobile UI
   if (isMobilePhone) {
