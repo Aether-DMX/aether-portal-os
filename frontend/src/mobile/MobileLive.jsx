@@ -70,13 +70,14 @@ export default function MobileLive() {
     if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
   };
 
-  // Get currently playing item
-  const nowPlaying = Object.values(playback)[0];
+  // Get currently playing item (filter out null entries)
+  const validPlayback = Object.values(playback).filter(p => p && p.type);
+  const nowPlaying = validPlayback[0];
   const isPlaying = !!nowPlaying;
 
   // Get display name for now playing
   const getNowPlayingName = () => {
-    if (!nowPlaying) return 'Nothing';
+    if (!nowPlaying || !nowPlaying.type) return 'Nothing';
 
     if (nowPlaying.type === 'scene') {
       const scene = scenes.find(s => (s.scene_id || s.id) === nowPlaying.id);
