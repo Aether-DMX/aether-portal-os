@@ -21,7 +21,7 @@ const LIVE_CONSOLE_URL = 'http://192.168.168.51:3000/mobile';
 
 const quickActions = [
   { icon: '📱', name: 'Remote', action: 'openLiveQR' },
-  { icon: '🎚️', name: 'Fixtures', path: '/fixtures' },
+  { icon: '🎚️', name: 'Fixtures', path: '/fixture-manager' },
   { icon: '🔲', name: 'Pixel Arrays', path: '/pixel-arrays' },
   { icon: '📅', name: 'Schedule', path: '/schedules-menu' },
   { icon: '📡', name: 'Nodes', path: '/nodes' },

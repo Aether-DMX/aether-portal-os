@@ -12,6 +12,7 @@ import Console from './views/Console';
 import DMXEffectsMenu from './views/DMXEffectsMenu';
 import MyEffects from './views/MyEffects';
 import Fixtures from './views/Fixtures';
+import FixtureManager from './views/FixtureManager';
 import SchedulesMenu from './views/SchedulesMenu';
 import Faders from './views/Faders';
 import ViewLive from './views/ViewLive';
@@ -63,6 +64,7 @@ function AppRoutes() {
       <Route path="/dmx-effects" element={<DMXEffectsMenu />} />
       <Route path="/my-effects" element={<MyEffects />} />
       <Route path="/fixtures" element={<Fixtures />} />
+      <Route path="/fixture-manager" element={<FixtureManager />} />
       <Route path="/schedules-menu" element={<SchedulesMenu />} />
       <Route path="/faders" element={<Faders />} />
       <Route path="/view-live" element={<ViewLive />} />
