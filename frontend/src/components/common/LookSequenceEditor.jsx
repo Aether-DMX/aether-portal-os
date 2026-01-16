@@ -10,6 +10,7 @@ import useLookStore from '../../store/lookStore';
 import useDMXStore from '../../store/dmxStore';
 import FaderModal from '../FaderModal';
 import VersionHistoryModal from './VersionHistoryModal';
+import TapTempo from '../shared/TapTempo';
 
 // ============================================================
 // Color Presets (shared with chase creator)
@@ -37,45 +38,7 @@ const MODIFIER_ICONS = {
   twinkle: Sparkles,
 };
 
-// ============================================================
-// Tap Tempo Component
-// ============================================================
-function TapTempo({ onBpmChange }) {
-  const [taps, setTaps] = useState([]);
-  const [lastTap, setLastTap] = useState(0);
-  const [flash, setFlash] = useState(false);
-
-  const handleTap = () => {
-    const now = Date.now();
-    setFlash(true);
-    setTimeout(() => setFlash(false), 100);
-
-    if (now - lastTap > 2000) {
-      setTaps([now]);
-    } else {
-      const newTaps = [...taps, now].slice(-4);
-      setTaps(newTaps);
-      if (newTaps.length >= 2) {
-        const intervals = [];
-        for (let i = 1; i < newTaps.length; i++) intervals.push(newTaps[i] - newTaps[i - 1]);
-        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-        onBpmChange(Math.min(300, Math.max(30, Math.round(60000 / avgInterval))));
-      }
-    }
-    setLastTap(now);
-  };
-
-  return (
-    <button
-      onClick={handleTap}
-      className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-        flash ? 'bg-[var(--theme-primary)] text-black scale-95' : 'bg-white/10 text-white'
-      }`}
-    >
-      TAP
-    </button>
-  );
-}
+// TapTempo imported from ../shared/TapTempo
 
 // ============================================================
 // Modifier Card Component

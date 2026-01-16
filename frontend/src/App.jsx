@@ -21,6 +21,7 @@ import Looks from './views/Looks';
 import CueStacks from './views/CueStacks';
 import Effects from './views/Effects';
 import Shows from './views/Shows';
+import Library from './views/Library';
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
 import MidiPad from './views/MidiPad';
@@ -71,6 +72,7 @@ function AppRoutes() {
       <Route path="/cue-stacks" element={<CueStacks />} />
       <Route path="/effects" element={<Effects />} />
       <Route path="/shows" element={<Shows />} />
+      <Route path="/library" element={<Library />} />
       <Route path="/schedules" element={<Schedules />} />
       <Route path="/timers" element={<Timers />} />
       <Route path="/midi-pad" element={<MidiPad />} />

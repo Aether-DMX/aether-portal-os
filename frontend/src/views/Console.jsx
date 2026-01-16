@@ -68,22 +68,10 @@ export default function Console() {
     setIsBlackout(false);
   }, [blackoutAll, stopScene, activeChase, stopChase]);
 
-  // Scene click -> open modal
-  const handleSceneClick = (scene) => {
+  // Scene click -> open ApplyTargetModal for universe selection
+  const handleSceneClick = useCallback((scene) => {
     setPendingScene(scene);
-  };
-
-  // Direct scene play (temporary test - bypass modal)
-  const handleDirectScenePlay = useCallback(async (scene) => {
-    try {
-      const sceneId = scene.scene_id || scene.id;
-      console.log('🎬 Direct scene play:', scene.name, sceneId);
-      await playScene(sceneId, 1000); // 1 second fade, all universes
-      setIsBlackout(false);
-    } catch (e) {
-      console.error('Failed to play scene:', e);
-    }
-  }, [playScene]);
+  }, []);
 
   // Apply scene from modal (uses ApplyTargetModal interface)
   const handleApplyScene = useCallback(async (scene, options) => {
@@ -331,7 +319,7 @@ export default function Console() {
                     return (
                       <button
                         key={item.scene_id || item.chase_id || item.id}
-                        onClick={() => isScene ? handleDirectScenePlay(item) : handlePlayChase(item)}
+                        onClick={() => isScene ? handleSceneClick(item) : handlePlayChase(item)}
                         className={`rounded-xl font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] flex flex-col items-center justify-center gap-1 relative overflow-hidden ${
                           isActive ? 'ring-2 ring-white' : ''
                         }`}

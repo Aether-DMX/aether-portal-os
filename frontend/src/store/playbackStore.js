@@ -4,6 +4,26 @@ import axios from 'axios';
 const getAetherCore = () => `http://${window.location.hostname}:8891`;
 
 /**
+ * @deprecated LEGACY STORE - Use unifiedPlaybackStore.js instead
+ *
+ * Migration Status: DEPRECATED (January 2026)
+ * Target: unifiedPlaybackStore.js
+ *
+ * This store is being phased out in favor of unifiedPlaybackStore which provides:
+ * - Session management (pause/resume/restore)
+ * - Unified API endpoints (/api/unified/*)
+ * - Comprehensive engine state (fps, frameCount)
+ * - Session restore on reload
+ *
+ * DO NOT ADD NEW REFERENCES TO THIS STORE.
+ * Existing references will be migrated incrementally.
+ *
+ * See: docs/ARCHITECTURAL_TRIAGE.md for migration guide
+ *
+ * ============================================================
+ * ORIGINAL DOCUMENTATION (preserved for reference):
+ * ============================================================
+ *
  * Unified Playback Store - Single Source of Truth (SSOT)
  *
  * Only ONE scene OR chase can be active at a time (per universe),

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sliders, Sparkles } from 'lucide-react';
+import { Sliders, Sparkles, Library } from 'lucide-react';
 import useDMXStore from '../store/dmxStore';
 // Import custom icons
 import scenesIcon from '../assets/icons/Scenes_Icon.png';
@@ -11,9 +11,9 @@ import settingsIcon from '../assets/icons/Settings_Icon.png';
 const dockItems = [
   { id: 'blackout', emoji: '⏻', label: 'Blackout', action: 'blackout' },
   { id: 'faders', icon: Sliders, label: 'Faders', path: '/faders' },
+  { id: 'library', icon: Library, label: 'Library', path: '/library' },
   { id: 'scenes', img: scenesIcon, label: 'Scenes', path: '/scenes' },
   { id: 'chases', img: chasesIcon, label: 'Chases', path: '/chases' },
-  { id: 'effects', icon: Sparkles, label: 'Effects', path: '/effects' },
   { id: 'aether', img: aiIcon, label: 'Aether AI', action: 'openAI', accent: true },
   { id: 'more', img: settingsIcon, label: 'More', path: '/more' },
 ];
@@ -34,7 +34,7 @@ export default function Dock() {
   };
 
   // Don't show dock on certain pages (fullscreen views)
-  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/effects', '/faders', '/chat'];
+  const hiddenPaths = ['/aether-ai', '/console', '/scenes', '/chases', '/effects', '/faders', '/chat', '/library'];
   if (hiddenPaths.includes(location.pathname)) {
     return null;
   }

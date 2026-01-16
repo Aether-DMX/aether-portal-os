@@ -23,6 +23,63 @@ const log = (...args) => DEBUG_MODAL && console.log('[ApplyTargetModal]', ...arg
 const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
 const AETHER_CORE_URL = `http://${window.location.hostname}:8891`;
 
+// ============================================================
+// Target Memory - Remembers user's last-used targets
+// ============================================================
+const TARGET_MEMORY_KEY = 'aether-target-memory';
+const TARGET_MEMORY_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Load saved targets from localStorage
+ * @returns {object|null} Saved targets or null if none/expired
+ */
+function loadTargetMemory() {
+  try {
+    const stored = localStorage.getItem(TARGET_MEMORY_KEY);
+    if (!stored) return null;
+
+    const data = JSON.parse(stored);
+
+    // Check expiry
+    if (data.timestamp && Date.now() - data.timestamp > TARGET_MEMORY_EXPIRY_MS) {
+      localStorage.removeItem(TARGET_MEMORY_KEY);
+      return null;
+    }
+
+    return data;
+  } catch (e) {
+    log('Failed to load target memory:', e);
+    return null;
+  }
+}
+
+/**
+ * Save targets to localStorage
+ * @param {object} targets - Targets to save
+ */
+function saveTargetMemory(targets) {
+  try {
+    const data = {
+      ...targets,
+      timestamp: Date.now(),
+      useCount: (loadTargetMemory()?.useCount || 0) + 1,
+    };
+    localStorage.setItem(TARGET_MEMORY_KEY, JSON.stringify(data));
+    log('Saved target memory:', data);
+  } catch (e) {
+    log('Failed to save target memory:', e);
+  }
+}
+
+/**
+ * Check if user has consistent target preferences (3+ uses of same targets)
+ * @returns {boolean}
+ */
+function hasConsistentPreferences() {
+  const memory = loadTargetMemory();
+  return memory && memory.useCount >= 3;
+}
+
 /**
  * Mode configurations for different action types
  */
@@ -135,6 +192,10 @@ const ApplyTargetModal = ({
     return tabs;
   }, [config]);
 
+  // Load saved target memory
+  const savedTargets = useMemo(() => loadTargetMemory(), []);
+  const hasSavedTargets = savedTargets && savedTargets.universes?.length > 0;
+
   // State
   const [activeTab, setActiveTab] = useState('universes');
   const [selectedUniverses, setSelectedUniverses] = useState(defaultTargets.universes || []);
@@ -144,6 +205,7 @@ const ApplyTargetModal = ({
   const [groups, setGroups] = useState([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [expandedUniverse, setExpandedUniverse] = useState(null);
+  const [usedLastTargets, setUsedLastTargets] = useState(false);
 
   // Log on mount
   useEffect(() => {
@@ -248,16 +310,28 @@ const ApplyTargetModal = ({
   // Quick actions
   const selectAllUniverses = () => {
     setSelectedUniverses(universeInfo.map(u => u.universe));
+    setUsedLastTargets(false);
   };
 
   const selectOnlineOnly = () => {
     setSelectedUniverses(
       universeInfo.filter(u => u.isOnline && u.hasPairedFixture).map(u => u.universe)
     );
+    setUsedLastTargets(false);
   };
 
   const selectNone = () => {
     setSelectedUniverses([]);
+    setUsedLastTargets(false);
+  };
+
+  // Apply last-used targets
+  const selectLastUsed = () => {
+    if (!savedTargets) return;
+    if (savedTargets.universes) setSelectedUniverses(savedTargets.universes);
+    if (savedTargets.fadeMs) setFadeMs(savedTargets.fadeMs);
+    setUsedLastTargets(true);
+    log('Applied last-used targets:', savedTargets);
   };
 
   // Compute affected universes based on current selection mode
@@ -348,6 +422,13 @@ const ApplyTargetModal = ({
       channelsByUniverse: groupChannelsByUniverse
     };
 
+    // Save targets to memory for future use
+    saveTargetMemory({
+      universes: affectedUniverses,
+      fadeMs,
+      scope: activeTab,
+    });
+
     log('CALLING onConfirm with:', { item: item?.name || item?.id, options });
 
     try {
@@ -436,6 +517,19 @@ const ApplyTargetModal = ({
           <div className="space-y-4">
             {/* Quick Actions */}
             <div className="flex gap-2">
+              {hasSavedTargets && (
+                <button
+                  onClick={selectLastUsed}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-colors ${
+                    usedLastTargets
+                      ? 'bg-[var(--theme-primary)]/20 text-[var(--theme-primary)] border border-[var(--theme-primary)]'
+                      : 'bg-[var(--theme-primary)]/10 text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/20'
+                  }`}
+                  title={`Last used: U${savedTargets.universes?.join(', U')}`}
+                >
+                  Last Used
+                </button>
+              )}
               <button
                 onClick={selectAllUniverses}
                 className="flex-1 py-2 px-3 rounded-xl bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10 transition-colors"
@@ -726,5 +820,8 @@ export const useAISuggestionModal = (onApply) => {
 
   return { openAISuggestion, AISuggestionModal };
 };
+
+// Export target memory utilities for use in other components (e.g., CommandPalette)
+export { loadTargetMemory, saveTargetMemory, hasConsistentPreferences };
 
 export default ApplyTargetModal;
