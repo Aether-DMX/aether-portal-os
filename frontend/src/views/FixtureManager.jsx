@@ -14,11 +14,13 @@ import {
   ArrowLeft, Plus, Search, Download, Wifi, WifiOff, Zap, Trash2,
   ChevronRight, Lightbulb, Settings, Database, RefreshCw, Check
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import useToastStore from '../store/toastStore';
 import useFixtureStore from '../store/fixtureStore';
 import useFixtureLibraryStore from '../store/fixtureLibraryStore';
 import useRdmStore from '../store/rdmStore';
 import useNodeStore from '../store/nodeStore';
+
+// Use global toast store
 
 // Category icons and colors
 const CATEGORY_CONFIG = {
@@ -32,6 +34,7 @@ const CATEGORY_CONFIG = {
 
 export default function FixtureManager() {
   const navigate = useNavigate();
+  const toast = useToastStore();
 
   // Stores
   const { fixtures, fetchFixtures, addFixture, removeFixture } = useFixtureStore();

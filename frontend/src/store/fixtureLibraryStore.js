@@ -6,7 +6,9 @@
  */
 
 import { create } from 'zustand';
-import api from '../api/dmxApi';
+import axios from 'axios';
+
+const getAetherCore = () => `http://${window.location.hostname}:8891`;
 
 const useFixtureLibraryStore = create((set, get) => ({
   // State
@@ -23,7 +25,7 @@ const useFixtureLibraryStore = create((set, get) => ({
       const url = category
         ? `/api/fixture-library/profiles?category=${category}`
         : '/api/fixture-library/profiles';
-      const response = await api.get(url);
+      const response = await axios.get(getAetherCore() + url);
       set({ profiles: response.data, loading: false });
       return response.data;
     } catch (error) {
@@ -35,7 +37,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   // Get single profile with full details
   getProfile: async (profileId) => {
     try {
-      const response = await api.get(`/api/fixture-library/profiles/${profileId}`);
+      const response = await axios.get(getAetherCore() + `/api/fixture-library/profiles/${profileId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to get profile:', error);
@@ -46,7 +48,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   // Create custom profile
   createProfile: async (profileData) => {
     try {
-      const response = await api.post('/api/fixture-library/profiles', profileData);
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/profiles', profileData);
       if (response.data.success) {
         get().fetchProfiles();
       }
@@ -64,7 +66,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   // Fetch OFL manufacturers
   fetchOFLManufacturers: async () => {
     try {
-      const response = await api.get('/api/fixture-library/ofl/manufacturers');
+      const response = await axios.get(getAetherCore() + '/api/fixture-library/ofl/manufacturers');
       set({ oflManufacturers: response.data });
       return response.data;
     } catch (error) {
@@ -80,7 +82,7 @@ const useFixtureLibraryStore = create((set, get) => ({
       return [];
     }
     try {
-      const response = await api.get(`/api/fixture-library/ofl/search?q=${encodeURIComponent(query)}`);
+      const response = await axios.get(getAetherCore() + `/api/fixture-library/ofl/search?q=${encodeURIComponent(query)}`);
       set({ oflSearchResults: response.data });
       return response.data;
     } catch (error) {
@@ -93,7 +95,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   importFromOFL: async (manufacturer, fixture) => {
     set({ loading: true });
     try {
-      const response = await api.post('/api/fixture-library/ofl/import', {
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/ofl/import', {
         manufacturer,
         fixture
       });
@@ -116,7 +118,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   // Auto-configure fixture from RDM device
   autoConfigureFromRDM: async (rdmUid) => {
     try {
-      const response = await api.post('/api/fixture-library/rdm/auto-configure', {
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/rdm/auto-configure', {
         rdm_uid: rdmUid
       });
       return response.data;
@@ -133,7 +135,7 @@ const useFixtureLibraryStore = create((set, get) => ({
   // Apply color to fixtures
   applyColorToFixtures: async (fixtureIds, color, fadeMs = 0, universe = 1) => {
     try {
-      const response = await api.post('/api/fixture-library/apply-color', {
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/apply-color', {
         fixture_ids: fixtureIds,
         color, // { r, g, b, w, dimmer }
         fade_ms: fadeMs,
