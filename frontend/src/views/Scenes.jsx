@@ -4,10 +4,12 @@ import { ArrowLeft, Plus, Play, Trash2, Edit3, X, Sparkles, ChevronLeft, Chevron
 import useSceneStore from '../store/sceneStore';
 import useDMXStore from '../store/dmxStore';
 import usePlaybackStore from '../store/playbackStore';
+import useFavoritesStore from '../store/favoritesStore';
 import ApplyTargetModal from '../components/ApplyTargetModal';
 import SceneEditor from '../components/common/SceneEditor';
 import ContextMenu, { sceneContextMenu } from '../components/desktop/ContextMenu';
 import { useDesktop } from '../components/desktop/DesktopShell';
+import useToastStore from '../store/toastStore';
 
 // Helper to get RGB from scene channels (assumes RGB on channels 1,2,3)
 function getSceneColor(scene) {
@@ -540,7 +542,17 @@ function DesktopScenesView({
             onEdit: handleEdit,
             onDuplicate: handleDuplicate,
             onDelete: handleDelete,
-            onAddToQuick: () => {}, // TODO: implement
+            onAddToQuick: (s) => {
+              const { addQuickScene, isQuickScene, removeQuickScene } = useFavoritesStore.getState();
+              const sceneId = s.scene_id || s.id;
+              if (isQuickScene(sceneId)) {
+                removeQuickScene(sceneId);
+                useToastStore.getState().info(`Removed "${s.name}" from Quick Scenes`);
+              } else {
+                addQuickScene(sceneId);
+                useToastStore.getState().success(`Added "${s.name}" to Quick Scenes`);
+              }
+            }
           })}
           onClose={() => setDesktopContextMenu(null)}
         />

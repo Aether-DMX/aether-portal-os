@@ -16,14 +16,11 @@ import SchedulesMenu from './views/SchedulesMenu';
 import Faders from './views/Faders';
 import ViewLive from './views/ViewLive';
 import Scenes from './views/Scenes';
-// import Groups from './views/Groups'; // Deprecated
 import Chases from './views/Chases';
 import Looks from './views/Looks';
 import CueStacks from './views/CueStacks';
 import Effects from './views/Effects';
 import Shows from './views/Shows';
-// import PatchFixtures from './views/PatchFixtures'; // Deprecated
-// import GroupFixtures from './views/GroupFixtures'; // Deprecated
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
 import MidiPad from './views/MidiPad';
@@ -43,6 +40,8 @@ import useBackgroundStore from './store/backgroundStore';
 import useAuthStore from './store/authStore';
 import useAIStore from './store/aiStore';
 import { useFixtureStore } from './store/fixtureStore';
+import useIntentContextStore, { ViewContext } from './store/intentContextStore';
+import useUnifiedPlaybackStore from './store/unifiedPlaybackStore';
 import AetherBackground from './components/AetherBackground';
 import ToastContainer from './components/Toast';
 import AetherSplash from './components/AetherSplash';
@@ -277,8 +276,19 @@ function App() {
       useFixtureStore.getState().fetchFixtures();
       usePixelArrayStore.getState().initialize();
 
+      // Initialize unified playback store
+      useUnifiedPlaybackStore.getState().fetchStatus();
+      useUnifiedPlaybackStore.getState().loadLastSession();
+      useUnifiedPlaybackStore.getState().startPolling(2000);
+
+      // Initialize intent context store
+      useIntentContextStore.getState().updateSuggestions();
+
       const nodeInterval = setInterval(fetchNodes, 10000);
-      return () => clearInterval(nodeInterval);
+      return () => {
+        clearInterval(nodeInterval);
+        useUnifiedPlaybackStore.getState().stopPolling();
+      };
     }
   }, [settingsLoaded, initScenes, initChases, fetchNodes]);
 
