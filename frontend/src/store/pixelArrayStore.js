@@ -19,8 +19,10 @@ const usePixelArrayStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await axios.get(getAetherCore() + '/api/pixel-arrays');
-      set({ pixelArrays: res.data || {}, loading: false });
-      console.log('✅ Loaded', Object.keys(res.data || {}).length, 'pixel arrays');
+      // API returns { count: N, pixel_arrays: { id: data, ... } }
+      const arrays = res.data?.pixel_arrays || {};
+      set({ pixelArrays: arrays, loading: false });
+      console.log('✅ Loaded', Object.keys(arrays).length, 'pixel arrays');
     } catch (e) {
       console.error('❌ Failed to fetch pixel arrays:', e);
       set({ loading: false, error: e.message });
