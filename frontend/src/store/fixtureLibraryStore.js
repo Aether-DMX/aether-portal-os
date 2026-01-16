@@ -148,6 +148,36 @@ const useFixtureLibraryStore = create((set, get) => ({
     }
   },
 
+  // Apply a scene to ALL configured fixtures intelligently
+  applySceneToAllFixtures: async (sceneId, fadeMs = 1000, universes = []) => {
+    try {
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/apply-scene-to-all', {
+        scene_id: sceneId,
+        fade_ms: fadeMs,
+        universes
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to apply scene to fixtures:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Apply a color to ALL configured fixtures
+  applyColorToAllFixtures: async (color, fadeMs = 0, universes = []) => {
+    try {
+      const response = await axios.post(getAetherCore() + '/api/fixture-library/apply-color-to-all', {
+        color, // { r, g, b, w, dimmer }
+        fade_ms: fadeMs,
+        universes
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to apply color to all fixtures:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   // ─────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────

@@ -85,6 +85,7 @@ const ApplyTargetModal = ({
   // State
   const [selectedUniverses, setSelectedUniverses] = useState(defaultTargets.universes || []);
   const [fadeMs, setFadeMs] = useState(defaultTargets.fadeMs || 1000);
+  const [applyToAllFixtures, setApplyToAllFixtures] = useState(false);
 
   // Build universe info
   const universeInfo = useMemo(() => {
@@ -131,6 +132,7 @@ const ApplyTargetModal = ({
       fadeMs,
       universes: selectedUniverses,
       mergeMode: 'merge',
+      applyToAllFixtures,
     };
 
     saveTargetMemory({ universes: selectedUniverses, fadeMs });
@@ -199,6 +201,20 @@ const ApplyTargetModal = ({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Apply to All Fixtures Toggle - for scenes */}
+        {mode === 'scene' && (
+          <div className="fixture-toggle-row">
+            <button
+              className={`fixture-toggle ${applyToAllFixtures ? 'active' : ''}`}
+              onClick={() => setApplyToAllFixtures(!applyToAllFixtures)}
+            >
+              <Zap size={14} />
+              <span>Apply to all fixtures</span>
+              {applyToAllFixtures && <Check size={14} className="check" />}
+            </button>
           </div>
         )}
 
@@ -385,6 +401,40 @@ const ApplyTargetModal = ({
         .fade-btn.active {
           background: rgba(255,255,255,0.2);
           color: white;
+        }
+
+        .fixture-toggle-row {
+          margin-bottom: 12px;
+        }
+
+        .fixture-toggle {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.06);
+          border: 2px solid transparent;
+          color: rgba(255,255,255,0.6);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .fixture-toggle:hover {
+          background: rgba(255,255,255,0.1);
+        }
+
+        .fixture-toggle.active {
+          background: rgba(168, 85, 247, 0.15);
+          border-color: #a855f7;
+          color: #a855f7;
+        }
+
+        .fixture-toggle .check {
+          margin-left: auto;
         }
 
         .modal-actions {

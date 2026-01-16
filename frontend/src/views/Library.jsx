@@ -11,6 +11,7 @@ import useChaseStore from '../store/chaseStore';
 import useLookStore from '../store/lookStore';
 import usePlaybackStore from '../store/playbackStore';
 import useUnifiedPlaybackStore from '../store/unifiedPlaybackStore';
+import useFixtureLibraryStore from '../store/fixtureLibraryStore';
 import ApplyTargetModal from '../components/ApplyTargetModal';
 import ContentCreator from '../components/unified/ContentCreator';
 import useToastStore from '../store/toastStore';
@@ -433,6 +434,7 @@ export default function Library() {
     const { playScene } = useSceneStore.getState();
     const { playChase } = useChaseStore.getState();
     const { playLook } = useLookStore.getState();
+    const { applySceneToAllFixtures } = useFixtureLibraryStore.getState();
 
     // Use item from modal or fall back to playModalItem
     const targetItem = item || playModalItem;
@@ -441,22 +443,38 @@ export default function Library() {
     try {
       switch (targetType) {
         case 'scene':
-          await playScene(targetItem.scene_id || targetItem.id, options.fadeMs, {
-            universes: options.universes
-          });
+          // Check if applying to all fixtures intelligently
+          if (options.applyToAllFixtures) {
+            const result = await applySceneToAllFixtures(
+              targetItem.scene_id || targetItem.id,
+              options.fadeMs,
+              options.universes
+            );
+            if (result.success) {
+              toast.success(`Applied to ${result.fixture_count} fixtures`);
+            } else {
+              throw new Error(result.error || 'Failed');
+            }
+          } else {
+            await playScene(targetItem.scene_id || targetItem.id, options.fadeMs, {
+              universes: options.universes
+            });
+            toast.success(`Playing ${targetItem.name}`);
+          }
           break;
         case 'chase':
           await playChase(targetItem.chase_id || targetItem.id, {
             universes: options.universes
           });
+          toast.success(`Playing ${targetItem.name}`);
           break;
         case 'look':
           await playLook(targetItem.look_id || targetItem.id, {
             universes: options.universes
           });
+          toast.success(`Playing ${targetItem.name}`);
           break;
       }
-      toast.success(`Playing ${targetItem.name}`);
     } catch (err) {
       console.error('Playback failed:', err);
       toast.error('Playback failed');
