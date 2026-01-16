@@ -429,30 +429,36 @@ export default function Library() {
     }
   };
 
-  const handlePlayConfirm = async (options) => {
+  const handlePlayConfirm = async (item, options) => {
     const { playScene } = useSceneStore.getState();
     const { playChase } = useChaseStore.getState();
     const { playLook } = useLookStore.getState();
 
+    // Use item from modal or fall back to playModalItem
+    const targetItem = item || playModalItem;
+    const targetType = playModalType;
+
     try {
-      switch (playModalType) {
+      switch (targetType) {
         case 'scene':
-          await playScene(playModalItem.scene_id || playModalItem.id, options.fadeMs, {
+          await playScene(targetItem.scene_id || targetItem.id, options.fadeMs, {
             universes: options.universes
           });
           break;
         case 'chase':
-          await playChase(playModalItem.chase_id || playModalItem.id, {
+          await playChase(targetItem.chase_id || targetItem.id, {
             universes: options.universes
           });
           break;
         case 'look':
-          await playLook(playModalItem.look_id || playModalItem.id, {
+          await playLook(targetItem.look_id || targetItem.id, {
             universes: options.universes
           });
           break;
       }
+      toast.success(`Playing ${targetItem.name}`);
     } catch (err) {
+      console.error('Playback failed:', err);
       toast.error('Playback failed');
     }
     setPlayModalItem(null);
