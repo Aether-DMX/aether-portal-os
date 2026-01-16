@@ -27,6 +27,7 @@ import Shows from './views/Shows';
 import Schedules from './views/Schedules';
 import Timers from './views/Timers';
 import MidiPad from './views/MidiPad';
+import PixelArrays from './views/PixelArrays';
 import NodeManagement from './components/NodeManagement';
 import MoreMenu from './views/MoreMenu';
 import ZoneDetail from './views/ZoneDetail';
@@ -36,6 +37,7 @@ import useUIStore from './store/uiStore';
 import useSceneStore from './store/sceneStore';
 import useChaseStore from './store/chaseStore';
 import useLookStore from './store/lookStore';
+import usePixelArrayStore from './store/pixelArrayStore';
 import useNodeStore from './store/nodeStore';
 import useBackgroundStore from './store/backgroundStore';
 import useAuthStore from './store/authStore';
@@ -73,6 +75,7 @@ function AppRoutes() {
       <Route path="/schedules" element={<Schedules />} />
       <Route path="/timers" element={<Timers />} />
       <Route path="/midi-pad" element={<MidiPad />} />
+      <Route path="/pixel-arrays" element={<PixelArrays />} />
       <Route path="/nodes" element={<NodeManagement />} />
       <Route path="/more" element={<MoreMenu />} />
       <Route path="/zone/:nodeId" element={<ZoneDetail />} />
@@ -272,6 +275,7 @@ function App() {
       initLooks();
       fetchNodes();
       useFixtureStore.getState().fetchFixtures();
+      usePixelArrayStore.getState().initialize();
 
       const nodeInterval = setInterval(fetchNodes, 10000);
       return () => clearInterval(nodeInterval);

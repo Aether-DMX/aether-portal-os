@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home, Sliders, Image, Zap, Layers, Film, Calendar, Timer,
-  Box, Settings, Users, ChevronLeft, ChevronRight, Sparkles, Radio
+  Box, Settings, Users, ChevronLeft, ChevronRight, Sparkles, Radio, Grid3X3
 } from 'lucide-react';
 
 const navSections = [
@@ -14,6 +14,7 @@ const navSections = [
       { path: '/chases', icon: Zap, label: 'Chases', shortcut: '3' },
       { path: '/faders', icon: Sliders, label: 'Faders', shortcut: '4' },
       { path: '/effects', icon: Sparkles, label: 'Effects', shortcut: '5' },
+      { path: '/pixel-arrays', icon: Grid3X3, label: 'Pixel Arrays' },
     ]
   },
   {
